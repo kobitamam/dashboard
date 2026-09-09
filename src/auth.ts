@@ -47,6 +47,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
+        // token.sub carries the user's Mongo _id; every record is scoped to it.
+        session.user.id = token.sub as string;
         session.user.name = token.name;
         session.user.email = token.email as string;
       }

@@ -7,9 +7,11 @@ import Sidebar from "@/components/Sidebar";
 export default function AppShell({
   children,
   userName,
+  alertCount,
 }: {
   children: React.ReactNode;
   userName: string;
+  alertCount: number;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const initials = userName.slice(0, 2);
@@ -17,7 +19,7 @@ export default function AppShell({
   return (
     <div className="flex h-full">
       <aside className="hidden w-64 shrink-0 lg:block">
-        <Sidebar userName={userName} />
+        <Sidebar userName={userName} alertCount={alertCount} />
       </aside>
 
       {mobileOpen && (
@@ -27,7 +29,11 @@ export default function AppShell({
             onClick={() => setMobileOpen(false)}
           />
           <div className="absolute inset-y-0 right-0 w-64">
-            <Sidebar userName={userName} onNavigate={() => setMobileOpen(false)} />
+            <Sidebar
+              userName={userName}
+              alertCount={alertCount}
+              onNavigate={() => setMobileOpen(false)}
+            />
           </div>
         </div>
       )}

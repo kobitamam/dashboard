@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { alerts } from "@/lib/mock-data";
 
 const navItems = [
   { href: "/dashboard", label: "דשבורד", icon: HomeIcon },
@@ -16,12 +15,13 @@ const navItems = [
 export default function Sidebar({
   onNavigate,
   userName,
+  alertCount,
 }: {
   onNavigate?: () => void;
   userName: string;
+  alertCount: number;
 }) {
   const pathname = usePathname();
-  const alertCount = alerts.length;
   const initials = userName.slice(0, 2);
 
   return (
