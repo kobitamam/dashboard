@@ -1,210 +1,157 @@
 import Link from "next/link";
-import { Card, PageHeader, ProgressBar, StatCard, StatusBadge } from "@/components/ui";
-import {
-  alerts,
-  cases,
-  clients,
-  invoices,
-  recentEmails,
-  todayEvents,
-} from "@/lib/mock-data";
 
-export default function Dashboard() {
-  const overdueAmount = invoices
-    .filter((i) => i.status === "באיחור")
-    .reduce((sum, i) => sum + i.amount, 0);
-  const pendingAmount = invoices
-    .filter((i) => i.status === "ממתין לתשלום")
-    .reduce((sum, i) => sum + i.amount, 0);
-  const activeClients = clients.filter((c) => c.status === "פעיל").length;
-  const openCases = cases.filter((c) => c.status !== "הושלם").length;
-  const urgentCases = cases.filter((c) => c.status === "דחוף");
+const features = [
+  {
+    title: "ריכוז לקוחות",
+    description: "כל הלקוחות, פרטי הקשר וההיסטוריה שלהם במקום אחד, מסונכרן ומעודכן.",
+    icon: UsersIcon,
+  },
+  {
+    title: "מעקב תיקים",
+    description: "לוח תיקים חיה לפי סטטוס - מה בתהליך, מה דחוף ומה ממתין למידע מהלקוח.",
+    icon: FolderIcon,
+  },
+  {
+    title: "גבייה",
+    description: "מעקב חשבוניות ותשלומים, עם התראה אוטומטית על חובות בפיגור.",
+    icon: WalletIcon,
+  },
+  {
+    title: "התראות חכמות",
+    description: "המערכת מתריעה על דדליינים מתקרבים, תשלומים שלא התקבלו ומסמכים חסרים.",
+    icon: BellIcon,
+  },
+  {
+    title: "יומן ומייל",
+    description: "אינטגרציה עם Google Calendar ו-Gmail - כל הפגישות והמיילים מקושרים לתיקים.",
+    icon: CalendarIcon,
+  },
+];
 
+export default function LandingPage() {
   return (
-    <div>
-      <PageHeader
-        title="בוקר טוב, תמאם 👋"
-        subtitle="הנה סיכום המצב במשרד שלך להיום"
-      />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="לקוחות פעילים"
-          value={String(activeClients)}
-          hint={`מתוך ${clients.length} לקוחות במערכת`}
-          tone="blue"
-          icon={<UsersMini />}
-        />
-        <StatCard
-          label="תיקים פתוחים"
-          value={String(openCases)}
-          hint={`${urgentCases.length} תיקים דחופים`}
-          tone="cyan"
-          icon={<FolderMini />}
-        />
-        <StatCard
-          label="חובות בפיגור"
-          value={`₪${overdueAmount.toLocaleString()}`}
-          hint="דורש טיפול מיידי"
-          tone="danger"
-          icon={<AlertMini />}
-        />
-        <StatCard
-          label="ממתין לתשלום"
-          value={`₪${pendingAmount.toLocaleString()}`}
-          hint="בטווח התשלום התקין"
-          tone="warning"
-          icon={<WalletMini />}
-        />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">תיקים דחופים</h2>
-            <Link href="/cases" className="text-sm font-medium text-brand-blue hover:underline">
-              כל התיקים ←
-            </Link>
+    <div className="flex min-h-full flex-col">
+      <header className="flex items-center justify-between px-6 py-5 lg:px-16">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-cyan to-brand-blue text-lg font-extrabold text-white shadow-lg shadow-brand-blue/20">
+            TA
           </div>
-          <div className="space-y-3">
-            {cases.slice(0, 4).map((c) => (
-              <div
-                key={c.id}
-                className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+          <div>
+            <p className="text-base font-bold leading-tight text-foreground">TA-Estate</p>
+            <p className="text-xs text-muted">שמאות מקרקעין</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/login"
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-cyan-light"
+          >
+            כניסה
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-xl bg-brand-blue px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+          >
+            הרשמה
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1">
+        <section className="px-6 pb-16 pt-10 lg:px-16">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="inline-block rounded-full bg-brand-cyan-light px-4 py-1.5 text-sm font-semibold text-brand-blue">
+              מערכת ניהול לשמאי מקרקעין
+            </span>
+            <h1 className="mt-6 text-4xl font-extrabold leading-tight text-foreground sm:text-5xl">
+              כל המשרד שלך, במקום אחד
+            </h1>
+            <p className="mt-4 text-lg text-muted">
+              TA-Estate מרכזת עבורך לקוחות, תיקים, גבייה, יומן ומייל - כדי שתתמקד בשומה ולא
+              בניהול.
+            </p>
+            <div className="mt-8 flex items-center justify-center gap-3">
+              <Link
+                href="/register"
+                className="rounded-xl bg-brand-blue px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-blue/20 transition hover:opacity-90"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted">{c.caseNumber}</span>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                    {c.clientName}
-                  </p>
-                  <p className="truncate text-xs text-muted">{c.address}</p>
-                </div>
-                <div className="w-full sm:w-40">
-                  <div className="mb-1 flex items-center justify-between text-xs text-muted">
-                    <span>{c.progress}%</span>
-                    <span>יעד: {c.dueDate}</span>
-                  </div>
-                  <ProgressBar value={c.progress} />
-                </div>
-              </div>
-            ))}
+                התחל בחינם
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-foreground transition hover:bg-background"
+              >
+                כניסה למערכת
+              </Link>
+            </div>
           </div>
-        </Card>
+        </section>
 
-        <Card className="p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">התראות חכמות</h2>
-            <Link href="/alerts" className="text-sm font-medium text-brand-blue hover:underline">
-              הכל ←
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {alerts.slice(0, 4).map((a) => (
-              <div key={a.id} className="flex gap-3 rounded-xl border border-border p-3">
-                <div className="mt-0.5">
-                  <StatusBadge status={a.severity} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{a.title}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted">{a.description}</p>
-                  <p className="mt-1 text-[11px] text-muted">{a.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">היומן שלך היום</h2>
-            <Link href="/calendar" className="text-sm font-medium text-brand-blue hover:underline">
-              יומן מלא ←
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {todayEvents.map((e) => (
-              <div key={e.id} className="flex items-center gap-3 rounded-xl border border-border p-3">
-                <div className="flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-brand-cyan-light text-brand-blue">
-                  <span className="text-sm font-bold">{e.time}</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{e.title}</p>
-                  <p className="text-xs text-muted">{e.type} · {e.location}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">מיילים אחרונים</h2>
-            <Link href="/calendar" className="text-sm font-medium text-brand-blue hover:underline">
-              תיבת דואר ←
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {recentEmails.slice(0, 4).map((m) => (
-              <div key={m.id} className="flex items-start gap-3 rounded-xl border border-border p-3">
-                <span
-                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                    m.unread ? "bg-brand-cyan" : "bg-black/10"
-                  }`}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-foreground">{m.from}</p>
-                    <span className="shrink-0 text-[11px] text-muted">{m.time}</span>
+        <section className="px-6 pb-20 lg:px-16">
+          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((f) => {
+              const Icon = f.icon;
+              return (
+                <div
+                  key={f.title}
+                  className="rounded-2xl border border-border bg-surface p-6 shadow-sm shadow-black/[0.02]"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-cyan-light text-brand-blue">
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <p className="truncate text-xs text-foreground/80">{m.subject}</p>
-                  {m.linkedTo && (
-                    <span className="mt-1 inline-block rounded-full bg-brand-cyan-light px-2 py-0.5 text-[11px] font-medium text-brand-blue">
-                      מקושר לתיק {m.linkedTo}
-                    </span>
-                  )}
+                  <h3 className="mt-4 text-lg font-bold text-foreground">{f.title}</h3>
+                  <p className="mt-2 text-sm text-muted">{f.description}</p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </Card>
-      </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border px-6 py-6 text-center text-sm text-muted lg:px-16">
+        TA-Estate © {new Date().getFullYear()} · תמאם אברהם, שמאי מקרקעין מוסמך
+      </footer>
     </div>
   );
 }
 
-function UsersMini() {
+function UsersIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
       <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
       <path d="M3.5 20c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
-function FolderMini() {
+function FolderIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
       <path d="M3.5 7a1.5 1.5 0 0 1 1.5-1.5h4l1.6 2h8a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 17.5V7Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     </svg>
   );
 }
-function AlertMini() {
+function WalletIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
-      <path d="M12 4 3 19h18L12 4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M12 10v4M12 16.5v.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3" y="6.5" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3 10.5h18" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16.5" cy="14.3" r="1.2" fill="currentColor" />
     </svg>
   );
 }
-function WalletMini() {
+function BellIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
-      <rect x="3" y="6.5" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M3 10.5h18" stroke="currentColor" strokeWidth="1.8" />
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M6 10.5a6 6 0 1 1 12 0c0 3 1 4.5 1.8 5.5H4.2C5 15 6 13.5 6 10.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9.5 18.5a2.5 2.5 0 0 0 5 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3.5" y="5.5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3.5 10h17M8 3.5v4M16 3.5v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

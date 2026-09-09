@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "TA-Estate | דשבורד ניהול",
+  title: "TA-Estate | ניהול משרד שמאות מקרקעין",
   description: "מערכת ניהול לעסק שמאות מקרקעין - TA-Estate",
 };
 
@@ -26,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         className="h-full antialiased"
         style={{ "--font-app": "'Rubik', sans-serif" } as React.CSSProperties}
       >
-        <AppShell>{children}</AppShell>
+        {children}
       </body>
     </html>
   );

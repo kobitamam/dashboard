@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export default function AppShell({
+  children,
+  userName,
+}: {
+  children: React.ReactNode;
+  userName: string;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const initials = userName.slice(0, 2);
 
   return (
     <div className="flex h-full">
       <aside className="hidden w-64 shrink-0 lg:block">
-        <Sidebar />
+        <Sidebar userName={userName} />
       </aside>
 
       {mobileOpen && (
@@ -19,7 +27,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileOpen(false)}
           />
           <div className="absolute inset-y-0 right-0 w-64">
-            <Sidebar onNavigate={() => setMobileOpen(false)} />
+            <Sidebar userName={userName} onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>
       )}
@@ -82,13 +90,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-cyan-light text-sm font-bold text-brand-blue">
-                תא
+                {initials}
               </div>
               <div className="hidden text-right sm:block">
-                <p className="text-sm font-semibold text-foreground">תמאם אברהם</p>
+                <p className="text-sm font-semibold text-foreground">{userName}</p>
                 <p className="text-xs text-muted">מנהל המשרד</p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground/70 hover:bg-background"
+            >
+              התנתקות
+            </button>
           </div>
         </header>
 

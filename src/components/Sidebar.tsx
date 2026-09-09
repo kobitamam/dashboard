@@ -5,17 +5,24 @@ import { usePathname } from "next/navigation";
 import { alerts } from "@/lib/mock-data";
 
 const navItems = [
-  { href: "/", label: "דשבורד", icon: HomeIcon },
-  { href: "/clients", label: "לקוחות", icon: UsersIcon },
-  { href: "/cases", label: "מעקב תיקים", icon: FolderIcon },
-  { href: "/billing", label: "גבייה", icon: WalletIcon },
-  { href: "/alerts", label: "התראות חכמות", icon: BellIcon },
-  { href: "/calendar", label: "יומן ומייל", icon: CalendarIcon },
+  { href: "/dashboard", label: "דשבורד", icon: HomeIcon },
+  { href: "/dashboard/clients", label: "לקוחות", icon: UsersIcon },
+  { href: "/dashboard/cases", label: "מעקב תיקים", icon: FolderIcon },
+  { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
+  { href: "/dashboard/alerts", label: "התראות חכמות", icon: BellIcon },
+  { href: "/dashboard/calendar", label: "יומן ומייל", icon: CalendarIcon },
 ];
 
-export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export default function Sidebar({
+  onNavigate,
+  userName,
+}: {
+  onNavigate?: () => void;
+  userName: string;
+}) {
   const pathname = usePathname();
   const alertCount = alerts.length;
+  const initials = userName.slice(0, 2);
 
   return (
     <div className="flex h-full flex-col bg-brand-blue-dark text-white">
@@ -32,7 +39,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 space-y-1 px-3 py-2">
         {navItems.map((item) => {
           const active =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
             <Link
@@ -70,10 +79,10 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mx-3 mb-4 rounded-xl bg-white/10 p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-cyan text-sm font-bold text-brand-blue-dark">
-            תא
+            {initials}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">תמאם אברהם</p>
+            <p className="truncate text-sm font-semibold">{userName}</p>
             <p className="truncate text-xs text-white/60">שמאי מקרקעין מוסמך</p>
           </div>
         </div>
