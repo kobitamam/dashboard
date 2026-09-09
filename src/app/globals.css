@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f9fb;
+  --surface: #ffffff;
+  --foreground: #0f2438;
+  --muted: #5b7386;
+
+  --brand-blue: #0b4f8a;
+  --brand-blue-dark: #072f52;
+  --brand-cyan: #22b8d6;
+  --brand-cyan-light: #e4f7fb;
+
+  --success: #1f9d6d;
+  --warning: #e0a013;
+  --danger: #d9483f;
+
+  --border: #dce8ee;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-blue-dark: var(--brand-blue-dark);
+  --color-brand-cyan: var(--brand-cyan);
+  --color-brand-cyan-light: var(--brand-cyan-light);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-border: var(--border);
+  --font-sans: var(--font-app);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-app), "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
