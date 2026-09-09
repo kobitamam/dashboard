@@ -1,29 +1,53 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, type Db } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
+const DEFAULT_DB_NAME = "ta-estate";
 
-if (!uri) {
-  throw new Error("Missing MONGODB_URI environment variable");
+export class MissingMongoUriError extends Error {
+  constructor() {
+    super("משתנה הסביבה MONGODB_URI אינו מוגדר");
+    this.name = "MissingMongoUriError";
+  }
 }
 
 declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-let clientPromise: Promise<MongoClient>;
+let cached = globalThis._mongoClientPromise;
 
-if (process.env.NODE_ENV === "development") {
-  if (!global._mongoClientPromise) {
-    global._mongoClientPromise = new MongoClient(uri).connect();
-  }
-  clientPromise = global._mongoClientPromise;
-} else {
-  clientPromise = new MongoClient(uri).connect();
+// A rejected connection must never stay cached, otherwise one transient failure
+// keeps every later request failing until the whole instance is recycled.
+function forget() {
+  cached = undefined;
+  globalThis._mongoClientPromise = undefined;
 }
 
-export default clientPromise;
+export async function getClient(): Promise<MongoClient> {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new MissingMongoUriError();
 
-export async function getDb() {
-  const client = await clientPromise;
-  return client.db();
+  if (!cached) {
+    cached = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+    })
+      .connect()
+      .catch((err) => {
+        forget();
+        throw err;
+      });
+    globalThis._mongoClientPromise = cached;
+  }
+
+  return cached;
+}
+
+export function databaseName(uri = process.env.MONGODB_URI ?? ""): string {
+  const path = uri.split("?")[0].split("/").slice(3).join("/");
+  return path ? decodeURIComponent(path) : DEFAULT_DB_NAME;
+}
+
+export async function getDb(): Promise<Db> {
+  const client = await getClient();
+  return client.db(databaseName());
 }

@@ -14,6 +14,27 @@ export default function LoginPage() {
   );
 }
 
+// A failed sign-in means either wrong credentials or a misconfigured server,
+// and Auth.js reports both identically. Ask the server which one it was.
+async function describeFailure() {
+  try {
+    const res = await fetch("/api/health");
+    const health = await res.json();
+    if (!health.authSecretConfigured) {
+      return "תצורת השרת חסרה: לא הוגדר AUTH_SECRET. פנה למנהל המערכת.";
+    }
+    if (!health.mongoUriConfigured) {
+      return "תצורת השרת חסרה: לא הוגדר MONGODB_URI. פנה למנהל המערכת.";
+    }
+    if (health.database_connection !== "ok") {
+      return "אין כרגע חיבור למסד הנתונים. פנה למנהל המערכת.";
+    }
+  } catch {
+    return "השרת אינו זמין כרגע, נסה שוב מאוחר יותר";
+  }
+  return "אימייל או סיסמה שגויים";
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,12 +54,12 @@ function LoginForm() {
       email,
       password,
       redirect: false,
-    });
+    }).catch(() => ({ error: "RequestFailed" }));
 
     setLoading(false);
 
     if (result?.error) {
-      setError("אימייל או סיסמה שגויים");
+      setError(await describeFailure());
       return;
     }
 

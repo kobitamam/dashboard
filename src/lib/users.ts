@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
+import type { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 
 export type UserDoc = {
-  _id?: string;
+  _id?: ObjectId;
   name: string;
   email: string;
   passwordHash: string;

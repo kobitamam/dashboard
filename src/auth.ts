@@ -18,14 +18,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        const user = await verifyPassword(email, password);
-        if (!user) return null;
+        try {
+          const user = await verifyPassword(email, password);
+          if (!user) return null;
 
-        return {
-          id: String(user._id),
-          name: user.name,
-          email: user.email,
-        };
+          return {
+            id: String(user._id),
+            name: user.name,
+            email: user.email,
+          };
+        } catch (err) {
+          // An unhandled throw here surfaces as a 500 on the callback route
+          // instead of a failed sign-in.
+          console.error("Sign-in failed:", err);
+          return null;
+        }
       },
     }),
   ],
