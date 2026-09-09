@@ -1,6 +1,6 @@
 # TA-Estate | דשבורד ניהול
 
-מוקאפ של מערכת ניהול לעסק שמאות מקרקעין - TA-Estate (תמאם אברהם).
+מוקאפ של מערכת ניהול לעסק שמאות מקרקעין - TA-Estate (תמם אברהם).
 
 בנוי עם Next.js (App Router), TypeScript ו-Tailwind CSS. כל הנתונים במוקאפ הם דמה (mock data) בקובץ `src/lib/mock-data.ts`.
 

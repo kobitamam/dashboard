@@ -109,7 +109,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-border px-6 py-6 text-center text-sm text-muted lg:px-16">
-        TA-Estate © {new Date().getFullYear()} · תמאם אברהם, שמאי מקרקעין מוסמך
+        TA-Estate © {new Date().getFullYear()} · תמם אברהם, שמאי מקרקעין מוסמך
       </footer>
     </div>
   );
