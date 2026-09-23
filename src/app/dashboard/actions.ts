@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import {
   casesRepo,
@@ -9,6 +10,13 @@ import {
 } from "@/lib/db/entities";
 import { requireOwnerId } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
+import {
+  createDownloadUrl,
+  createUploadUrl,
+  deleteObject,
+  getObjectSize,
+  MAX_ATTACHMENT_BYTES,
+} from "@/lib/r2";
 import {
   caseStatuses,
   clientStatuses,
@@ -148,6 +156,79 @@ export async function createEvent(form: FormData) {
 export async function deleteEvent(id: string) {
   const ownerId = await requireOwnerId();
   await eventsRepo.remove(ownerId, id);
+  refresh();
+}
+
+function sanitizeFileName(name: string) {
+  const trimmed = name.trim().slice(-120);
+  // Keep only characters that are safe both as an S3 key segment and on
+  // every downstream OS filesystem when the file is eventually downloaded.
+  return trimmed.replace(/[^\p{L}\p{N}\s.\-_()]/gu, "_") || "קובץ";
+}
+
+export async function requestCaseUploadUrl(
+  caseId: string,
+  fileName: string,
+  contentType: string,
+  size: number,
+) {
+  const ownerId = await requireOwnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc) throw new Error("התיק לא נמצא");
+
+  if (size > MAX_ATTACHMENT_BYTES) {
+    throw new Error(`הקובץ חורג מהגודל המותר (${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB)`);
+  }
+
+  const key = `owners/${ownerId}/cases/${caseId}/${randomUUID()}-${sanitizeFileName(fileName)}`;
+  const url = await createUploadUrl(key, contentType || "application/octet-stream");
+  return { url, key };
+}
+
+export async function confirmCaseUpload(
+  caseId: string,
+  attachment: { key: string; fileName: string; contentType: string },
+) {
+  const ownerId = await requireOwnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc) throw new Error("התיק לא נמצא");
+
+  // Trust R2's own record of what was actually written, not what the
+  // browser claimed before upload - a bypass of the client-side check
+  // would otherwise let an oversized file slip through unnoticed.
+  const actualSize = await getObjectSize(attachment.key);
+  if (actualSize === null) throw new Error("הקובץ לא נמצא באחסון");
+  if (actualSize > MAX_ATTACHMENT_BYTES) {
+    await deleteObject(attachment.key);
+    throw new Error("הקובץ חורג מהגודל המותר");
+  }
+
+  await casesRepo.push(ownerId, caseId, "attachments", {
+    key: attachment.key,
+    fileName: sanitizeFileName(attachment.fileName),
+    size: actualSize,
+    contentType: attachment.contentType || "application/octet-stream",
+    uploadedAt: new Date(),
+  });
+  refresh();
+}
+
+export async function requestCaseDownloadUrl(caseId: string, key: string) {
+  const ownerId = await requireOwnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  const attachment = caseDoc?.attachments?.find((a) => a.key === key);
+  if (!attachment) throw new Error("הקובץ לא נמצא");
+
+  return createDownloadUrl(key, attachment.fileName);
+}
+
+export async function deleteCaseAttachment(caseId: string, key: string) {
+  const ownerId = await requireOwnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc?.attachments?.some((a) => a.key === key)) return;
+
+  await deleteObject(key);
+  await casesRepo.pull(ownerId, caseId, "attachments", { key });
   refresh();
 }
 

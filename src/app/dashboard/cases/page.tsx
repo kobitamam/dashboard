@@ -1,4 +1,13 @@
-import { createCase, deleteCase, updateCaseProgress } from "@/app/dashboard/actions";
+import {
+  confirmCaseUpload,
+  createCase,
+  deleteCase,
+  deleteCaseAttachment,
+  requestCaseDownloadUrl,
+  requestCaseUploadUrl,
+  updateCaseProgress,
+} from "@/app/dashboard/actions";
+import CaseAttachments from "@/components/CaseAttachments";
 import {
   AddRecord,
   DataUnavailable,
@@ -109,6 +118,15 @@ export default async function CasesPage() {
                         עדכון
                       </button>
                     </form>
+
+                    <CaseAttachments
+                      caseId={c.id}
+                      attachments={c.attachments}
+                      requestUploadUrl={requestCaseUploadUrl}
+                      confirmUpload={confirmCaseUpload}
+                      requestDownloadUrl={requestCaseDownloadUrl}
+                      deleteAttachment={deleteCaseAttachment}
+                    />
 
                     <div className="mt-2 flex justify-end">
                       <DeleteButton

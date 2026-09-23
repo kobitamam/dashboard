@@ -24,6 +24,14 @@ export type Client = {
   notes: string;
 };
 
+export type Attachment = {
+  key: string;
+  fileName: string;
+  size: number;
+  contentType: string;
+  uploadedAt: string;
+};
+
 export type Case = {
   id: string;
   caseNumber: string;
@@ -33,6 +41,7 @@ export type Case = {
   status: CaseStatus;
   dueDate: string | null;
   progress: number;
+  attachments: Attachment[];
 };
 
 export type Invoice = {

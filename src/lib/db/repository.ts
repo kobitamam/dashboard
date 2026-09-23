@@ -81,6 +81,35 @@ export class Repository<T extends Document & Owned> {
     return result.matchedCount > 0;
   }
 
+  /** Appends one item to an embedded array field, still scoped to the owner. */
+  async push<K extends keyof T>(ownerId: string, id: string, field: K, item: unknown) {
+    const _id = toObjectId(id);
+    if (!_id) return false;
+    const collection = await this.collection();
+    const result = await collection.updateOne(
+      { _id, ownerId } as unknown as Filter<T>,
+      { $push: { [field]: item }, $set: { updatedAt: new Date() } } as never,
+    );
+    return result.matchedCount > 0;
+  }
+
+  /** Removes every element matching `matcher` from an embedded array field. */
+  async pull<K extends keyof T>(
+    ownerId: string,
+    id: string,
+    field: K,
+    matcher: Record<string, unknown>,
+  ) {
+    const _id = toObjectId(id);
+    if (!_id) return false;
+    const collection = await this.collection();
+    const result = await collection.updateOne(
+      { _id, ownerId } as unknown as Filter<T>,
+      { $pull: { [field]: matcher }, $set: { updatedAt: new Date() } } as never,
+    );
+    return result.matchedCount > 0;
+  }
+
   async remove(ownerId: string, id: string) {
     const _id = toObjectId(id);
     if (!_id) return false;

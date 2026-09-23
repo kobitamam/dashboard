@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { databaseName, getDb } from "@/lib/mongodb";
+import { isR2Configured } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export async function GET() {
     mongoUriConfigured,
     authSecretConfigured,
     database: mongoUriConfigured ? databaseName() : null,
+    // Optional: attachments are disabled, not broken, without R2 configured.
+    r2Configured: isR2Configured(),
   };
 
   if (!mongoUriConfigured) {

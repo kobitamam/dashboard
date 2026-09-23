@@ -1,6 +1,7 @@
 import type { ObjectId, WithId } from "mongodb";
 import { Repository, type Owned } from "@/lib/db/repository";
 import type {
+  Attachment,
   CalendarEvent,
   Case,
   CaseStatus,
@@ -10,6 +11,14 @@ import type {
   Invoice,
   InvoiceStatus,
 } from "@/lib/types";
+
+export type AttachmentDoc = {
+  key: string;
+  fileName: string;
+  size: number;
+  contentType: string;
+  uploadedAt: Date;
+};
 
 export type ClientDoc = Owned & {
   _id?: ObjectId;
@@ -30,6 +39,7 @@ export type CaseDoc = Owned & {
   status: CaseStatus;
   dueDate: Date | null;
   progress: number;
+  attachments?: AttachmentDoc[];
 };
 
 export type InvoiceDoc = Owned & {
@@ -72,6 +82,16 @@ export function toClient(doc: WithId<ClientDoc>): Client {
   };
 }
 
+function toAttachment(doc: AttachmentDoc): Attachment {
+  return {
+    key: doc.key,
+    fileName: doc.fileName,
+    size: doc.size,
+    contentType: doc.contentType,
+    uploadedAt: doc.uploadedAt.toISOString(),
+  };
+}
+
 export function toCase(doc: WithId<CaseDoc>): Case {
   return {
     id: doc._id.toString(),
@@ -82,6 +102,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     status: doc.status,
     dueDate: day(doc.dueDate),
     progress: doc.progress,
+    attachments: (doc.attachments ?? []).map(toAttachment),
   };
 }
 
