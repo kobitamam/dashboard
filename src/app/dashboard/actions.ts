@@ -56,6 +56,22 @@ function oneOf<T extends string>(form: FormData, key: string, allowed: T[], fall
   return allowed.includes(value) ? value : fallback;
 }
 
+// Shared by quotes and cases - matches the columns of the office's existing
+// quotes spreadsheet (גוש/חלקה/תת חלקה/עיר/תיאור/...).
+function propertyDetails(form: FormData) {
+  return {
+    block: text(form, "block"),
+    parcel: text(form, "parcel"),
+    subParcel: text(form, "subParcel"),
+    city: text(form, "city"),
+    description: text(form, "description"),
+    clientEmail: text(form, "clientEmail"),
+    clientPhone: text(form, "clientPhone"),
+    notes: text(form, "notes"),
+    feeNote: text(form, "feeNote"),
+  };
+}
+
 function refresh() {
   revalidatePath("/dashboard", "layout");
 }
@@ -120,6 +136,7 @@ async function createCaseInternal(
     status: oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך"),
     dueDate: date(form, "dueDate"),
     progress: Math.min(100, Math.max(0, number(form, "progress"))),
+    ...propertyDetails(form),
     ...(options?.linkedQuoteId ? { fromQuoteId: options.linkedQuoteId } : {}),
   });
 
@@ -284,11 +301,13 @@ export async function createQuote(form: FormData) {
   const quoteNumber = await nextNumber(ownerId, "Q", new Date());
   await quotesRepo.insert(ownerId, {
     quoteNumber,
+    date: date(form, "date") ?? new Date(),
     clientName,
     address: text(form, "address"),
     type: oneOf<CaseType>(form, "type", caseTypes, "אחר"),
     amount: Math.max(0, number(form, "amount")),
     status: "ממתין לאישור",
+    ...propertyDetails(form),
   });
   refresh();
 }
@@ -388,6 +407,15 @@ export async function approveQuote(quoteId: string) {
   caseForm.set("clientName", quote.clientName);
   caseForm.set("address", quote.address);
   caseForm.set("type", quote.type);
+  caseForm.set("block", quote.block ?? "");
+  caseForm.set("parcel", quote.parcel ?? "");
+  caseForm.set("subParcel", quote.subParcel ?? "");
+  caseForm.set("city", quote.city ?? "");
+  caseForm.set("description", quote.description ?? "");
+  caseForm.set("clientEmail", quote.clientEmail ?? "");
+  caseForm.set("clientPhone", quote.clientPhone ?? "");
+  caseForm.set("notes", quote.notes ?? "");
+  caseForm.set("feeNote", quote.feeNote ?? "");
   const caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
 
   await quotesRepo.update(ownerId, quoteId, {

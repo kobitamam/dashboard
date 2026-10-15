@@ -13,6 +13,7 @@ import type {
   FeePayment,
   Invoice,
   InvoiceStatus,
+  PropertyDetails,
   Quote,
   QuoteStatus,
 } from "@/lib/types";
@@ -38,6 +39,11 @@ export type FeeDoc = {
   payments: FeePaymentDoc[];
 };
 
+// Stored as a flat, all-optional partial so documents written before these
+// fields existed still decode cleanly - toPropertyDetails fills in "" for
+// whatever a given record doesn't have.
+export type PropertyDetailsDoc = Partial<PropertyDetails>;
+
 export type ClientDoc = Owned & {
   _id?: ObjectId;
   name: string;
@@ -48,34 +54,37 @@ export type ClientDoc = Owned & {
   notes: string;
 };
 
-export type CaseDoc = Owned & {
-  _id?: ObjectId;
-  caseNumber: string;
-  clientName: string;
-  address: string;
-  type: string;
-  status: CaseStatus;
-  dueDate: Date | null;
-  progress: number;
-  attachments?: AttachmentDoc[];
-  oneDriveFolderId?: string;
-  oneDriveFolderUrl?: string;
-  fromQuoteId?: string;
-  fee?: FeeDoc | null;
-};
+export type CaseDoc = Owned &
+  PropertyDetailsDoc & {
+    _id?: ObjectId;
+    caseNumber: string;
+    clientName: string;
+    address: string;
+    type: string;
+    status: CaseStatus;
+    dueDate: Date | null;
+    progress: number;
+    attachments?: AttachmentDoc[];
+    oneDriveFolderId?: string;
+    oneDriveFolderUrl?: string;
+    fromQuoteId?: string;
+    fee?: FeeDoc | null;
+  };
 
-export type QuoteDoc = Owned & {
-  _id?: ObjectId;
-  quoteNumber: string;
-  clientName: string;
-  address: string;
-  type: string;
-  amount: number;
-  status: QuoteStatus;
-  draftFile?: AttachmentDoc;
-  signedFile?: AttachmentDoc;
-  linkedCaseId?: string;
-};
+export type QuoteDoc = Owned &
+  PropertyDetailsDoc & {
+    _id?: ObjectId;
+    quoteNumber: string;
+    date?: Date | null;
+    clientName: string;
+    address: string;
+    type: string;
+    amount: number;
+    status: QuoteStatus;
+    draftFile?: AttachmentDoc;
+    signedFile?: AttachmentDoc;
+    linkedCaseId?: string;
+  };
 
 export type InvoiceDoc = Owned & {
   _id?: ObjectId;
@@ -153,8 +162,23 @@ function toFee(doc: FeeDoc | null | undefined): Fee | null {
   };
 }
 
+function toPropertyDetails(doc: PropertyDetailsDoc): PropertyDetails {
+  return {
+    block: doc.block ?? "",
+    parcel: doc.parcel ?? "",
+    subParcel: doc.subParcel ?? "",
+    city: doc.city ?? "",
+    description: doc.description ?? "",
+    clientEmail: doc.clientEmail ?? "",
+    clientPhone: doc.clientPhone ?? "",
+    notes: doc.notes ?? "",
+    feeNote: doc.feeNote ?? "",
+  };
+}
+
 export function toCase(doc: WithId<CaseDoc>): Case {
   return {
+    ...toPropertyDetails(doc),
     id: doc._id.toString(),
     caseNumber: doc.caseNumber,
     clientName: doc.clientName,
@@ -172,8 +196,10 @@ export function toCase(doc: WithId<CaseDoc>): Case {
 
 export function toQuote(doc: WithId<QuoteDoc>): Quote {
   return {
+    ...toPropertyDetails(doc),
     id: doc._id.toString(),
     quoteNumber: doc.quoteNumber,
+    date: day(doc.date),
     clientName: doc.clientName,
     address: doc.address,
     type: doc.type,

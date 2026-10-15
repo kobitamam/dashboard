@@ -21,6 +21,16 @@ export function formatMoney(amount: number) {
   return `₪${amount.toLocaleString("he-IL")}`;
 }
 
+/** Formats גוש/חלקה/תת חלקה compactly, skipping whichever parts are blank. */
+export function formatParcel(block: string, parcel: string, subParcel: string) {
+  const parts = [
+    block && `גוש ${block}`,
+    parcel && `חלקה ${parcel}`,
+    subParcel && `תת חלקה ${subParcel}`,
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
 /** Formats decimal hours as "H:MM", e.g. 2.25 -> "2:15". */
 export function formatDuration(hours: number) {
   const totalMinutes = Math.max(0, Math.round(hours * 60));

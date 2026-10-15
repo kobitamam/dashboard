@@ -20,7 +20,7 @@ import {
 import QuoteFileSlot from "@/components/QuoteFileSlot";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { loadDashboardData } from "@/lib/db/queries";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatParcel } from "@/lib/format";
 import { caseTypes, type QuoteStatus } from "@/lib/types";
 
 const columns: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
@@ -38,10 +38,20 @@ export default async function QuotesPage({
 
   const form = (
     <AddRecord label="+ הצעת מחיר חדשה" action={createQuote}>
-      <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
-      <Field label="כתובת הנכס" name="address" placeholder="רחוב, עיר" />
+      <Field label="תאריך" name="date" type="date" />
+      <Field label="גוש" name="block" />
+      <Field label="חלקה" name="parcel" />
+      <Field label="תת חלקה" name="subParcel" />
+      <Field label="רחוב" name="address" placeholder="רחוב ומספר" />
+      <Field label="עיר" name="city" />
+      <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
       <SelectField label="סוג שומה" name="type" options={caseTypes} defaultValue={caseTypes[0]} />
+      <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
+      <Field label="מייל" name="clientEmail" type="email" />
+      <Field label="טלפון" name="clientPhone" />
       <Field label="סכום ההצעה (₪)" name="amount" type="number" min={0} required />
+      <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
+      <Field label="הערות" name="notes" />
     </AddRecord>
   );
 
@@ -98,13 +108,31 @@ export default async function QuotesPage({
                   <Card key={q.id} className="p-4">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-muted">{q.quoteNumber}</span>
-                      <span className="text-xs font-semibold text-foreground">
-                        {formatMoney(q.amount)}
-                      </span>
+                      <span className="text-xs text-muted">{formatDate(q.date)}</span>
                     </div>
                     <p className="mt-2 text-sm font-semibold text-foreground">{q.clientName}</p>
-                    {q.address && <p className="mt-0.5 text-xs text-muted">{q.address}</p>}
-                    {q.type && <p className="mt-2 text-xs font-medium text-brand-blue">{q.type}</p>}
+                    {(q.clientEmail || q.clientPhone) && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        {[q.clientEmail, q.clientPhone].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                    {(q.address || q.city) && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        {[q.address, q.city].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    {formatParcel(q.block, q.parcel, q.subParcel) && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        {formatParcel(q.block, q.parcel, q.subParcel)}
+                      </p>
+                    )}
+                    {q.description && <p className="mt-1 text-xs font-medium text-brand-blue">{q.description}</p>}
+                    {q.type && <p className="mt-0.5 text-xs text-muted">{q.type}</p>}
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground">{formatMoney(q.amount)}</span>
+                      {q.feeNote && <span className="text-xs text-muted">שכ״ט: {q.feeNote}</span>}
+                    </div>
+                    {q.notes && <p className="mt-1 text-xs text-muted">{q.notes}</p>}
 
                     <div className="mt-3 space-y-1.5">
                       <QuoteFileSlot

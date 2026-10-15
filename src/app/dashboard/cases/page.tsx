@@ -19,7 +19,7 @@ import {
 import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
 import { currentRole, loadDashboardData } from "@/lib/db/queries";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatParcel } from "@/lib/format";
 import { caseStatuses, caseTypes, type CaseStatus } from "@/lib/types";
 
 const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
@@ -39,12 +39,21 @@ export default async function CasesPage({
 
   const form = (
     <AddRecord label="+ תיק חדש" action={createCase}>
-      <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
-      <Field label="כתובת הנכס" name="address" placeholder="רחוב, עיר" />
+      <Field label="גוש" name="block" />
+      <Field label="חלקה" name="parcel" />
+      <Field label="תת חלקה" name="subParcel" />
+      <Field label="רחוב" name="address" placeholder="רחוב ומספר" />
+      <Field label="עיר" name="city" />
+      <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
       <SelectField label="סוג שומה" name="type" options={caseTypes} defaultValue={caseTypes[0]} />
+      <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
+      <Field label="מייל" name="clientEmail" type="email" />
+      <Field label="טלפון" name="clientPhone" />
       <SelectField label="סטטוס" name="status" options={caseStatuses} defaultValue="בתהליך" />
       <Field label="תאריך יעד" name="dueDate" type="date" />
       <Field label="התקדמות (%)" name="progress" type="number" min={0} max={100} defaultValue={0} />
+      <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
+      <Field label="הערות" name="notes" />
     </AddRecord>
   );
 
@@ -104,8 +113,25 @@ export default async function CasesPage({
                       <span className="text-xs text-muted">{formatDate(c.dueDate)}</span>
                     </div>
                     <p className="mt-2 text-sm font-semibold text-foreground">{c.clientName}</p>
-                    {c.address && <p className="mt-0.5 text-xs text-muted">{c.address}</p>}
-                    {c.type && <p className="mt-2 text-xs font-medium text-brand-blue">{c.type}</p>}
+                    {(c.clientEmail || c.clientPhone) && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        {[c.clientEmail, c.clientPhone].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                    {(c.address || c.city) && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        {[c.address, c.city].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    {formatParcel(c.block, c.parcel, c.subParcel) && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        {formatParcel(c.block, c.parcel, c.subParcel)}
+                      </p>
+                    )}
+                    {c.description && <p className="mt-1 text-xs font-medium text-brand-blue">{c.description}</p>}
+                    {c.type && <p className="mt-0.5 text-xs text-muted">{c.type}</p>}
+                    {c.feeNote && <p className="mt-1 text-xs text-muted">שכ״ט: {c.feeNote}</p>}
+                    {c.notes && <p className="mt-1 text-xs text-muted">{c.notes}</p>}
 
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                       {c.oneDriveFolderUrl ? (
