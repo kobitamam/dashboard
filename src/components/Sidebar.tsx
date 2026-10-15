@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/dashboard", label: "דשבורד", icon: HomeIcon },
   { href: "/dashboard/clients", label: "לקוחות", icon: UsersIcon },
-  { href: "/dashboard/quotes", label: "הצעות מחיר", icon: QuoteIcon },
   { href: "/dashboard/cases", label: "מעקב תיקים", icon: FolderIcon },
   { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
   { href: "/dashboard/attendance", label: "שעון נוכחות", icon: ClockIcon },
@@ -15,6 +14,7 @@ const navItems = [
 ];
 
 const partnerOnlyNavItems = [
+  { href: "/dashboard/quotes", label: "הצעות מחיר", icon: QuoteIcon },
   { href: "/dashboard/team", label: "צוות", icon: TeamIcon },
 ];
 

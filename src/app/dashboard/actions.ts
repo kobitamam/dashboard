@@ -11,7 +11,7 @@ import {
   quotesRepo,
 } from "@/lib/db/entities";
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
-import { requirePartnerId, requireOwnerId } from "@/lib/db/queries";
+import { currentRole, requirePartnerId, requireOwnerId } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
 import { createCaseFolder } from "@/lib/onedrive";
 import {
@@ -127,6 +127,9 @@ async function createCaseInternal(
 
   const address = text(form, "address");
   const caseNumber = await nextNumber(ownerId, "TA", new Date());
+  // Fee data is partners-only, so an employee can't set it even by posting
+  // the field directly.
+  const isPartner = (await currentRole()) === "partner";
 
   const caseId = await casesRepo.insert(ownerId, {
     caseNumber,
@@ -137,6 +140,7 @@ async function createCaseInternal(
     dueDate: date(form, "dueDate"),
     progress: Math.min(100, Math.max(0, number(form, "progress"))),
     ...propertyDetails(form),
+    ...(isPartner ? {} : { feeNote: "" }),
     ...(options?.linkedQuoteId ? { fromQuoteId: options.linkedQuoteId } : {}),
   });
 
@@ -293,8 +297,10 @@ export async function deleteCaseAttachment(caseId: string, key: string) {
   refresh();
 }
 
+// Every quote action is partners-only: requirePartnerId rejects an employee
+// session even if it calls the action directly, bypassing the hidden page.
 export async function createQuote(form: FormData) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const clientName = text(form, "clientName");
   if (!clientName) return;
 
@@ -314,7 +320,7 @@ export async function createQuote(form: FormData) {
 }
 
 export async function deleteQuote(id: string) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, id);
   if (quote?.draftFile) await deleteObject(quote.draftFile.key).catch(() => {});
   if (quote?.signedFile) await deleteObject(quote.signedFile.key).catch(() => {});
@@ -323,7 +329,7 @@ export async function deleteQuote(id: string) {
 }
 
 export async function rejectQuote(id: string) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   await quotesRepo.update(ownerId, id, { status: "נדחתה" });
   refresh();
 }
@@ -337,7 +343,7 @@ export async function requestQuoteUploadUrl(
   contentType: string,
   size: number,
 ) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
   if (!quote) throw new Error("ההצעה לא נמצאה");
   if (size > MAX_ATTACHMENT_BYTES) {
@@ -354,7 +360,7 @@ export async function confirmQuoteUpload(
   slot: QuoteFileSlot,
   file: { key: string; fileName: string; contentType: string },
 ) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
   if (!quote) throw new Error("ההצעה לא נמצאה");
 
@@ -383,7 +389,7 @@ export async function confirmQuoteUpload(
 }
 
 export async function requestQuoteDownloadUrl(quoteId: string, slot: QuoteFileSlot) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
   const file = quote?.[slot];
   if (!file) throw new Error("הקובץ לא נמצא");
@@ -396,7 +402,7 @@ export async function requestQuoteDownloadUrl(quoteId: string, slot: QuoteFileSl
  * folder - this is what "quotes -> jobs" means end to end.
  */
 export async function approveQuote(quoteId: string) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
   if (!quote) throw new Error("ההצעה לא נמצאה");
   if (!quote.signedFile) {

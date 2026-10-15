@@ -52,7 +52,9 @@ export default async function CasesPage({
       <SelectField label="סטטוס" name="status" options={caseStatuses} defaultValue="בתהליך" />
       <Field label="תאריך יעד" name="dueDate" type="date" />
       <Field label="התקדמות (%)" name="progress" type="number" min={0} max={100} defaultValue={0} />
-      <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
+      {isPartner && (
+        <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
+      )}
       <Field label="הערות" name="notes" />
     </AddRecord>
   );
@@ -130,7 +132,9 @@ export default async function CasesPage({
                     )}
                     {c.description && <p className="mt-1 text-xs font-medium text-brand-blue">{c.description}</p>}
                     {c.type && <p className="mt-0.5 text-xs text-muted">{c.type}</p>}
-                    {c.feeNote && <p className="mt-1 text-xs text-muted">שכ״ט: {c.feeNote}</p>}
+                    {isPartner && c.feeNote && (
+                      <p className="mt-1 text-xs text-muted">שכ״ט: {c.feeNote}</p>
+                    )}
                     {c.notes && <p className="mt-1 text-xs text-muted">{c.notes}</p>}
 
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">

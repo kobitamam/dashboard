@@ -79,6 +79,7 @@ export async function currentRole(): Promise<"partner" | "employee"> {
  */
 export async function loadDashboardData(): Promise<LoadResult> {
   const ownerId = await requireOwnerId();
+  const isPartner = (await currentRole()) === "partner";
 
   try {
     const [clients, cases, invoices, events, quotes] = await Promise.all([
@@ -86,7 +87,8 @@ export async function loadDashboardData(): Promise<LoadResult> {
       casesRepo.list(ownerId, { dueDate: 1 }),
       invoicesRepo.list(ownerId, { dueDate: 1 }),
       eventsRepo.list(ownerId, { start: 1 }),
-      quotesRepo.list(ownerId),
+      // Quotes are partners-only, so an employee's session never loads them.
+      isPartner ? quotesRepo.list(ownerId) : Promise.resolve([]),
     ]);
 
     return {

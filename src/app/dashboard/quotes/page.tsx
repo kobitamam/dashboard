@@ -19,7 +19,7 @@ import {
 } from "@/components/form";
 import QuoteFileSlot from "@/components/QuoteFileSlot";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
-import { loadDashboardData } from "@/lib/db/queries";
+import { currentRole, loadDashboardData } from "@/lib/db/queries";
 import { formatDate, formatMoney, formatParcel } from "@/lib/format";
 import { caseTypes, type QuoteStatus } from "@/lib/types";
 
@@ -30,6 +30,15 @@ export default async function QuotesPage({
 }: {
   searchParams: Promise<{ type?: string }>;
 }) {
+  if ((await currentRole()) !== "partner") {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
+        <p className="text-base font-semibold text-foreground">אין לך הרשאה לצפות בעמוד זה</p>
+        <p className="mt-2 text-sm text-muted">הצעות מחיר חשופות לשותפים בלבד.</p>
+      </div>
+    );
+  }
+
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const { type: typeFilter } = await searchParams;
