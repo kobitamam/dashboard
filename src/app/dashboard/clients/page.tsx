@@ -8,13 +8,14 @@ import {
   SelectField,
 } from "@/components/form";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
-import { loadDashboardData } from "@/lib/db/queries";
+import { currentRole, loadDashboardData } from "@/lib/db/queries";
 import { formatMoney } from "@/lib/format";
 import { clientStatuses } from "@/lib/types";
 
 export default async function ClientsPage() {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
+  const isPartner = (await currentRole()) === "partner";
   const { clients, cases, invoices } = result.data;
 
   // Derived rather than stored, so the numbers can never go stale.
@@ -66,7 +67,7 @@ export default async function ClientsPage() {
                   <th className="px-4 py-3 font-medium">סוג נכס</th>
                   <th className="px-4 py-3 font-medium">סטטוס</th>
                   <th className="px-4 py-3 font-medium">תיקים פתוחים</th>
-                  <th className="px-4 py-3 font-medium">סה&quot;כ חויב</th>
+                  {isPartner && <th className="px-4 py-3 font-medium">סה&quot;כ חויב</th>}
                   <th className="px-4 py-3 font-medium">טלפון</th>
                   <th className="px-4 py-3 font-medium"></th>
                 </tr>
@@ -90,9 +91,11 @@ export default async function ClientsPage() {
                       <StatusBadge status={c.status} />
                     </td>
                     <td className="px-4 py-3 text-foreground/80">{openCasesFor(c.name)}</td>
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {formatMoney(billedTo(c.name))}
-                    </td>
+                    {isPartner && (
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        {formatMoney(billedTo(c.name))}
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-muted">{c.phone || "—"}</td>
                     <td className="px-4 py-3">
                       <DeleteButton

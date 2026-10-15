@@ -85,9 +85,10 @@ export async function loadDashboardData(): Promise<LoadResult> {
     const [clients, cases, invoices, events, quotes] = await Promise.all([
       clientsRepo.list(ownerId, { name: 1 }),
       casesRepo.list(ownerId, { dueDate: 1 }),
-      invoicesRepo.list(ownerId, { dueDate: 1 }),
+      // Invoices and quotes are partners-only, so an employee's session never
+      // loads them (which also keeps payment alerts and totals off their screens).
+      isPartner ? invoicesRepo.list(ownerId, { dueDate: 1 }) : Promise.resolve([]),
       eventsRepo.list(ownerId, { start: 1 }),
-      // Quotes are partners-only, so an employee's session never loads them.
       isPartner ? quotesRepo.list(ownerId) : Promise.resolve([]),
     ]);
 

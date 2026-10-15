@@ -10,6 +10,7 @@ import { daysUntil, formatDate, formatMoney, formatTime, isSameDay } from "@/lib
 export default async function Dashboard() {
   const session = await auth();
   const firstName = (session?.user?.name || "שלך").split(" ")[0];
+  const isPartner = session?.user?.role === "partner";
 
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
@@ -46,9 +47,11 @@ export default async function Dashboard() {
             לראות איך המערכת נראית מלאה. תמיד אפשר למחוק אותם אחר כך.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <form action={loadDemoData}>
-              <SubmitButton>טען נתוני דוגמה</SubmitButton>
-            </form>
+            {isPartner && (
+              <form action={loadDemoData}>
+                <SubmitButton>טען נתוני דוגמה</SubmitButton>
+              </form>
+            )}
             <Link
               href="/dashboard/clients"
               className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-background"
@@ -83,20 +86,24 @@ export default async function Dashboard() {
           tone="cyan"
           icon={<FolderMini />}
         />
-        <StatCard
-          label="חובות בפיגור"
-          value={formatMoney(overdueAmount)}
-          hint="דורש טיפול מיידי"
-          tone="danger"
-          icon={<AlertMini />}
-        />
-        <StatCard
-          label="ממתין לתשלום"
-          value={formatMoney(pendingAmount)}
-          hint="בטווח התשלום התקין"
-          tone="warning"
-          icon={<WalletMini />}
-        />
+        {isPartner && (
+          <>
+            <StatCard
+              label="חובות בפיגור"
+              value={formatMoney(overdueAmount)}
+              hint="דורש טיפול מיידי"
+              tone="danger"
+              icon={<AlertMini />}
+            />
+            <StatCard
+              label="ממתין לתשלום"
+              value={formatMoney(pendingAmount)}
+              hint="בטווח התשלום התקין"
+              tone="warning"
+              icon={<WalletMini />}
+            />
+          </>
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

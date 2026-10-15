@@ -168,8 +168,9 @@ export async function deleteCase(id: string) {
   refresh();
 }
 
+// Invoices (גבייה) are partners-only, like quotes and fee data.
 export async function createInvoice(form: FormData) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const invoiceNumber = text(form, "invoiceNumber");
   const clientName = text(form, "clientName");
   if (!invoiceNumber || !clientName) return;
@@ -186,13 +187,13 @@ export async function createInvoice(form: FormData) {
 }
 
 export async function markInvoicePaid(id: string) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   await invoicesRepo.update(ownerId, id, { status: "שולם" });
   refresh();
 }
 
 export async function deleteInvoice(id: string) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   await invoicesRepo.remove(ownerId, id);
   refresh();
 }
@@ -474,8 +475,9 @@ export async function removeFeePayment(caseId: string, paymentIndex: number) {
   refresh();
 }
 
+// Seeds invoices too, so it's partners-only.
 export async function loadDemoData() {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   // Guard against a double click turning into two copies of everything.
   const existing = await clientsRepo.count(ownerId);
   if (existing > 0) return;

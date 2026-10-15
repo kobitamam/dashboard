@@ -7,7 +7,6 @@ const navItems = [
   { href: "/dashboard", label: "דשבורד", icon: HomeIcon },
   { href: "/dashboard/clients", label: "לקוחות", icon: UsersIcon },
   { href: "/dashboard/cases", label: "מעקב תיקים", icon: FolderIcon },
-  { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
   { href: "/dashboard/attendance", label: "שעון נוכחות", icon: ClockIcon },
   { href: "/dashboard/alerts", label: "התראות חכמות", icon: BellIcon },
   { href: "/dashboard/calendar", label: "יומן ומייל", icon: CalendarIcon },
@@ -15,6 +14,7 @@ const navItems = [
 
 const partnerOnlyNavItems = [
   { href: "/dashboard/quotes", label: "הצעות מחיר", icon: QuoteIcon },
+  { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
   { href: "/dashboard/team", label: "צוות", icon: TeamIcon },
 ];
 

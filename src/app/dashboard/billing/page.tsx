@@ -8,11 +8,20 @@ import {
   SelectField,
 } from "@/components/form";
 import { Card, PageHeader, StatCard, StatusBadge } from "@/components/ui";
-import { loadDashboardData } from "@/lib/db/queries";
+import { currentRole, loadDashboardData } from "@/lib/db/queries";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import { invoiceStatuses } from "@/lib/types";
 
 export default async function BillingPage() {
+  if ((await currentRole()) !== "partner") {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
+        <p className="text-base font-semibold text-foreground">אין לך הרשאה לצפות בעמוד זה</p>
+        <p className="mt-2 text-sm text-muted">נתוני הגבייה חשופים לשותפים בלבד.</p>
+      </div>
+    );
+  }
+
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const { invoices } = result.data;
