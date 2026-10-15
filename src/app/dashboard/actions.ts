@@ -8,6 +8,7 @@ import {
   eventsRepo,
   invoicesRepo,
 } from "@/lib/db/entities";
+import { disconnect as disconnectOneDriveConnection } from "@/lib/db/onedrive-connection";
 import { requireOwnerId } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
 import {
@@ -156,6 +157,12 @@ export async function createEvent(form: FormData) {
 export async function deleteEvent(id: string) {
   const ownerId = await requireOwnerId();
   await eventsRepo.remove(ownerId, id);
+  refresh();
+}
+
+export async function disconnectOneDrive() {
+  const ownerId = await requireOwnerId();
+  await disconnectOneDriveConnection(ownerId);
   refresh();
 }
 
