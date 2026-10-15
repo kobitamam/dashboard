@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/dashboard", label: "דשבורד", icon: HomeIcon },
   { href: "/dashboard/clients", label: "לקוחות", icon: UsersIcon },
+  { href: "/dashboard/quotes", label: "הצעות מחיר", icon: QuoteIcon },
   { href: "/dashboard/cases", label: "מעקב תיקים", icon: FolderIcon },
   { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
   { href: "/dashboard/alerts", label: "התראות חכמות", icon: BellIcon },
@@ -125,6 +126,25 @@ function UsersIcon({ className }: { className?: string }) {
       <circle cx="17" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="1.8" />
       <path
         d="M15.8 14.7c2.4.3 4.2 2.4 4.2 5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function QuoteIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M6.5 3.5h8l4 4V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 12.5h7M8.5 16h4.5"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

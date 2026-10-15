@@ -26,6 +26,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             id: String(user._id),
             name: user.name,
             email: user.email,
+            // Accounts created before roles existed have none stored; they
+            // were always tenant owners, so they default to partner.
+            role: user.role ?? "partner",
           };
         } catch (err) {
           // An unhandled throw here surfaces as a 500 on the callback route
@@ -42,6 +45,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.name = user.name;
         token.email = user.email;
+        token.role = user.role ?? "partner";
       }
       return token;
     },
@@ -51,6 +55,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.sub as string;
         session.user.name = token.name;
         session.user.email = token.email as string;
+        session.user.role = token.role ?? "partner";
       }
       return session;
     },

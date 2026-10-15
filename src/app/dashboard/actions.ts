@@ -2,15 +2,18 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { nextNumber } from "@/lib/case-number";
 import {
   casesRepo,
   clientsRepo,
   eventsRepo,
   invoicesRepo,
+  quotesRepo,
 } from "@/lib/db/entities";
-import { disconnect as disconnectOneDriveConnection } from "@/lib/db/onedrive-connection";
-import { requireOwnerId } from "@/lib/db/queries";
+import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
+import { requirePartnerId, requireOwnerId } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
+import { createCaseFolder } from "@/lib/onedrive";
 import {
   createDownloadUrl,
   createUploadUrl,
@@ -20,10 +23,12 @@ import {
 } from "@/lib/r2";
 import {
   caseStatuses,
+  caseTypes,
   clientStatuses,
   eventTypes,
   invoiceStatuses,
   type CaseStatus,
+  type CaseType,
   type ClientStatus,
   type EventType,
   type InvoiceStatus,
@@ -77,22 +82,54 @@ export async function deleteClient(id: string) {
   refresh();
 }
 
-export async function createCase(form: FormData) {
-  const ownerId = await requireOwnerId();
-  const caseNumber = text(form, "caseNumber");
-  const clientName = text(form, "clientName");
-  if (!caseNumber || !clientName) return;
+/**
+ * Creates the case's OneDrive folder and stores the link back on it. Kept
+ * best-effort: a case is fully usable without OneDrive, so a failure here is
+ * logged, never thrown back at the caller.
+ */
+async function attachOneDriveFolder(ownerId: string, caseId: string, caseNumber: string, address: string) {
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return;
+    const folder = await createCaseFolder(accessToken, [caseNumber, address].filter(Boolean).join(" - "));
+    await casesRepo.update(ownerId, caseId, {
+      oneDriveFolderId: folder.id,
+      oneDriveFolderUrl: folder.webUrl,
+    });
+  } catch (err) {
+    console.error("Failed to create OneDrive folder for case:", err);
+  }
+}
 
-  await casesRepo.insert(ownerId, {
+async function createCaseInternal(
+  form: FormData,
+  options?: { linkedQuoteId?: string },
+): Promise<string | undefined> {
+  const ownerId = await requireOwnerId();
+  const clientName = text(form, "clientName");
+  if (!clientName) return undefined;
+
+  const address = text(form, "address");
+  const caseNumber = await nextNumber(ownerId, "TA", new Date());
+
+  const caseId = await casesRepo.insert(ownerId, {
     caseNumber,
     clientName,
-    address: text(form, "address"),
-    type: text(form, "type"),
+    address,
+    type: oneOf<CaseType>(form, "type", caseTypes, "אחר"),
     status: oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך"),
     dueDate: date(form, "dueDate"),
     progress: Math.min(100, Math.max(0, number(form, "progress"))),
+    ...(options?.linkedQuoteId ? { fromQuoteId: options.linkedQuoteId } : {}),
   });
+
+  await attachOneDriveFolder(ownerId, caseId, caseNumber, address);
   refresh();
+  return caseId;
+}
+
+export async function createCase(form: FormData): Promise<void> {
+  await createCaseInternal(form);
 }
 
 export async function updateCaseProgress(id: string, form: FormData) {
@@ -236,6 +273,169 @@ export async function deleteCaseAttachment(caseId: string, key: string) {
 
   await deleteObject(key);
   await casesRepo.pull(ownerId, caseId, "attachments", { key });
+  refresh();
+}
+
+export async function createQuote(form: FormData) {
+  const ownerId = await requireOwnerId();
+  const clientName = text(form, "clientName");
+  if (!clientName) return;
+
+  const quoteNumber = await nextNumber(ownerId, "Q", new Date());
+  await quotesRepo.insert(ownerId, {
+    quoteNumber,
+    clientName,
+    address: text(form, "address"),
+    type: oneOf<CaseType>(form, "type", caseTypes, "אחר"),
+    amount: Math.max(0, number(form, "amount")),
+    status: "ממתין לאישור",
+  });
+  refresh();
+}
+
+export async function deleteQuote(id: string) {
+  const ownerId = await requireOwnerId();
+  const quote = await quotesRepo.get(ownerId, id);
+  if (quote?.draftFile) await deleteObject(quote.draftFile.key).catch(() => {});
+  if (quote?.signedFile) await deleteObject(quote.signedFile.key).catch(() => {});
+  await quotesRepo.remove(ownerId, id);
+  refresh();
+}
+
+export async function rejectQuote(id: string) {
+  const ownerId = await requireOwnerId();
+  await quotesRepo.update(ownerId, id, { status: "נדחתה" });
+  refresh();
+}
+
+type QuoteFileSlot = "draftFile" | "signedFile";
+
+export async function requestQuoteUploadUrl(
+  quoteId: string,
+  slot: QuoteFileSlot,
+  fileName: string,
+  contentType: string,
+  size: number,
+) {
+  const ownerId = await requireOwnerId();
+  const quote = await quotesRepo.get(ownerId, quoteId);
+  if (!quote) throw new Error("ההצעה לא נמצאה");
+  if (size > MAX_ATTACHMENT_BYTES) {
+    throw new Error(`הקובץ חורג מהגודל המותר (${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB)`);
+  }
+
+  const key = `owners/${ownerId}/quotes/${quoteId}/${slot}/${randomUUID()}-${sanitizeFileName(fileName)}`;
+  const url = await createUploadUrl(key, contentType || "application/octet-stream");
+  return { url, key };
+}
+
+export async function confirmQuoteUpload(
+  quoteId: string,
+  slot: QuoteFileSlot,
+  file: { key: string; fileName: string; contentType: string },
+) {
+  const ownerId = await requireOwnerId();
+  const quote = await quotesRepo.get(ownerId, quoteId);
+  if (!quote) throw new Error("ההצעה לא נמצאה");
+
+  const actualSize = await getObjectSize(file.key);
+  if (actualSize === null) throw new Error("הקובץ לא נמצא באחסון");
+  if (actualSize > MAX_ATTACHMENT_BYTES) {
+    await deleteObject(file.key);
+    throw new Error("הקובץ חורג מהגודל המותר");
+  }
+
+  const previous = quote[slot];
+  const stored = {
+    key: file.key,
+    fileName: sanitizeFileName(file.fileName),
+    size: actualSize,
+    contentType: file.contentType || "application/octet-stream",
+    uploadedAt: new Date(),
+  };
+  await quotesRepo.update(
+    ownerId,
+    quoteId,
+    slot === "draftFile" ? { draftFile: stored } : { signedFile: stored },
+  );
+  if (previous) await deleteObject(previous.key).catch(() => {});
+  refresh();
+}
+
+export async function requestQuoteDownloadUrl(quoteId: string, slot: QuoteFileSlot) {
+  const ownerId = await requireOwnerId();
+  const quote = await quotesRepo.get(ownerId, quoteId);
+  const file = quote?.[slot];
+  if (!file) throw new Error("הקובץ לא נמצא");
+  return createDownloadUrl(file.key, file.fileName);
+}
+
+/**
+ * Approval is the pipeline's hinge: the quote is marked approved and, in the
+ * same step, a job (case) is created for it with its own auto-numbered
+ * folder - this is what "quotes -> jobs" means end to end.
+ */
+export async function approveQuote(quoteId: string) {
+  const ownerId = await requireOwnerId();
+  const quote = await quotesRepo.get(ownerId, quoteId);
+  if (!quote) throw new Error("ההצעה לא נמצאה");
+  if (!quote.signedFile) {
+    throw new Error("יש להעלות את ההצעה החתומה לפני האישור");
+  }
+  if (quote.linkedCaseId) return;
+
+  const caseForm = new FormData();
+  caseForm.set("clientName", quote.clientName);
+  caseForm.set("address", quote.address);
+  caseForm.set("type", quote.type);
+  const caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
+
+  await quotesRepo.update(ownerId, quoteId, {
+    status: "אושרה",
+    ...(caseId ? { linkedCaseId: caseId } : {}),
+  });
+  refresh();
+}
+
+// Fee data (שכר טרחה) is partners-only - requirePartnerId rejects an
+// employee account even if it somehow reaches this action directly.
+export async function setCaseFee(caseId: string, form: FormData) {
+  const ownerId = await requirePartnerId();
+  const existing = (await casesRepo.get(ownerId, caseId))?.fee;
+  await casesRepo.update(ownerId, caseId, {
+    fee: {
+      baseAmount: Math.max(0, number(form, "baseAmount")),
+      successPercentage: Math.max(0, number(form, "successPercentage")),
+      successAmount: Math.max(0, number(form, "successAmount")),
+      payments: existing?.payments ?? [],
+    },
+  });
+  refresh();
+}
+
+export async function addFeePayment(caseId: string, form: FormData) {
+  const ownerId = await requirePartnerId();
+  const amount = number(form, "amount");
+  if (amount <= 0) return;
+
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc?.fee) return;
+
+  const payments = [
+    ...caseDoc.fee.payments,
+    { amount, date: date(form, "date") ?? new Date(), note: text(form, "note") },
+  ];
+  await casesRepo.update(ownerId, caseId, { fee: { ...caseDoc.fee, payments } });
+  refresh();
+}
+
+export async function removeFeePayment(caseId: string, paymentIndex: number) {
+  const ownerId = await requirePartnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc?.fee) return;
+
+  const payments = caseDoc.fee.payments.filter((_, i) => i !== paymentIndex);
+  await casesRepo.update(ownerId, caseId, { fee: { ...caseDoc.fee, payments } });
   refresh();
 }
 

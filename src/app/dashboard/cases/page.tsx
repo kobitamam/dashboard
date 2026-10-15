@@ -16,25 +16,32 @@ import {
   Field,
   SelectField,
 } from "@/components/form";
+import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
-import { loadDashboardData } from "@/lib/db/queries";
+import { currentRole, loadDashboardData } from "@/lib/db/queries";
 import { formatDate } from "@/lib/format";
-import { caseStatuses, type CaseStatus } from "@/lib/types";
+import { caseStatuses, caseTypes, type CaseStatus } from "@/lib/types";
 
 const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
 
-export default async function CasesPage() {
+export default async function CasesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
-  const { cases } = result.data;
+  const { type: typeFilter } = await searchParams;
+  const isPartner = (await currentRole()) === "partner";
+  const allCases = result.data.cases;
+  const cases = typeFilter ? allCases.filter((c) => c.type === typeFilter) : allCases;
   const urgent = cases.filter((c) => c.status === "דחוף").length;
 
   const form = (
     <AddRecord label="+ תיק חדש" action={createCase}>
-      <Field label="מספר תיק" name="caseNumber" required placeholder="TA-1050" />
       <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
       <Field label="כתובת הנכס" name="address" placeholder="רחוב, עיר" />
-      <Field label="סוג שומה" name="type" placeholder="שומה לצרכי מכירה" />
+      <SelectField label="סוג שומה" name="type" options={caseTypes} defaultValue={caseTypes[0]} />
       <SelectField label="סטטוס" name="status" options={caseStatuses} defaultValue="בתהליך" />
       <Field label="תאריך יעד" name="dueDate" type="date" />
       <Field label="התקדמות (%)" name="progress" type="number" min={0} max={100} defaultValue={0} />
@@ -46,12 +53,32 @@ export default async function CasesPage() {
       <PageHeader
         title="מעקב תיקים"
         subtitle={
-          cases.length
-            ? `${cases.length} תיקים במערכת · ${urgent} דחופים`
+          allCases.length
+            ? `${allCases.length} תיקים במערכת · ${urgent} דחופים`
             : "עדיין לא נפתחו תיקים"
         }
-        action={cases.length > 0 ? form : undefined}
+        action={allCases.length > 0 ? form : undefined}
       />
+
+      {allCases.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          <Link
+            href="/dashboard/cases"
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${!typeFilter ? "bg-brand-blue text-white" : "bg-surface text-muted hover:bg-background"}`}
+          >
+            הכל
+          </Link>
+          {caseTypes.map((t) => (
+            <Link
+              key={t}
+              href={`/dashboard/cases?type=${encodeURIComponent(t)}`}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${typeFilter === t ? "bg-brand-blue text-white" : "bg-surface text-muted hover:bg-background"}`}
+            >
+              {t}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {cases.length === 0 ? (
         <EmptyState
@@ -79,6 +106,28 @@ export default async function CasesPage() {
                     <p className="mt-2 text-sm font-semibold text-foreground">{c.clientName}</p>
                     {c.address && <p className="mt-0.5 text-xs text-muted">{c.address}</p>}
                     {c.type && <p className="mt-2 text-xs font-medium text-brand-blue">{c.type}</p>}
+
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                      {c.oneDriveFolderUrl ? (
+                        <a
+                          href={c.oneDriveFolderUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-brand-blue hover:underline"
+                        >
+                          📁 תיקיית התיק ב-OneDrive
+                        </a>
+                      ) : (
+                        <span className="text-muted">
+                          📁 אין תיקיית OneDrive (חבר את OneDrive ביומן)
+                        </span>
+                      )}
+                      {isPartner && (
+                        <Link href={`/dashboard/fees/${c.id}`} className="font-medium text-brand-blue hover:underline">
+                          💰 שכר טרחה
+                        </Link>
+                      )}
+                    </div>
 
                     <div className="mt-3">
                       <div className="mb-1 flex justify-between text-[11px] text-muted">

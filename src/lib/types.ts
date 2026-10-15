@@ -3,6 +3,16 @@ export type CaseStatus = "בתהליך" | "ממתין למידע" | "דחוף" |
 export type InvoiceStatus = "שולם" | "ממתין לתשלום" | "באיחור";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
 export type EventType = "ביקור בנכס" | "פגישת לקוח" | "הגשת שומה" | "שיחת טלפון";
+export type CaseType =
+  | "שומה לצרכי מכירה"
+  | "שומה לצרכי מימון/משכנתא"
+  | "שומה לצרכי מיסוי"
+  | "שומת ירושה"
+  | "שומה לבית משפט/ליטיגציה"
+  | "ייעוץ והשגה"
+  | "אחר";
+export type QuoteStatus = "ממתין לאישור" | "אושרה" | "נדחתה";
+export type Role = "partner" | "employee";
 
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
 export const caseStatuses: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
@@ -13,6 +23,16 @@ export const eventTypes: EventType[] = [
   "הגשת שומה",
   "שיחת טלפון",
 ];
+export const caseTypes: CaseType[] = [
+  "שומה לצרכי מכירה",
+  "שומה לצרכי מימון/משכנתא",
+  "שומה לצרכי מיסוי",
+  "שומת ירושה",
+  "שומה לבית משפט/ליטיגציה",
+  "ייעוץ והשגה",
+  "אחר",
+];
+export const quoteStatuses: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
 
 export type Client = {
   id: string;
@@ -32,6 +52,19 @@ export type Attachment = {
   uploadedAt: string;
 };
 
+export type FeePayment = {
+  amount: number;
+  date: string;
+  note: string;
+};
+
+export type Fee = {
+  baseAmount: number;
+  successPercentage: number;
+  successAmount: number;
+  payments: FeePayment[];
+};
+
 export type Case = {
   id: string;
   caseNumber: string;
@@ -42,6 +75,22 @@ export type Case = {
   dueDate: string | null;
   progress: number;
   attachments: Attachment[];
+  oneDriveFolderUrl: string | null;
+  fromQuoteId: string | null;
+  fee: Fee | null;
+};
+
+export type Quote = {
+  id: string;
+  quoteNumber: string;
+  clientName: string;
+  address: string;
+  type: string;
+  amount: number;
+  status: QuoteStatus;
+  draftFile: Attachment | null;
+  signedFile: Attachment | null;
+  linkedCaseId: string | null;
 };
 
 export type Invoice = {

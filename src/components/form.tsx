@@ -151,6 +151,39 @@ export function DeleteButton({
   );
 }
 
+/** A generic confirm-then-submit button for non-delete actions (approve, reject, ...). */
+export function ConfirmButton({
+  action,
+  confirmText,
+  children,
+  tone = "default",
+}: {
+  action: () => Promise<void>;
+  confirmText?: string;
+  children: React.ReactNode;
+  tone?: "default" | "success" | "danger";
+}) {
+  const toneClass =
+    tone === "success"
+      ? "bg-success/10 text-success hover:bg-success/20"
+      : tone === "danger"
+        ? "text-danger hover:bg-danger/10"
+        : "border border-border text-foreground/70 hover:bg-background";
+
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        if (confirmText && !confirm(confirmText)) e.preventDefault();
+      }}
+    >
+      <button type="submit" className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${toneClass}`}>
+        {children}
+      </button>
+    </form>
+  );
+}
+
 export function DataUnavailable() {
   return (
     <div className="rounded-2xl border border-dashed border-danger/40 bg-surface p-10 text-center">

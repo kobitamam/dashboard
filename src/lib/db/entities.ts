@@ -8,8 +8,12 @@ import type {
   Client,
   ClientStatus,
   EventType,
+  Fee,
+  FeePayment,
   Invoice,
   InvoiceStatus,
+  Quote,
+  QuoteStatus,
 } from "@/lib/types";
 
 export type AttachmentDoc = {
@@ -18,6 +22,19 @@ export type AttachmentDoc = {
   size: number;
   contentType: string;
   uploadedAt: Date;
+};
+
+export type FeePaymentDoc = {
+  amount: number;
+  date: Date;
+  note: string;
+};
+
+export type FeeDoc = {
+  baseAmount: number;
+  successPercentage: number;
+  successAmount: number;
+  payments: FeePaymentDoc[];
 };
 
 export type ClientDoc = Owned & {
@@ -40,6 +57,23 @@ export type CaseDoc = Owned & {
   dueDate: Date | null;
   progress: number;
   attachments?: AttachmentDoc[];
+  oneDriveFolderId?: string;
+  oneDriveFolderUrl?: string;
+  fromQuoteId?: string;
+  fee?: FeeDoc | null;
+};
+
+export type QuoteDoc = Owned & {
+  _id?: ObjectId;
+  quoteNumber: string;
+  clientName: string;
+  address: string;
+  type: string;
+  amount: number;
+  status: QuoteStatus;
+  draftFile?: AttachmentDoc;
+  signedFile?: AttachmentDoc;
+  linkedCaseId?: string;
 };
 
 export type InvoiceDoc = Owned & {
@@ -64,6 +98,7 @@ export const clientsRepo = new Repository<ClientDoc>("clients");
 export const casesRepo = new Repository<CaseDoc>("cases");
 export const invoicesRepo = new Repository<InvoiceDoc>("invoices");
 export const eventsRepo = new Repository<EventDoc>("events");
+export const quotesRepo = new Repository<QuoteDoc>("quotes");
 
 // Server Components hand these to Client Components, so nothing may cross the
 // boundary as an ObjectId or Date.
@@ -92,6 +127,20 @@ function toAttachment(doc: AttachmentDoc): Attachment {
   };
 }
 
+function toFeePayment(doc: FeePaymentDoc): FeePayment {
+  return { amount: doc.amount, date: doc.date.toISOString(), note: doc.note };
+}
+
+function toFee(doc: FeeDoc | null | undefined): Fee | null {
+  if (!doc) return null;
+  return {
+    baseAmount: doc.baseAmount,
+    successPercentage: doc.successPercentage,
+    successAmount: doc.successAmount,
+    payments: (doc.payments ?? []).map(toFeePayment),
+  };
+}
+
 export function toCase(doc: WithId<CaseDoc>): Case {
   return {
     id: doc._id.toString(),
@@ -103,6 +152,24 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     dueDate: day(doc.dueDate),
     progress: doc.progress,
     attachments: (doc.attachments ?? []).map(toAttachment),
+    oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
+    fromQuoteId: doc.fromQuoteId ?? null,
+    fee: toFee(doc.fee),
+  };
+}
+
+export function toQuote(doc: WithId<QuoteDoc>): Quote {
+  return {
+    id: doc._id.toString(),
+    quoteNumber: doc.quoteNumber,
+    clientName: doc.clientName,
+    address: doc.address,
+    type: doc.type,
+    amount: doc.amount,
+    status: doc.status,
+    draftFile: doc.draftFile ? toAttachment(doc.draftFile) : null,
+    signedFile: doc.signedFile ? toAttachment(doc.signedFile) : null,
+    linkedCaseId: doc.linkedCaseId ?? null,
   };
 }
 

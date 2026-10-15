@@ -2,11 +2,16 @@ import bcrypt from "bcryptjs";
 import type { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 
+export type Role = "partner" | "employee";
+
 export type UserDoc = {
   _id?: ObjectId;
   name: string;
   email: string;
   passwordHash: string;
+  // The account that registers is always the tenant's partner; employee
+  // accounts (restricted from fee data) are created by a partner later.
+  role: Role;
   createdAt: Date;
 };
 
@@ -49,6 +54,7 @@ export async function createUser({
     name,
     email: normalizedEmail,
     passwordHash,
+    role: "partner",
     createdAt: new Date(),
   };
   await users.insertOne(doc);

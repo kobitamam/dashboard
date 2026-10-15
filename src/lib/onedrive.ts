@@ -140,3 +140,56 @@ export async function pingAppFolder(accessToken: string): Promise<boolean> {
   });
   return res.ok;
 }
+
+// OneDrive forbids these characters in a folder name (and a trailing dot/space).
+export function sanitizeFolderName(name: string): string {
+  const cleaned = name.replace(/[<>:"/\\|?*]/g, "-").trim().replace(/[. ]+$/, "");
+  return cleaned.slice(0, 255) || "תיקיה";
+}
+
+export type OneDriveFolder = { id: string; webUrl: string };
+
+async function createChildFolder(
+  accessToken: string,
+  parentPath: string,
+  name: string,
+): Promise<OneDriveFolder> {
+  const res = await fetch(`${GRAPH_ROOT}${parentPath}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: sanitizeFolderName(name),
+      folder: {},
+      // Microsoft renames on a clash instead of failing the request outright.
+      "@microsoft.graph.conflictBehavior": "rename",
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`יצירת תיקיה ב-OneDrive נכשלה: ${res.status} ${body}`);
+  }
+
+  const json = await res.json();
+  return { id: json.id, webUrl: json.webUrl };
+}
+
+/**
+ * Creates a folder for a case directly under the app's special OneDrive
+ * folder, plus one starter sub-folder for files. Best-effort by design: a
+ * case is still usable if OneDrive is unreachable, so callers should catch
+ * and log rather than fail the surrounding action.
+ */
+export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
+  const folder = await createChildFolder(accessToken, "/me/drive/special/approot/children", name);
+  await createChildFolder(accessToken, `/me/drive/items/${folder.id}/children`, "מסמכים");
+  return folder;
+}
+
+/** Creates a standalone folder (not tied to a case) directly in the app folder. */
+export async function createCustomFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
+  return createChildFolder(accessToken, "/me/drive/special/approot/children", name);
+}

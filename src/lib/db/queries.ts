@@ -5,18 +5,21 @@ import {
   clientsRepo,
   eventsRepo,
   invoicesRepo,
+  quotesRepo,
   toCase,
   toClient,
   toEvent,
   toInvoice,
+  toQuote,
 } from "@/lib/db/entities";
-import type { CalendarEvent, Case, Client, Invoice } from "@/lib/types";
+import type { CalendarEvent, Case, Client, Invoice, Quote } from "@/lib/types";
 
 export type DashboardData = {
   clients: Client[];
   cases: Case[];
   invoices: Invoice[];
   events: CalendarEvent[];
+  quotes: Quote[];
 };
 
 export type LoadResult =
@@ -29,6 +32,26 @@ export async function requireOwnerId(): Promise<string> {
   return session.user.id;
 }
 
+export class NotAPartnerError extends Error {
+  constructor() {
+    super("פעולה זו מוגבלת לשותפים בלבד");
+    this.name = "NotAPartnerError";
+  }
+}
+
+/** Like requireOwnerId, but also rejects employee accounts (fee data is partners-only). */
+export async function requirePartnerId(): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  if (session.user.role !== "partner") throw new NotAPartnerError();
+  return session.user.id;
+}
+
+export async function currentRole(): Promise<"partner" | "employee"> {
+  const session = await auth();
+  return session?.user?.role ?? "partner";
+}
+
 /**
  * A Server Component that throws on the initial request bypasses error.tsx and
  * renders a bare 500, so an unreachable database is reported as data instead of
@@ -39,11 +62,12 @@ export async function loadDashboardData(): Promise<LoadResult> {
   const ownerId = await requireOwnerId();
 
   try {
-    const [clients, cases, invoices, events] = await Promise.all([
+    const [clients, cases, invoices, events, quotes] = await Promise.all([
       clientsRepo.list(ownerId, { name: 1 }),
       casesRepo.list(ownerId, { dueDate: 1 }),
       invoicesRepo.list(ownerId, { dueDate: 1 }),
       eventsRepo.list(ownerId, { start: 1 }),
+      quotesRepo.list(ownerId),
     ]);
 
     return {
@@ -53,6 +77,7 @@ export async function loadDashboardData(): Promise<LoadResult> {
         cases: cases.map(toCase),
         invoices: invoices.map(toInvoice),
         events: events.map(toEvent),
+        quotes: quotes.map(toQuote),
       },
     };
   } catch (err) {
