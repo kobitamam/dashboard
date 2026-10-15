@@ -21,6 +21,14 @@ export function formatMoney(amount: number) {
   return `₪${amount.toLocaleString("he-IL")}`;
 }
 
+/** Formats decimal hours as "H:MM", e.g. 2.25 -> "2:15". */
+export function formatDuration(hours: number) {
+  const totalMinutes = Math.max(0, Math.round(hours * 60));
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}:${String(m).padStart(2, "0")}`;
+}
+
 export function isSameDay(iso: string, reference: Date) {
   const date = new Date(iso);
   return (

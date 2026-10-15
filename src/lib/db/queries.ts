@@ -60,6 +60,12 @@ export async function currentUserId(): Promise<string> {
   return session.user.id;
 }
 
+export async function currentUserName(): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  return session.user.name || session.user.email || "משתמש";
+}
+
 export async function currentRole(): Promise<"partner" | "employee"> {
   const session = await auth();
   return session?.user?.role ?? "partner";

@@ -9,6 +9,7 @@ const navItems = [
   { href: "/dashboard/quotes", label: "הצעות מחיר", icon: QuoteIcon },
   { href: "/dashboard/cases", label: "מעקב תיקים", icon: FolderIcon },
   { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
+  { href: "/dashboard/attendance", label: "שעון נוכחות", icon: ClockIcon },
   { href: "/dashboard/alerts", label: "התראות חכמות", icon: BellIcon },
   { href: "/dashboard/calendar", label: "יומן ומייל", icon: CalendarIcon },
 ];
@@ -205,6 +206,21 @@ function BellIcon({ className }: { className?: string }) {
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 7.5V12l3 2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

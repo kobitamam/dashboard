@@ -103,6 +103,14 @@ export type Invoice = {
   status: InvoiceStatus;
 };
 
+export type AttendanceEntry = {
+  id: string;
+  userId: string;
+  userName: string;
+  clockIn: string;
+  clockOut: string | null;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;

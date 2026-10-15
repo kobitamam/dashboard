@@ -2,6 +2,7 @@ import type { ObjectId, WithId } from "mongodb";
 import { Repository, type Owned } from "@/lib/db/repository";
 import type {
   Attachment,
+  AttendanceEntry,
   CalendarEvent,
   Case,
   CaseStatus,
@@ -94,11 +95,22 @@ export type EventDoc = Owned & {
   type: EventType;
 };
 
+export type AttendanceDoc = Owned & {
+  _id?: ObjectId;
+  // The individual account, as opposed to ownerId (the shared organization) -
+  // this is what tells one employee's clock entries apart from another's.
+  userId: string;
+  userName: string;
+  clockIn: Date;
+  clockOut: Date | null;
+};
+
 export const clientsRepo = new Repository<ClientDoc>("clients");
 export const casesRepo = new Repository<CaseDoc>("cases");
 export const invoicesRepo = new Repository<InvoiceDoc>("invoices");
 export const eventsRepo = new Repository<EventDoc>("events");
 export const quotesRepo = new Repository<QuoteDoc>("quotes");
+export const attendanceRepo = new Repository<AttendanceDoc>("attendance");
 
 // Server Components hand these to Client Components, so nothing may cross the
 // boundary as an ObjectId or Date.
@@ -192,5 +204,15 @@ export function toEvent(doc: WithId<EventDoc>): CalendarEvent {
     start: doc.start.toISOString(),
     location: doc.location,
     type: doc.type,
+  };
+}
+
+export function toAttendance(doc: WithId<AttendanceDoc>): AttendanceEntry {
+  return {
+    id: doc._id.toString(),
+    userId: doc.userId,
+    userName: doc.userName,
+    clockIn: doc.clockIn.toISOString(),
+    clockOut: doc.clockOut ? doc.clockOut.toISOString() : null,
   };
 }
