@@ -33,8 +33,10 @@ export async function GET(request: Request) {
   }
 
   // Defense in depth: also require a live session that matches the state.
+  // The state carries the organization id (requireOwnerId's scope), not the
+  // individual account id, since the connection is shared by the whole office.
   const session = await auth();
-  if (!session?.user?.id || session.user.id !== stateOwnerId) {
+  if (!session?.user?.id || session.user.organizationId !== stateOwnerId) {
     return redirectTo(url.origin, "error", "יש להתחבר למערכת לפני חיבור OneDrive");
   }
 

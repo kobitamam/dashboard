@@ -26,10 +26,16 @@ export type LoadResult =
   | { ok: true; data: DashboardData }
   | { ok: false };
 
+/**
+ * Returns the organization id every record is scoped by - shared by a
+ * partner and the employees they created, so everyone in the same office
+ * sees the same clients/cases/quotes. Not the individual account id; use
+ * currentUserId() for that.
+ */
 export async function requireOwnerId(): Promise<string> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  return session.user.id;
+  return session.user.organizationId;
 }
 
 export class NotAPartnerError extends Error {
@@ -44,6 +50,13 @@ export async function requirePartnerId(): Promise<string> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (session.user.role !== "partner") throw new NotAPartnerError();
+  return session.user.organizationId;
+}
+
+/** The individual logged-in account, as opposed to the shared organization id. */
+export async function currentUserId(): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
   return session.user.id;
 }
 

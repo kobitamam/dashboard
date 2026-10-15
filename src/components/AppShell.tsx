@@ -8,10 +8,12 @@ export default function AppShell({
   children,
   userName,
   alertCount,
+  isPartner,
 }: {
   children: React.ReactNode;
   userName: string;
   alertCount: number;
+  isPartner: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const initials = userName.slice(0, 2);
@@ -19,7 +21,7 @@ export default function AppShell({
   return (
     <div className="flex h-full">
       <aside className="hidden w-64 shrink-0 lg:block">
-        <Sidebar userName={userName} alertCount={alertCount} />
+        <Sidebar userName={userName} alertCount={alertCount} isPartner={isPartner} />
       </aside>
 
       {mobileOpen && (
@@ -32,6 +34,7 @@ export default function AppShell({
             <Sidebar
               userName={userName}
               alertCount={alertCount}
+              isPartner={isPartner}
               onNavigate={() => setMobileOpen(false)}
             />
           </div>
@@ -100,7 +103,7 @@ export default function AppShell({
               </div>
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold text-foreground">{userName}</p>
-                <p className="text-xs text-muted">מנהל המשרד</p>
+                <p className="text-xs text-muted">{isPartner ? "מנהל המשרד" : "עובד"}</p>
               </div>
             </div>
             <button

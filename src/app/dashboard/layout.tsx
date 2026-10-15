@@ -16,6 +16,7 @@ export default async function DashboardLayout({
   }
 
   const userName = session.user.name || session.user.email || "משתמש";
+  const isPartner = session.user.role === "partner";
 
   // The shell must render even when the database is unreachable, so the page
   // inside can explain the problem instead of the dashboard going blank.
@@ -23,7 +24,7 @@ export default async function DashboardLayout({
   const alertCount = result.ok ? deriveAlerts(result.data).length : 0;
 
   return (
-    <AppShell userName={userName} alertCount={alertCount}>
+    <AppShell userName={userName} alertCount={alertCount} isPartner={isPartner}>
       {children}
     </AppShell>
   );

@@ -13,17 +13,24 @@ const navItems = [
   { href: "/dashboard/calendar", label: "יומן ומייל", icon: CalendarIcon },
 ];
 
+const partnerOnlyNavItems = [
+  { href: "/dashboard/team", label: "צוות", icon: TeamIcon },
+];
+
 export default function Sidebar({
   onNavigate,
   userName,
   alertCount,
+  isPartner,
 }: {
   onNavigate?: () => void;
   userName: string;
   alertCount: number;
+  isPartner: boolean;
 }) {
   const pathname = usePathname();
   const initials = userName.slice(0, 2);
+  const items = isPartner ? [...navItems, ...partnerOnlyNavItems] : navItems;
 
   return (
     <div className="flex h-full flex-col bg-brand-blue-dark text-white">
@@ -38,7 +45,7 @@ export default function Sidebar({
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const active =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
@@ -195,6 +202,27 @@ function BellIcon({ className }: { className?: string }) {
       />
       <path
         d="M9.5 18.5a2.5 2.5 0 0 0 5 0"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function TeamIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="8.5" cy="7.5" r="2.8" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M3 19.5c0-3.3 2.5-6 5.5-6s5.5 2.7 5.5 6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14.5 14.3c2.6.2 4.5 2.6 4.5 5.2"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

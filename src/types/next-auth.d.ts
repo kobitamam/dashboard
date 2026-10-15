@@ -9,16 +9,19 @@ declare module "@auth/core/types" {
     user: {
       id: string;
       role: Role;
+      organizationId: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: Role;
+    organizationId?: string;
   }
 }
 
 declare module "@auth/core/jwt" {
   interface JWT {
     role?: Role;
+    organizationId?: string;
   }
 }

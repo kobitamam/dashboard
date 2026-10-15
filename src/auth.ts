@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "@/auth.config";
-import { verifyPassword } from "@/lib/users";
+import { organizationIdOf, verifyPassword } from "@/lib/users";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -29,6 +29,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             // Accounts created before roles existed have none stored; they
             // were always tenant owners, so they default to partner.
             role: user.role ?? "partner",
+            organizationId: organizationIdOf(user),
           };
         } catch (err) {
           // An unhandled throw here surfaces as a 500 on the callback route
@@ -46,6 +47,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.name = user.name;
         token.email = user.email;
         token.role = user.role ?? "partner";
+        // token.sub (the individual account) stays the identity; this is the
+        // shared tenant everything else is scoped by.
+        token.organizationId = user.organizationId ?? user.id;
       }
       return token;
     },
@@ -56,6 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.name = token.name;
         session.user.email = token.email as string;
         session.user.role = token.role ?? "partner";
+        session.user.organizationId = token.organizationId ?? (token.sub as string);
       }
       return session;
     },
