@@ -102,6 +102,7 @@ export type Quote = PropertyDetails & {
   address: string;
   type: string;
   amount: number;
+  feePercent: number | null; // אחוז שכ״ט מהפחתה
   status: QuoteStatus;
   draftFile: Attachment | null;
   signedFile: Attachment | null;

@@ -306,6 +306,7 @@ export async function createQuote(form: FormData) {
     address: text(form, "address"),
     type: oneOf<CaseType>(form, "type", caseTypes, "אחר"),
     amount: Math.max(0, number(form, "amount")),
+    feePercent: text(form, "feePercent") ? Math.min(100, Math.max(0, number(form, "feePercent"))) : null,
     status: "ממתין לאישור",
     ...propertyDetails(form),
   });

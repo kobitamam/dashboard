@@ -51,6 +51,7 @@ export default async function QuotesPage({
       <Field label="טלפון" name="clientPhone" />
       <Field label="סכום ההצעה (₪)" name="amount" type="number" min={0} required />
       <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
+      <Field label="אחוז שכ״ט מהפחתה (%)" name="feePercent" type="number" min={0} max={100} step="any" />
       <Field label="הערות" name="notes" />
     </AddRecord>
   );
@@ -132,6 +133,11 @@ export default async function QuotesPage({
                       <span className="text-sm font-semibold text-foreground">{formatMoney(q.amount)}</span>
                       {q.feeNote && <span className="text-xs text-muted">שכ״ט: {q.feeNote}</span>}
                     </div>
+                    {q.feePercent !== null && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        אחוז שכ״ט מהפחתה: {q.feePercent}%
+                      </p>
+                    )}
                     {q.notes && <p className="mt-1 text-xs text-muted">{q.notes}</p>}
 
                     <div className="mt-3 space-y-1.5">

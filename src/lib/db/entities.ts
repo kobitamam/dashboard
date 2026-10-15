@@ -80,6 +80,7 @@ export type QuoteDoc = Owned &
     address: string;
     type: string;
     amount: number;
+    feePercent?: number | null;
     status: QuoteStatus;
     draftFile?: AttachmentDoc;
     signedFile?: AttachmentDoc;
@@ -204,6 +205,7 @@ export function toQuote(doc: WithId<QuoteDoc>): Quote {
     address: doc.address,
     type: doc.type,
     amount: doc.amount,
+    feePercent: doc.feePercent ?? null,
     status: doc.status,
     draftFile: doc.draftFile ? toAttachment(doc.draftFile) : null,
     signedFile: doc.signedFile ? toAttachment(doc.signedFile) : null,
