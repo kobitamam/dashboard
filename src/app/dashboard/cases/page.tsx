@@ -18,9 +18,9 @@ import {
 } from "@/components/form";
 import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
-import { currentRole, loadDashboardData } from "@/lib/db/queries";
+import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatParcel } from "@/lib/format";
-import { caseStatuses, caseTypes, type CaseStatus } from "@/lib/types";
+import { caseStatuses, type CaseStatus } from "@/lib/types";
 
 const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
 
@@ -33,6 +33,7 @@ export default async function CasesPage({
   if (!result.ok) return <DataUnavailable />;
   const { type: typeFilter } = await searchParams;
   const isPartner = (await currentRole()) === "partner";
+  const types = await loadCaseTypes(await requireOwnerId());
   const allCases = result.data.cases;
   const cases = typeFilter ? allCases.filter((c) => c.type === typeFilter) : allCases;
   const urgent = cases.filter((c) => c.status === "דחוף").length;
@@ -45,7 +46,7 @@ export default async function CasesPage({
       <Field label="רחוב" name="address" placeholder="רחוב ומספר" />
       <Field label="עיר" name="city" />
       <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
-      <SelectField label="סוג שומה" name="type" options={caseTypes} defaultValue={caseTypes[0]} />
+      <SelectField label="סוג שומה" name="type" options={types} defaultValue={types[0]} />
       <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
       <Field label="מייל" name="clientEmail" type="email" />
       <Field label="טלפון" name="clientPhone" />
@@ -79,7 +80,7 @@ export default async function CasesPage({
           >
             הכל
           </Link>
-          {caseTypes.map((t) => (
+          {types.map((t) => (
             <Link
               key={t}
               href={`/dashboard/cases?type=${encodeURIComponent(t)}`}

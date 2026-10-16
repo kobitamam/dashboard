@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { NEW_CASE_TYPE } from "@/lib/types";
 
 const fieldClass =
   "w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-brand-cyan";
@@ -67,6 +68,53 @@ export function SelectField({
         ))}
       </select>
     </label>
+  );
+}
+
+/** A select whose last option reveals a text box for adding a brand-new value. */
+export function SelectWithNewField({
+  label,
+  name,
+  options,
+  newName,
+  defaultValue,
+}: {
+  label: string;
+  name: string;
+  options: readonly string[];
+  newName: string;
+  defaultValue?: string;
+}) {
+  const [value, setValue] = useState(defaultValue ?? options[0]);
+
+  return (
+    <div>
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+        <select
+          className={fieldClass}
+          name={name}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        >
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+          <option value={NEW_CASE_TYPE}>➕ סוג חדש...</option>
+        </select>
+      </label>
+      {value === NEW_CASE_TYPE && (
+        <input
+          className={`${fieldClass} mt-2`}
+          name={newName}
+          placeholder="שם סוג השומה החדש"
+          maxLength={60}
+          required
+        />
+      )}
+    </div>
   );
 }
 

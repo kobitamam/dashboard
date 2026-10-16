@@ -105,6 +105,12 @@ export type EventDoc = Owned & {
   type: EventType;
 };
 
+// Appraisal types a partner added on top of the built-in caseTypes list.
+export type CaseTypeDoc = Owned & {
+  _id?: ObjectId;
+  name: string;
+};
+
 export type AttendanceDoc = Owned & {
   _id?: ObjectId;
   // The individual account, as opposed to ownerId (the shared organization) -
@@ -121,6 +127,7 @@ export const invoicesRepo = new Repository<InvoiceDoc>("invoices");
 export const eventsRepo = new Repository<EventDoc>("events");
 export const quotesRepo = new Repository<QuoteDoc>("quotes");
 export const attendanceRepo = new Repository<AttendanceDoc>("attendance");
+export const caseTypesRepo = new Repository<CaseTypeDoc>("caseTypes");
 
 // Server Components hand these to Client Components, so nothing may cross the
 // boundary as an ObjectId or Date.

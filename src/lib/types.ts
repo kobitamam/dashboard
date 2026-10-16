@@ -34,6 +34,9 @@ export const caseTypes: CaseType[] = [
 ];
 export const quoteStatuses: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
 
+// The select's sentinel for "add a type that isn't in the list yet".
+export const NEW_CASE_TYPE = "__new__";
+
 export type Client = {
   id: string;
   name: string;

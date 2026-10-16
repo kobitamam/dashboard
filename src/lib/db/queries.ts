@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
   casesRepo,
+  caseTypesRepo,
   clientsRepo,
   eventsRepo,
   invoicesRepo,
@@ -12,7 +13,7 @@ import {
   toInvoice,
   toQuote,
 } from "@/lib/db/entities";
-import type { CalendarEvent, Case, Client, Invoice, Quote } from "@/lib/types";
+import { caseTypes, type CalendarEvent, type Case, type CaseType, type Client, type Invoice, type Quote } from "@/lib/types";
 
 export type DashboardData = {
   clients: Client[];
@@ -69,6 +70,22 @@ export async function currentUserName(): Promise<string> {
 export async function currentRole(): Promise<"partner" | "employee"> {
   const session = await auth();
   return session?.user?.role ?? "partner";
+}
+
+/**
+ * The built-in appraisal types plus any a partner added, with "אחר" kept last.
+ * Falls back to the built-ins if the database can't be read, so a form still renders.
+ */
+export async function loadCaseTypes(ownerId: string): Promise<string[]> {
+  const builtIn = caseTypes.filter((t) => t !== "אחר");
+  try {
+    const custom = (await caseTypesRepo.list(ownerId, { createdAt: 1 })).map((c) => c.name);
+    const extra = [...new Set(custom)].filter((n) => !caseTypes.includes(n as CaseType));
+    return [...builtIn, ...extra, "אחר"];
+  } catch (err) {
+    console.error("Failed to load custom case types:", err);
+    return [...builtIn, "אחר"];
+  }
 }
 
 /**

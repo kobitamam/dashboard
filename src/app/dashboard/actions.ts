@@ -5,13 +5,14 @@ import { revalidatePath } from "next/cache";
 import { nextNumber } from "@/lib/case-number";
 import {
   casesRepo,
+  caseTypesRepo,
   clientsRepo,
   eventsRepo,
   invoicesRepo,
   quotesRepo,
 } from "@/lib/db/entities";
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
-import { currentRole, requirePartnerId, requireOwnerId } from "@/lib/db/queries";
+import { currentRole, loadCaseTypes, requirePartnerId, requireOwnerId } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
 import { createCaseFolder } from "@/lib/onedrive";
 import {
@@ -23,12 +24,11 @@ import {
 } from "@/lib/r2";
 import {
   caseStatuses,
-  caseTypes,
   clientStatuses,
   eventTypes,
   invoiceStatuses,
+  NEW_CASE_TYPE,
   type CaseStatus,
-  type CaseType,
   type ClientStatus,
   type EventType,
   type InvoiceStatus,
@@ -74,6 +74,31 @@ function propertyDetails(form: FormData) {
 
 function refresh() {
   revalidatePath("/dashboard", "layout");
+}
+
+/**
+ * Validates the chosen appraisal type against the office's list. A partner may
+ * pick "new type" and type a name, which is saved so it joins the list for
+ * everyone; anyone else posting that value just gets "אחר".
+ */
+async function resolveCaseType(ownerId: string, form: FormData, canAdd: boolean): Promise<string> {
+  const available = await loadCaseTypes(ownerId);
+  const chosen = text(form, "type");
+
+  if (chosen === NEW_CASE_TYPE) {
+    const name = text(form, "newType").slice(0, 60);
+    if (!canAdd || !name) return "אחר";
+    if (!available.includes(name)) await caseTypesRepo.insert(ownerId, { name });
+    return name;
+  }
+  return available.includes(chosen) ? chosen : "אחר";
+}
+
+// Today's calendar date in Israel, as midnight UTC, so the stored date (which
+// is shown by its UTC date) doesn't slip a day for entries made after midnight.
+function todayInIsrael() {
+  const iso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+  return new Date(iso);
 }
 
 export async function createClient(form: FormData) {
@@ -135,7 +160,7 @@ async function createCaseInternal(
     caseNumber,
     clientName,
     address,
-    type: oneOf<CaseType>(form, "type", caseTypes, "אחר"),
+    type: await resolveCaseType(ownerId, form, isPartner),
     status: oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך"),
     dueDate: date(form, "dueDate"),
     progress: Math.min(100, Math.max(0, number(form, "progress"))),
@@ -308,10 +333,10 @@ export async function createQuote(form: FormData) {
   const quoteNumber = await nextNumber(ownerId, "Q", new Date());
   await quotesRepo.insert(ownerId, {
     quoteNumber,
-    date: date(form, "date") ?? new Date(),
+    date: todayInIsrael(),
     clientName,
     address: text(form, "address"),
-    type: oneOf<CaseType>(form, "type", caseTypes, "אחר"),
+    type: await resolveCaseType(ownerId, form, true),
     amount: Math.max(0, number(form, "amount")),
     feePercent: text(form, "feePercent") ? Math.min(100, Math.max(0, number(form, "feePercent"))) : null,
     status: "ממתין לאישור",

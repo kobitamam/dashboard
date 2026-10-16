@@ -15,13 +15,13 @@ import {
   DeleteButton,
   EmptyState,
   Field,
-  SelectField,
+  SelectWithNewField,
 } from "@/components/form";
 import QuoteFileSlot from "@/components/QuoteFileSlot";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
-import { currentRole, loadDashboardData } from "@/lib/db/queries";
+import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatMoney, formatParcel } from "@/lib/format";
-import { caseTypes, type QuoteStatus } from "@/lib/types";
+import type { QuoteStatus } from "@/lib/types";
 
 const columns: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
 
@@ -42,19 +42,19 @@ export default async function QuotesPage({
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const { type: typeFilter } = await searchParams;
+  const types = await loadCaseTypes(await requireOwnerId());
   const allQuotes = result.data.quotes;
   const quotes = typeFilter ? allQuotes.filter((q) => q.type === typeFilter) : allQuotes;
 
   const form = (
     <AddRecord label="+ הצעת מחיר חדשה" action={createQuote}>
-      <Field label="תאריך" name="date" type="date" />
       <Field label="גוש" name="block" />
       <Field label="חלקה" name="parcel" />
       <Field label="תת חלקה" name="subParcel" />
       <Field label="רחוב" name="address" placeholder="רחוב ומספר" />
       <Field label="עיר" name="city" />
       <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
-      <SelectField label="סוג שומה" name="type" options={caseTypes} defaultValue={caseTypes[0]} />
+      <SelectWithNewField label="סוג שומה" name="type" newName="newType" options={types} defaultValue={types[0]} />
       <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
       <Field label="מייל" name="clientEmail" type="email" />
       <Field label="טלפון" name="clientPhone" />
@@ -85,7 +85,7 @@ export default async function QuotesPage({
           >
             הכל
           </Link>
-          {caseTypes.map((t) => (
+          {types.map((t) => (
             <Link
               key={t}
               href={`/dashboard/quotes?type=${encodeURIComponent(t)}`}
