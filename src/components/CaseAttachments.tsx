@@ -18,9 +18,11 @@ export default function CaseAttachments({
   confirmUpload,
   requestDownloadUrl,
   deleteAttachment,
+  uploadsEnabled = true,
 }: {
   caseId: string;
   attachments: Attachment[];
+  uploadsEnabled?: boolean;
   requestUploadUrl: (
     caseId: string,
     fileName: string,
@@ -103,19 +105,23 @@ export default function CaseAttachments({
         <span className="text-[11px] font-semibold text-muted">
           קבצים ({attachments.length})
         </span>
-        <label className="cursor-pointer text-[11px] font-bold text-brand-blue hover:underline">
-          {uploading ? "מעלה..." : "+ הוספת קובץ"}
-          <input
-            ref={fileInput}
-            type="file"
-            className="hidden"
-            disabled={uploading}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
-            }}
-          />
-        </label>
+        {uploadsEnabled ? (
+          <label className="cursor-pointer text-[11px] font-bold text-brand-blue hover:underline">
+            {uploading ? "מעלה..." : "+ הוספת קובץ"}
+            <input
+              ref={fileInput}
+              type="file"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
+              }}
+            />
+          </label>
+        ) : (
+          <span className="text-[11px] text-warning">אחסון קבצים לא מוגדר</span>
+        )}
       </div>
 
       {error && <p className="mt-1.5 text-[11px] text-danger">{error}</p>}

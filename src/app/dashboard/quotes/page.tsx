@@ -21,6 +21,7 @@ import QuoteFileSlot from "@/components/QuoteFileSlot";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatMoney, formatParcel } from "@/lib/format";
+import { isR2Configured } from "@/lib/r2";
 import type { QuoteStatus } from "@/lib/types";
 
 const columns: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
@@ -43,6 +44,7 @@ export default async function QuotesPage({
   if (!result.ok) return <DataUnavailable />;
   const { type: typeFilter } = await searchParams;
   const types = await loadCaseTypes(await requireOwnerId());
+  const uploadsEnabled = isR2Configured();
   const allQuotes = result.data.quotes;
   const quotes = typeFilter ? allQuotes.filter((q) => q.type === typeFilter) : allQuotes;
 
@@ -158,6 +160,7 @@ export default async function QuotesPage({
                         requestUploadUrl={requestQuoteUploadUrl}
                         confirmUpload={confirmQuoteUpload}
                         requestDownloadUrl={requestQuoteDownloadUrl}
+                        uploadsEnabled={uploadsEnabled}
                       />
                       {q.status !== "נדחתה" && (
                         <QuoteFileSlot
@@ -168,6 +171,7 @@ export default async function QuotesPage({
                           requestUploadUrl={requestQuoteUploadUrl}
                           confirmUpload={confirmQuoteUpload}
                           requestDownloadUrl={requestQuoteDownloadUrl}
+                          uploadsEnabled={uploadsEnabled}
                         />
                       )}
                     </div>

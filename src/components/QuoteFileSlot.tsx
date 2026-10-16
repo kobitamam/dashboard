@@ -13,11 +13,13 @@ export default function QuoteFileSlot({
   requestUploadUrl,
   confirmUpload,
   requestDownloadUrl,
+  uploadsEnabled = true,
 }: {
   quoteId: string;
   slot: "draftFile" | "signedFile";
   label: string;
   file: Attachment | null;
+  uploadsEnabled?: boolean;
   requestUploadUrl: (
     quoteId: string,
     slot: "draftFile" | "signedFile",
@@ -97,19 +99,23 @@ export default function QuoteFileSlot({
       ) : (
         <span className="flex-1 text-right text-muted">לא הועלה קובץ</span>
       )}
-      <label className="shrink-0 cursor-pointer font-bold text-brand-blue hover:underline">
-        {uploading ? "מעלה..." : file ? "החלפה" : "+ העלאה"}
-        <input
-          ref={fileInput}
-          type="file"
-          className="hidden"
-          disabled={uploading}
-          onChange={(e) => {
-            const selected = e.target.files?.[0];
-            if (selected) handleFile(selected);
-          }}
-        />
-      </label>
+      {uploadsEnabled ? (
+        <label className="shrink-0 cursor-pointer font-bold text-brand-blue hover:underline">
+          {uploading ? "מעלה..." : file ? "החלפה" : "+ העלאה"}
+          <input
+            ref={fileInput}
+            type="file"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const selected = e.target.files?.[0];
+              if (selected) handleFile(selected);
+            }}
+          />
+        </label>
+      ) : (
+        <span className="shrink-0 text-warning">אחסון קבצים לא מוגדר</span>
+      )}
       {error && <span className="shrink-0 text-danger">{error}</span>}
     </div>
   );

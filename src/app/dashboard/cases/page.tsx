@@ -20,6 +20,7 @@ import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatParcel } from "@/lib/format";
+import { isR2Configured } from "@/lib/r2";
 import { caseStatuses, type CaseStatus } from "@/lib/types";
 
 const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
@@ -34,6 +35,7 @@ export default async function CasesPage({
   const { type: typeFilter } = await searchParams;
   const isPartner = (await currentRole()) === "partner";
   const types = await loadCaseTypes(await requireOwnerId());
+  const uploadsEnabled = isR2Configured();
   const allCases = result.data.cases;
   const cases = typeFilter ? allCases.filter((c) => c.type === typeFilter) : allCases;
   const urgent = cases.filter((c) => c.status === "דחוף").length;
@@ -206,6 +208,7 @@ export default async function CasesPage({
                       confirmUpload={confirmCaseUpload}
                       requestDownloadUrl={requestCaseDownloadUrl}
                       deleteAttachment={deleteCaseAttachment}
+                      uploadsEnabled={uploadsEnabled}
                     />
 
                     <div className="mt-2 flex justify-end">
