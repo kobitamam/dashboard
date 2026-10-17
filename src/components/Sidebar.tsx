@@ -9,7 +9,7 @@ const navItems = [
   { href: "/dashboard/cases", label: "מעקב תיקים", icon: FolderIcon },
   { href: "/dashboard/attendance", label: "שעון נוכחות", icon: ClockIcon },
   { href: "/dashboard/alerts", label: "התראות חכמות", icon: BellIcon },
-  { href: "/dashboard/calendar", label: "יומן ומייל", icon: CalendarIcon },
+  { href: "/dashboard/calendar", label: "יומן", icon: CalendarIcon },
 ];
 
 const partnerOnlyNavItems = [
