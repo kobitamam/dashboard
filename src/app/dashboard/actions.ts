@@ -21,7 +21,6 @@ import {
 import { seedDemoData } from "@/lib/db/seed";
 import { formatParcel } from "@/lib/format";
 import {
-  CASE_DOCUMENTS_FOLDER,
   createCaseFolder,
   createDocumentsShareLink,
   createUploadSession,
@@ -601,14 +600,8 @@ export async function getQuoteWordUri(
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
 
-    // The letter lives in the quotes folder. The case folders are only checked for
-    // the two files that an earlier version moved there.
-    const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-    const caseFolder = linked?.oneDriveFolderName;
-    const candidates: string[][] = [
-      [QUOTES_FOLDER],
-      ...(caseFolder ? [[caseFolder, CASE_DOCUMENTS_FOLDER], [caseFolder]] : []),
-    ];
+    // The letter lives in the quotes folder.
+    const candidates: string[][] = [[QUOTES_FOLDER]];
     let lastError: unknown;
     for (const folders of candidates) {
       try {

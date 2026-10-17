@@ -1,3 +1,4 @@
+import { casesRepo, quotesRepo } from "@/lib/db/entities";
 import { getDb } from "@/lib/mongodb";
 
 type CounterDoc = {
@@ -13,6 +14,11 @@ async function nextSequence(ownerId: string, prefix: string, year: number): Prom
   const db = await getDb();
   const counters = db.collection<CounterDoc>("numberCounters");
   const key = `${ownerId}:${prefix}:${year}`;
+
+  // With no cases (or quotes) left at all, numbering starts over at 100: this is what
+  // lets the office delete its test data and begin with a clean TA-100/26.
+  const remaining = prefix === "TA" ? await casesRepo.count(ownerId) : await quotesRepo.count(ownerId);
+  if (remaining === 0) await counters.deleteOne({ _id: key });
 
   // $inc on a field that doesn't exist yet initializes it at 0 then applies
   // the increment, so the very first call for a given owner/prefix/year

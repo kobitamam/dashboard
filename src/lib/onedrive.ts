@@ -172,12 +172,12 @@ export async function graphError(res: Response, what: string) {
   return new Error(`${what}: ${res.status}${detail ? ` ${detail}` : ""}`);
 }
 
-async function getAppFolder(accessToken: string, name: string): Promise<OneDriveFolder | null> {
-  const res = await fetch(`${GRAPH_ROOT}${appPath(name)}?select=id,name,webUrl`, {
+async function getAppFolder(accessToken: string, ...segments: string[]): Promise<OneDriveFolder | null> {
+  const res = await fetch(`${GRAPH_ROOT}${appPath(...segments)}?select=id,name,webUrl`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (res.status === 404) return null;
-  if (!res.ok) throw await graphError(res, `בדיקת תיקייה "${name}" ב-OneDrive נכשלה`);
+  if (!res.ok) throw await graphError(res, `בדיקת תיקייה "${segments.join("/")}" ב-OneDrive נכשלה`);
   const json = await res.json();
   return { id: json.id, webUrl: json.webUrl, name: json.name };
 }
@@ -188,8 +188,13 @@ async function getAppFolder(accessToken: string, name: string): Promise<OneDrive
 // the one folder-creating call known to work here.
 const KEEP_FILE = ".keep";
 
-/** The sub-folder of every case folder that holds the case's documents. */
-export const CASE_DOCUMENTS_FOLDER = "מסמכים";
+/**
+ * The one folder that holds every case's documents (a folder per case inside it). It is
+ * what the office shares, once, with the employees' Microsoft accounts: they then see
+ * every case - present and future - as a regular synced folder, while the quote files
+ * (kept in a different folder) are never inside it.
+ */
+export const CASES_ROOT_FOLDER = "מסמכי תיקים";
 
 async function ensureFolders(accessToken: string, ...folders: string[]) {
   const res = await fetch(
@@ -217,23 +222,21 @@ async function ensureFolders(accessToken: string, ...folders: string[]) {
  */
 export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
   const folderName = sanitizeFolderName(name);
-  await ensureFolders(accessToken, folderName, CASE_DOCUMENTS_FOLDER);
+  await ensureFolders(accessToken, CASES_ROOT_FOLDER, folderName);
 
-  const folder = await getAppFolder(accessToken, folderName);
+  const folder = await getAppFolder(accessToken, CASES_ROOT_FOLDER, folderName);
   if (!folder) throw new Error(`התיקייה "${folderName}" נוצרה אך לא נמצאה ב-OneDrive`);
   return folder;
 }
 
 /**
- * A link that opens ONLY a case's documents folder, for people without access to the
- * office's OneDrive (the employees): anyone holding the link can view and edit that one
- * folder and nothing above it. It is deliberately a link to the "מסמכים" sub-folder, so
- * the quote files that may sit in the case folder's root are never reachable through it.
- * Asking again for the same link returns the existing one.
+ * A link that opens ONLY one case's documents folder, for people who are not signed in to
+ * the office's OneDrive: anyone holding the link can view and edit that one folder and
+ * nothing above it. Asking again for the same link returns the existing one.
  */
 export async function createDocumentsShareLink(accessToken: string, caseFolderName: string): Promise<string> {
   const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
-  const folderPath = appPath(caseFolderName, CASE_DOCUMENTS_FOLDER);
+  const folderPath = appPath(CASES_ROOT_FOLDER, caseFolderName);
 
   // Which way Graph accepts this call for an app-folder token is not known, so the
   // variants are tried in turn and, if none works, each one's answer is reported.

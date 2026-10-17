@@ -16,7 +16,7 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
    An id is only acceptable inside a request body (e.g. `parentReference.id` when moving).
 2. **Create folders by uploading a marker file to the path, not with POST `.../children`.**
    `POST /me/drive/special/approot/children` returns `400 invalidRequest` for any name. A path-based
-   `PUT .../approot:/<case>/מסמכים/.keep:/content` makes Graph create every missing parent; the marker is
+   `PUT .../approot:/מסמכי תיקים/<case>/.keep:/content` makes Graph create every missing parent; the marker is
    then deleted (`ensureFolders()`). Re-running is safe (existing folders are reused).
 3. **Small files (<4MB)**: `PUT <path>:/content?@microsoft.graph.conflictBehavior=replace` (`uploadSmallFile`).
    **Large files**: `createUploadSession` (path-based) and send chunks through our own route
@@ -42,16 +42,16 @@ The OneDrive connection (connect/disconnect) lives in its own tab, `/dashboard/o
 
 10. **Employees never get the owner's folder link.** The plain `webUrl` (`oneDriveFolderUrl`) opens the office's own OneDrive and asks for
    the owner's Microsoft sign-in (or, on a machine already signed in as the owner, exposes the whole drive). Employees get
-   `oneDriveShareUrl` instead: an anonymous *edit* share link (`createDocumentsShareLink`, Graph `createLink`) to the case's
-   `מסמכים` sub-folder only, created with the folder and re-creatable from the card ("צור קישור", `createCaseShareLink`). It never
-   points at the case folder root, which may hold quote files. Whether the narrow AppFolder scope may call `createLink` is unverified.
+   `oneDriveShareUrl` instead: an anonymous *edit* share link (`createDocumentsShareLink`, Graph `createLink`, verified to work live
+   by the user) to that one case folder, created with the folder and re-creatable from the card ("צור קישור", `createCaseShareLink`).
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
-`TA-Estate Dashboard/<TA-100-26>/מסמכים/` (`CASE_DOCUMENTS_FOLDER`) holds the case's documents, which employees may use.
-The case card does NOT list or upload case files: it only links to the case's OneDrive folder (`oneDriveFolderUrl`);
-employees add and read documents directly in OneDrive. The in-app upload exists only for the signed quote.
-Two files that an earlier version moved into a case folder are tolerated by the Word lookup only.
+`TA-Estate Dashboard/מסמכי תיקים/<TA-100-26>/` (`CASES_ROOT_FOLDER`) holds each case's documents. The office shares
+`מסמכי תיקים` ONCE with the employees' own Microsoft accounts (all of whom have one), so every present and future case appears
+for them as a regular synced folder; nothing in `הצעות מחיר` is inside it. The case card does NOT list or upload case files: it
+links to the case's folder (`oneDriveFolderUrl`, partners) and to the per-case share link (everyone). The in-app upload exists only
+for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case that used it was a test case.)
 
 ## Calendar
 
@@ -93,7 +93,8 @@ Two files that an earlier version moved into a case folder are tolerated by the 
   Approving a quote seeds the case's fee from the quote (`initialFee`). There are NO invoices any more (removed at the user's request):
   the billing tab, dashboard cards, alerts and the clients tab's "סה"כ חויב" all derive from the cases' fees. Employees' cases are
   loaded with `fee: null` / `feeNote: ""` (`loadDashboardData`).
-- Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`).
+- Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`); when the
+  organization has no cases (or no quotes) left, that counter starts over at 100, so test data can be deleted and numbering begins clean.
 - A partner can add more partners and employees from the team tab (`createMember`); an added partner has the same full access and
   `organizationId` = the founder's id. The founder (whose id is the organization id) and one's own account can't be removed.
 - Each case has one handling partner and one handling employee (`partnerId`/`employeeId`, user ids from the organization). The cases
