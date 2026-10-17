@@ -77,17 +77,22 @@ export async function createUser({
   return doc;
 }
 
-/** Creates a restricted employee account under an existing partner's organization. */
-export async function createEmployee({
+/**
+ * Creates an account under an existing partner's organization: an employee (restricted
+ * from fee data) or another partner (full access, like the founder).
+ */
+export async function createMember({
   organizationId,
   name,
   email,
   password,
+  role = "employee",
 }: {
   organizationId: string;
   name: string;
   email: string;
   password: string;
+  role?: Role;
 }) {
   const db = await getDb();
   const users = db.collection<UserDoc>("users");
@@ -103,7 +108,7 @@ export async function createEmployee({
     name,
     email: normalizedEmail,
     passwordHash,
-    role: "employee",
+    role,
     organizationId,
     createdAt: new Date(),
   };
@@ -111,21 +116,35 @@ export async function createEmployee({
   return { ...doc, _id: result.insertedId };
 }
 
-export type EmployeeSummary = { id: string; name: string; email: string; createdAt: Date };
+export type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  createdAt: Date;
+  /** The founding partner: the account the organization is built around, who can't be removed. */
+  isFounder: boolean;
+};
 
-export async function listEmployees(organizationId: string): Promise<EmployeeSummary[]> {
+/** Everyone with access to the organization's data, partners first. */
+export async function listTeam(organizationId: string): Promise<TeamMember[]> {
   const db = await getDb();
   const users = db.collection<UserDoc>("users");
+  // Accounts created before organizationId existed are their own organization's root.
+  const rootFilter = ObjectId.isValid(organizationId) ? [{ _id: new ObjectId(organizationId) }] : [];
   const docs = await users
-    .find({ organizationId, role: "employee" })
-    .sort({ createdAt: -1 })
+    .find({ $or: [{ organizationId }, ...rootFilter] })
+    .sort({ createdAt: 1 })
     .toArray();
-  return docs.map((d) => ({
+  const members = docs.map((d) => ({
     id: String(d._id),
     name: d.name,
     email: d.email,
+    role: d.role,
     createdAt: d.createdAt,
+    isFounder: String(d._id) === organizationId,
   }));
+  return [...members.filter((m) => m.role === "partner"), ...members.filter((m) => m.role !== "partner")];
 }
 
 export type OrganizationMember = { id: string; name: string; role: Role };
@@ -143,17 +162,15 @@ export async function listOrganizationMembers(organizationId: string): Promise<O
   return docs.map((d) => ({ id: String(d._id), name: d.name, role: d.role }));
 }
 
-/** Scoped to the organization and to role "employee", so a partner can never
- * accidentally remove another organization's account or demote themselves. */
-export async function removeEmployee(organizationId: string, userId: string) {
-  if (!ObjectId.isValid(userId)) return false;
+/**
+ * Removes an employee or an added partner. Scoped to the organization, and the founding
+ * partner (whose id is the organization id) can never be removed.
+ */
+export async function removeMember(organizationId: string, userId: string) {
+  if (!ObjectId.isValid(userId) || userId === organizationId) return false;
   const db = await getDb();
   const users = db.collection<UserDoc>("users");
-  const result = await users.deleteOne({
-    _id: new ObjectId(userId),
-    organizationId,
-    role: "employee",
-  });
+  const result = await users.deleteOne({ _id: new ObjectId(userId), organizationId });
   return result.deletedCount > 0;
 }
 
