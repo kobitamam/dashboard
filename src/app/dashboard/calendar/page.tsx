@@ -238,100 +238,109 @@ export default async function CalendarPage({
         </Card>
 
         <Card className="h-fit p-5">
-          <h2 className="text-lg font-bold">סנכרון עם יומן Apple</h2>
+          <h2 className="text-lg font-bold">סנכרון עם יומן Apple (דרך Outlook)</h2>
           <p className="mt-3 text-sm text-muted">
-            מוסיף ליומן של Apple יומן נוסף בשם TA-Estate (כמו היומנים שברשימה בצד), שמציג את
-            הפגישות, הדיונים והדדליינים של כל התיקים. הוא מתעדכן לבד.
+            המערכת מסתנכרנת עם יומן בשם TA-Estate בחשבון Outlook של המשרד (y@ta-estate.co.il).
+            את אותו חשבון מוסיפים ליומן של Apple, ומשם הכול זז בשני הכיוונים: דדליין או דיון
+            שנוספו במערכת מופיעים ב-Apple, ואירוע שתוסיף ב-Apple ביומן TA-Estate מופיע
+            במערכת.
           </p>
-          {feedPath ? (
+
+          {calendarLink ? (
             <>
-              <a
-                href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
-                className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-              >
-                הוסף ליומן Apple
-              </a>
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                מחובר
+              </span>
+              {syncError && (
+                <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
+                  הסנכרון האחרון נכשל: {syncError}
+                </p>
+              )}
               <ol className="mt-3 list-decimal space-y-1 pr-5 text-xs text-muted">
-                <li>במק: לחץ על הכפתור, או ביומן: קובץ ← מנוי חדש ליומן, והדבק את הכתובת שמתחת.</li>
-                <li>בחר שם וצבע, ובשדה &quot;רענון אוטומטי&quot; בחר &quot;כל 5 דקות&quot;.</li>
-                <li>באייפון: הגדרות ← יומן ← חשבונות ← הוסף חשבון ← אחר ← הוסף יומן מנוי.</li>
+                <li>
+                  במק: הגדרות מערכת ← חשבונות אינטרנט ← הוסף חשבון ← Microsoft Exchange, עם
+                  y@ta-estate.co.il. באייפון: הגדרות ← יומן ← חשבונות ← הוסף חשבון ←
+                  Microsoft Exchange.
+                </li>
+                <li>הפעל &quot;יומנים&quot; בחשבון. ביומן של Apple יופיע יומן בשם TA-Estate.</li>
+                <li>אירועים חדשים מוסיפים אל יומן TA-Estate.</li>
               </ol>
-              <p dir="ltr" className="mt-2 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
-                {origin}
-                {feedPath}
+              <p className="mt-3 text-xs text-muted">
+                אירוע שנוסף במערכת מופיע ב-Apple תוך דקות. אירוע שנוסף ב-Apple מופיע כאן כשמישהו
+                פותח את היומן במערכת (עד דקה).
               </p>
-              <p className="mt-2 text-xs text-muted">
-                היומן הזה מציג את מה שבמערכת. אירוע שתוסיף ישירות ב-Apple לא יופיע במערכת. כדי
-                שזה יקרה, ראה את החיבור הדו-כיווני בהמשך.
-              </p>
-              <p className="mt-2 text-xs text-warning">
-                הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אפשר להחליף אותו
-                והישן יפסיק לעבוד.
-              </p>
-              <form action={rotateCalendarFeed} className="mt-2">
+              <form action={disconnectCalendarSync} className="mt-3">
                 <button
                   type="submit"
                   className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
                 >
-                  החלף קישור
+                  נתק את יומן Outlook
                 </button>
               </form>
             </>
-          ) : (
-            <form action={rotateCalendarFeed} className="mt-3">
-              <button
-                type="submit"
-                className="rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+          ) : calendarAuthorizeUrl ? (
+            <>
+              <a
+                href={calendarAuthorizeUrl}
+                className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
               >
-                צור קישור לסנכרון
-              </button>
-            </form>
+                חבר יומן Outlook
+              </a>
+              <p className="mt-2 text-xs text-muted">
+                תתבקש להיכנס עם y@ta-estate.co.il ולאשר גישה ליומן. אם מופיעה הודעה שנדרש
+                אישור מנהל, מנהל החשבון של המשרד צריך לאשר את האפליקציה.
+              </p>
+            </>
+          ) : (
+            <p className="mt-3 rounded-lg bg-background px-3 py-2 text-xs text-muted">
+              תצורת Microsoft חסרה בצד השרת
+            </p>
           )}
 
-          <details className="mt-5 border-t border-border pt-4" open={!!calendarLink}>
+          <details className="mt-5 border-t border-border pt-4">
             <summary className="cursor-pointer text-xs font-semibold text-muted">
-              חיבור דו-כיווני דרך Outlook (אירועים מ-Apple יופיעו גם במערכת)
+              אפשרות פשוטה יותר: צפייה בלבד ב-Apple (חד-כיווני)
             </summary>
             <p className="mt-3 text-xs text-muted">
-              דורש חשבון Microsoft עם תיבת Outlook. המערכת מסתנכרנת עם יומן TA-Estate בחשבון
-              הזה, ואת אותו חשבון מוסיפים ל-Apple (הגדרות ← יומן ← חשבונות ← Outlook.com).
-              אל תשתמש בו יחד עם המנוי שלמעלה, כדי שהאירועים לא יוצגו פעמיים.
+              מציגה ב-Apple את האירועים והדדליינים בלי חיבור ל-Microsoft, אבל אירוע שנוסף
+              ב-Apple לא יופיע במערכת. אל תשתמש בשתי האפשרויות יחד, כדי שהאירועים לא יוצגו
+              פעמיים.
             </p>
-
-            {calendarLink ? (
+            {feedPath ? (
               <>
-                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                  מחובר
-                </span>
-                {syncError && (
-                  <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
-                    הסנכרון האחרון נכשל: {syncError}
-                  </p>
-                )}
-                <p className="mt-3 text-xs text-muted">
-                  אירוע שנוסף ב-Apple מופיע כאן כשמישהו פותח את היומן במערכת (עד דקה).
+                <a
+                  href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
+                  className="mt-3 inline-block rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-background"
+                >
+                  הוסף ליומן Apple
+                </a>
+                <p dir="ltr" className="mt-2 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
+                  {origin}
+                  {feedPath}
                 </p>
-                <form action={disconnectCalendarSync} className="mt-3">
+                <p className="mt-2 text-xs text-warning">
+                  הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אפשר להחליף אותו
+                  והישן יפסיק לעבוד.
+                </p>
+                <form action={rotateCalendarFeed} className="mt-2">
                   <button
                     type="submit"
                     className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
                   >
-                    נתק את יומן Outlook
+                    החלף קישור
                   </button>
                 </form>
               </>
-            ) : calendarAuthorizeUrl ? (
-              <a
-                href={calendarAuthorizeUrl}
-                className="mt-3 inline-block rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-background"
-              >
-                חבר יומן Outlook
-              </a>
             ) : (
-              <p className="mt-3 rounded-lg bg-background px-3 py-2 text-xs text-muted">
-                תצורת Microsoft חסרה בצד השרת
-              </p>
+              <form action={rotateCalendarFeed} className="mt-3">
+                <button
+                  type="submit"
+                  className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-background"
+                >
+                  צור קישור לסנכרון
+                </button>
+              </form>
             )}
           </details>
         </Card>

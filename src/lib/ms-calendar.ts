@@ -18,6 +18,10 @@ const CALENDAR_SCOPE = "offline_access Calendars.ReadWrite";
 export const CALENDAR_STATE_PREFIX = "cal:";
 export const CALENDAR_NAME = "TA-Estate";
 
+// The office's Outlook account; preselected on the Microsoft sign-in page so the
+// calendar isn't linked to some other Microsoft account the browser is signed in to.
+const OFFICE_ACCOUNT = "y@ta-estate.co.il";
+
 // Event times are the office's wall-clock times (see lib/calendar.ts), so they
 // are exchanged with Outlook as Israel local times.
 const TIME_ZONE = "Israel Standard Time";
@@ -30,6 +34,7 @@ export function getCalendarAuthorizeUrl(ownerId: string, origin: string): string
     redirect_uri: callbackUrl(origin),
     response_mode: "query",
     scope: CALENDAR_SCOPE,
+    login_hint: OFFICE_ACCOUNT,
     state: createState(`${CALENDAR_STATE_PREFIX}${ownerId}`),
   });
   return `${AUTHORIZE_ENDPOINT}?${params.toString()}`;
