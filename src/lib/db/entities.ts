@@ -67,6 +67,7 @@ export type CaseDoc = Owned &
     progress: number;
     attachments?: AttachmentDoc[];
     oneDriveFolderId?: string;
+    oneDriveFolderName?: string;
     oneDriveFolderUrl?: string;
     fromQuoteId?: string;
     fee?: FeeDoc | null;
@@ -200,6 +201,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     progress: doc.progress,
     attachments: (doc.attachments ?? []).map(toAttachment),
     oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
+    oneDriveFolderName: doc.oneDriveFolderName ?? null,
     fromQuoteId: doc.fromQuoteId ?? null,
     fee: toFee(doc.fee),
   };

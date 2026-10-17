@@ -17,8 +17,8 @@ import { formatParcel } from "@/lib/format";
 import {
   createCaseFolder,
   createUploadSession,
-  getItemLocation,
-  moveItemToFolder,
+  getAppFolderFile,
+  moveFileBetweenFolders,
   sanitizeFolderName,
   uploadSmallFile,
   wordDesktopUri,
@@ -140,6 +140,7 @@ async function attachOneDriveFolder(ownerId: string, caseId: string, caseNumber:
     const folder = await createCaseFolder(accessToken, [caseNumber, address].filter(Boolean).join(" - "));
     await casesRepo.update(ownerId, caseId, {
       oneDriveFolderId: folder.id,
+      oneDriveFolderName: folder.name,
       oneDriveFolderUrl: folder.webUrl,
     });
   } catch (err) {
@@ -283,15 +284,13 @@ export async function startOneDriveUpload(
     if (target.kind === "case") {
       const caseDoc = await casesRepo.get(ownerId, target.caseId);
       if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
-      if (!caseDoc.oneDriveFolderId) return { ok: false, error: "לתיק הזה אין תיקיית OneDrive" };
-      parent = { folderId: caseDoc.oneDriveFolderId };
+      if (!caseDoc.oneDriveFolderName) return { ok: false, error: "לתיק הזה אין תיקיית OneDrive" };
+      parent = { appFolderName: caseDoc.oneDriveFolderName };
     } else {
       const quote = await quotesRepo.get(ownerId, target.quoteId);
       if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
       const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-      parent = linked?.oneDriveFolderId
-        ? { folderId: linked.oneDriveFolderId }
-        : { appFolderName: QUOTES_FOLDER };
+      parent = { appFolderName: linked?.oneDriveFolderName ?? QUOTES_FOLDER };
     }
 
     const uploadUrl = await createUploadSession(accessToken, parent, fileName);
@@ -351,6 +350,10 @@ export async function rejectQuote(id: string) {
   refresh();
 }
 
+function quoteWordFileName(quote: { quoteNumber: string; clientName: string }) {
+  return `${sanitizeFolderName(`${quote.quoteNumber} - ${quote.clientName}`)}.docx`;
+}
+
 /**
  * Fills the office's Word template with the quote's details, saves it into the
  * "הצעות מחיר" folder in OneDrive and remembers the link. Returns the error
@@ -384,13 +387,11 @@ export async function createQuoteDocument(
     });
 
     const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-    const parent: UploadParent = linked?.oneDriveFolderId
-      ? { folderId: linked.oneDriveFolderId }
-      : { appFolderName: QUOTES_FOLDER };
+    const parent: UploadParent = { appFolderName: linked?.oneDriveFolderName ?? QUOTES_FOLDER };
     const file = await uploadSmallFile(
       accessToken,
       parent,
-      `${sanitizeFolderName(`${quote.quoteNumber} - ${quote.clientName}`)}.docx`,
+      quoteWordFileName(quote),
       bytes,
       DOCX_TYPE,
     );
@@ -409,12 +410,25 @@ export async function getQuoteWordUri(
 ): Promise<{ ok: true; uri: string } | { ok: false; error: string }> {
   const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
-  if (!quote?.wordFileId) return { ok: false, error: "הקובץ לא נמצא" };
+  if (!quote?.wordFileUrl) return { ok: false, error: "הקובץ לא נמצא" };
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
-    return { ok: true, uri: wordDesktopUri(await getItemLocation(accessToken, quote.wordFileId)) };
+
+    // The letter sits in the quotes folder until the quote becomes a job.
+    const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
+    const folders = [linked?.oneDriveFolderName, QUOTES_FOLDER].filter((f): f is string => !!f);
+    let lastError: unknown;
+    for (const folder of folders) {
+      try {
+        const item = await getAppFolderFile(accessToken, folder, quoteWordFileName(quote));
+        return { ok: true, uri: wordDesktopUri(item) };
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError;
   } catch (err) {
     console.error("Failed to build the Word link:", err);
     // The reason carries only an HTTP status / Graph error code, never a token.
@@ -433,19 +447,20 @@ async function moveQuoteFilesIntoCase(ownerId: string, quoteId: string, caseId: 
   try {
     const quote = await quotesRepo.get(ownerId, quoteId);
     const caseDoc = await casesRepo.get(ownerId, caseId);
-    const folderId = caseDoc?.oneDriveFolderId;
-    if (!quote || !folderId) return;
+    const toFolder = caseDoc?.oneDriveFolderName;
+    if (!quote || !toFolder) return;
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return;
 
     const patch: { wordFileUrl?: string; signedFile?: NonNullable<typeof quote.signedFile> } = {};
 
     if (quote.wordFileId) {
-      const moved = await moveItemToFolder(accessToken, quote.wordFileId, folderId);
+      const fileName = quoteWordFileName(quote);
+      const moved = await moveFileBetweenFolders(accessToken, QUOTES_FOLDER, fileName, toFolder);
       patch.wordFileUrl = moved.webUrl;
       await casesRepo.push(ownerId, caseId, "attachments", {
         key: quote.wordFileId,
-        fileName: `${quote.quoteNumber}.docx`,
+        fileName,
         size: 0,
         contentType: DOCX_TYPE,
         uploadedAt: new Date(),
@@ -453,7 +468,12 @@ async function moveQuoteFilesIntoCase(ownerId: string, quoteId: string, caseId: 
       });
     }
     if (quote.signedFile) {
-      const moved = await moveItemToFolder(accessToken, quote.signedFile.key, folderId);
+      const moved = await moveFileBetweenFolders(
+        accessToken,
+        QUOTES_FOLDER,
+        quote.signedFile.fileName,
+        toFolder,
+      );
       patch.signedFile = { ...quote.signedFile, webUrl: moved.webUrl };
       await casesRepo.push(ownerId, caseId, "attachments", { ...patch.signedFile });
     }

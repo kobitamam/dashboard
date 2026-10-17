@@ -200,7 +200,7 @@ export default async function CasesPage({
                     <CaseAttachments
                       caseId={c.id}
                       attachments={c.attachments}
-                      hasFolder={!!c.oneDriveFolderUrl}
+                      hasFolder={!!c.oneDriveFolderName}
                       startUpload={startOneDriveUpload}
                       removeAttachment={removeCaseAttachment}
                     />

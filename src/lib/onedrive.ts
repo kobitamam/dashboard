@@ -147,7 +147,14 @@ export function sanitizeFolderName(name: string): string {
   return cleaned.slice(0, 255) || "תיקיה";
 }
 
-export type OneDriveFolder = { id: string; webUrl: string };
+export type OneDriveFolder = { id: string; webUrl: string; name: string };
+
+// Everything is addressed by name, relative to the app folder. Looking items up
+// by id is rejected (itemNotFound) for a token limited to the app folder, while
+// path-based access to the same items works.
+function appPath(...segments: string[]) {
+  return `/me/drive/special/approot:/${segments.map((s) => encodeURIComponent(sanitizeFolderName(s))).join("/")}`;
+}
 
 async function createChildFolder(
   accessToken: string,
@@ -174,7 +181,7 @@ async function createChildFolder(
   }
 
   const json = await res.json();
-  return { id: json.id, webUrl: json.webUrl };
+  return { id: json.id, webUrl: json.webUrl, name: json.name };
 }
 
 /**
@@ -185,7 +192,7 @@ async function createChildFolder(
  */
 export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
   const folder = await createChildFolder(accessToken, "/me/drive/special/approot/children", name);
-  await createChildFolder(accessToken, `/me/drive/items/${folder.id}/children`, "מסמכים");
+  await createChildFolder(accessToken, `${appPath(folder.name)}:/children`, "מסמכים");
   return folder;
 }
 
@@ -217,13 +224,11 @@ export async function uploadSmallFile(
 
 export type OneDriveItem = { id: string; webUrl: string; name: string; size: number };
 
-/** Where an upload goes: inside a folder by id, or a named folder under the app folder. */
-export type UploadParent = { folderId: string } | { appFolderName: string };
+/** Where an upload goes: a named folder directly under the app folder. */
+export type UploadParent = { appFolderName: string };
 
 function parentPath(parent: UploadParent) {
-  return "folderId" in parent
-    ? `/me/drive/items/${parent.folderId}:`
-    : `/me/drive/special/approot:/${encodeURIComponent(sanitizeFolderName(parent.appFolderName))}`;
+  return appPath(parent.appFolderName);
 }
 
 /**
@@ -271,15 +276,23 @@ export async function uploadChunk(
   return { done: true, item: { id: json.id, webUrl: json.webUrl, name: json.name, size: json.size } };
 }
 
-/** Moves a file we created into another folder of the app folder. */
-export async function moveItemToFolder(
+/** Moves a file between two folders of the app folder; returns its new web link. */
+export async function moveFileBetweenFolders(
   accessToken: string,
-  itemId: string,
-  folderId: string,
+  fromFolder: string,
+  fileName: string,
+  toFolder: string,
 ): Promise<{ webUrl: string }> {
-  const res = await fetch(`${GRAPH_ROOT}/me/drive/items/${itemId}`, {
+  const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+
+  // A move names its destination by id, so look that one folder's id up by path.
+  const dest = await fetch(`${GRAPH_ROOT}${appPath(toFolder)}?select=id`, { headers });
+  if (!dest.ok) throw new Error(`תיקיית היעד ב-OneDrive לא נמצאה: ${dest.status}`);
+  const folderId = (await dest.json()).id;
+
+  const res = await fetch(`${GRAPH_ROOT}${appPath(fromFolder, fileName)}`, {
     method: "PATCH",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ parentReference: { id: folderId } }),
   });
   if (!res.ok) throw new Error(`העברת קובץ ב-OneDrive נכשלה: ${res.status} ${await res.text()}`);
@@ -292,9 +305,13 @@ type ItemLocation = {
   parentReference?: { driveId?: string; path?: string };
 };
 
-export async function getItemLocation(accessToken: string, itemId: string): Promise<ItemLocation> {
+export async function getAppFolderFile(
+  accessToken: string,
+  folderName: string,
+  fileName: string,
+): Promise<ItemLocation> {
   const res = await fetch(
-    `${GRAPH_ROOT}/me/drive/items/${itemId}?select=name,webUrl,parentReference`,
+    `${GRAPH_ROOT}${appPath(folderName, fileName)}?select=name,webUrl,parentReference`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!res.ok) {

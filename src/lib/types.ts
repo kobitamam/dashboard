@@ -98,6 +98,7 @@ export type Case = PropertyDetails & {
   progress: number;
   attachments: Attachment[];
   oneDriveFolderUrl: string | null;
+  oneDriveFolderName: string | null; // folder name under the app folder, used to address its files
   fromQuoteId: string | null;
   fee: Fee | null;
 };
