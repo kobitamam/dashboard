@@ -6,13 +6,9 @@ export default function DaysPage() {
     <div>
       <PageHeader
         title="מחשבון ימים"
-        subtitle="הוספה, החסרה וספירה של ימים, עם אפשרות לדלג על ימים בשבוע ועל חגים"
+        subtitle="תאריך התחלה ומספר ימים - והתאריך בתום הספירה"
       />
       <DaysCalculator />
-      <p className="mx-auto mt-4 max-w-3xl text-xs text-muted">
-        המחשבון הוא כלי עזר. מועדים הקבועים בדין (למשל בקשת מינוי שמאי מכריע או שומה נגדית) כדאי
-        לאמת מול הוראות החוק.
-      </p>
     </div>
   );
 }
