@@ -43,8 +43,9 @@ export default async function Dashboard() {
         <Card className="p-10 text-center">
           <p className="text-lg font-bold text-foreground">בוא נתחיל</p>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
-            אפשר להוסיף לקוחות, תיקים וחשבוניות ידנית מהתפריט בצד, או לטעון נתוני דוגמה כדי
-            לראות איך המערכת נראית מלאה. תמיד אפשר למחוק אותם אחר כך.
+            {isPartner
+              ? "אפשר להוסיף לקוחות, תיקים וחשבוניות ידנית מהתפריט בצד, או לטעון נתוני דוגמה כדי לראות איך המערכת נראית מלאה. תמיד אפשר למחוק אותם אחר כך."
+              : "אפשר להוסיף לקוחות ותיקים ידנית מהתפריט בצד."}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             {isPartner && (
