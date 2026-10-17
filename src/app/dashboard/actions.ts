@@ -17,9 +17,11 @@ import { formatParcel } from "@/lib/format";
 import {
   createCaseFolder,
   createUploadSession,
+  getItemLocation,
   moveItemToFolder,
   sanitizeFolderName,
   uploadSmallFile,
+  wordDesktopUri,
   type UploadParent,
 } from "@/lib/onedrive";
 import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
@@ -398,6 +400,24 @@ export async function createQuoteDocument(
   } catch (err) {
     console.error("Failed to create quote document:", err);
     return { ok: false, error: "יצירת הקובץ ב-OneDrive נכשלה, נסה שוב" };
+  }
+}
+
+/** The link that opens the quote's Word file in the Word desktop app. */
+export async function getQuoteWordUri(
+  quoteId: string,
+): Promise<{ ok: true; uri: string } | { ok: false; error: string }> {
+  const ownerId = await requirePartnerId();
+  const quote = await quotesRepo.get(ownerId, quoteId);
+  if (!quote?.wordFileId) return { ok: false, error: "הקובץ לא נמצא" };
+
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
+    return { ok: true, uri: wordDesktopUri(await getItemLocation(accessToken, quote.wordFileId)) };
+  } catch (err) {
+    console.error("Failed to build the Word link:", err);
+    return { ok: false, error: "לא הצלחנו לפתוח ב-Word, נסה שוב" };
   }
 }
 

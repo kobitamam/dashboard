@@ -286,6 +286,37 @@ export async function moveItemToFolder(
   return { webUrl: (await res.json()).webUrl };
 }
 
+type ItemLocation = {
+  name: string;
+  webUrl: string;
+  parentReference?: { driveId?: string; path?: string };
+};
+
+export async function getItemLocation(accessToken: string, itemId: string): Promise<ItemLocation> {
+  const res = await fetch(
+    `${GRAPH_ROOT}/me/drive/items/${itemId}?select=name,webUrl,parentReference`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) throw new Error(`קריאת פרטי קובץ מ-OneDrive נכשלה: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * The link that opens a file in the Word desktop app (rather than Word for the
+ * web). Word needs the file's direct address: for a work/school account that is
+ * its webUrl, for a personal OneDrive the webUrl is only a viewer link, so the
+ * direct address is rebuilt from the drive id and folder path.
+ */
+export function wordDesktopUri(item: ItemLocation): string {
+  let url = item.webUrl;
+  if (!/sharepoint\.com$/i.test(new URL(item.webUrl).hostname)) {
+    const cid = item.parentReference?.driveId?.toLowerCase();
+    const folder = item.parentReference?.path?.split("root:")[1] ?? "";
+    if (cid) url = `https://d.docs.live.net/${cid}${folder}/${item.name}`;
+  }
+  return `ms-word:ofe|u|${encodeURI(url)}`;
+}
+
 /** Creates a standalone folder (not tied to a case) directly in the app folder. */
 export async function createCustomFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
   return createChildFolder(accessToken, "/me/drive/special/approot/children", name);

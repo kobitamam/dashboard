@@ -4,6 +4,7 @@ import {
   createQuote,
   createQuoteDocument,
   deleteQuote,
+  getQuoteWordUri,
   rejectQuote,
   startOneDriveUpload,
 } from "@/app/dashboard/actions";
@@ -159,6 +160,7 @@ export default async function QuotesPage({
                         url={q.wordFileUrl}
                         oneDriveConnected={oneDriveConnected}
                         createDocument={createQuoteDocument}
+                        getWordUri={getQuoteWordUri}
                       />
                       {q.status !== "נדחתה" && (
                         <QuoteFileSlot
