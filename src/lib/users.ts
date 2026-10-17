@@ -128,6 +128,21 @@ export async function listEmployees(organizationId: string): Promise<EmployeeSum
   }));
 }
 
+export type OrganizationMember = { id: string; name: string; role: Role };
+
+/** Everyone who works in the organization (the partner(s) and the employees), for pickers. */
+export async function listOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
+  const db = await getDb();
+  const users = db.collection<UserDoc>("users");
+  // Accounts created before organizationId existed are their own organization's root.
+  const rootFilter = ObjectId.isValid(organizationId) ? [{ _id: new ObjectId(organizationId) }] : [];
+  const docs = await users
+    .find({ $or: [{ organizationId }, ...rootFilter] })
+    .sort({ createdAt: 1 })
+    .toArray();
+  return docs.map((d) => ({ id: String(d._id), name: d.name, role: d.role }));
+}
+
 /** Scoped to the organization and to role "employee", so a partner can never
  * accidentally remove another organization's account or demote themselves. */
 export async function removeEmployee(organizationId: string, userId: string) {

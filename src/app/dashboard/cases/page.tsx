@@ -20,6 +20,7 @@ import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { caseDeadlines } from "@/lib/deadlines";
+import { listOrganizationMembers, type OrganizationMember } from "@/lib/users";
 import { daysUntil, formatDate, formatParcel, formatTime } from "@/lib/format";
 import {
   BETTERMENT_LEVY,
@@ -39,7 +40,10 @@ export default async function CasesPage({
   if (!result.ok) return <DataUnavailable />;
   const { type: typeFilter } = await searchParams;
   const isPartner = (await currentRole()) === "partner";
-  const types = await loadCaseTypes(await requireOwnerId());
+  const ownerId = await requireOwnerId();
+  const types = await loadCaseTypes(ownerId);
+  const members = await listOrganizationMembers(ownerId);
+  const nameOf = new Map(members.map((m) => [m.id, m.name]));
   const allCases = result.data.cases;
   // Quotes are partners-only, so for an employee this stays empty and no quote link is shown.
   const quotesById = new Map(result.data.quotes.map((q) => [q.id, q]));
@@ -56,6 +60,8 @@ export default async function CasesPage({
       <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
       <SelectField label="סוג שומה" name="type" options={types} defaultValue={types[0]} />
       <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
+      <MemberSelect label="שותף מטפל" name="partnerId" role="partner" members={members} value={null} />
+      <MemberSelect label="עובד מטפל" name="employeeId" role="employee" members={members} value={null} />
       <Field label="מייל" name="clientEmail" type="email" />
       <Field label="טלפון" name="clientPhone" />
       <SelectField label="סטטוס" name="status" options={caseStatuses} defaultValue="בתהליך" />
@@ -149,6 +155,16 @@ export default async function CasesPage({
                     )}
                     {c.description && <p className="mt-1 text-xs font-medium text-brand-blue">{c.description}</p>}
                     {c.type && <p className="mt-0.5 text-xs text-muted">{c.type}</p>}
+                    {(c.partnerId || c.employeeId) && (
+                      <p className="mt-1 text-xs text-foreground/80">
+                        {[
+                          c.partnerId && `שותף: ${nameOf.get(c.partnerId) ?? "—"}`,
+                          c.employeeId && `עובד: ${nameOf.get(c.employeeId) ?? "—"}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    )}
                     {isPartner && c.feeNote && (
                       <p className="mt-1 text-xs text-muted">שכ״ט: {c.feeNote}</p>
                     )}
@@ -251,6 +267,22 @@ export default async function CasesPage({
                           />
                         )}
                       </div>
+                      <MemberSelect
+                        label="שותף מטפל"
+                        name="partnerId"
+                        role="partner"
+                        members={members}
+                        value={c.partnerId}
+                        compact
+                      />
+                      <MemberSelect
+                        label="עובד מטפל"
+                        name="employeeId"
+                        role="employee"
+                        members={members}
+                        value={c.employeeId}
+                        compact
+                      />
                       <DateInput label="תאריך יעד" name="dueDate" value={c.dueDate} />
                       {c.type === BETTERMENT_LEVY && (
                         <>
@@ -307,6 +339,55 @@ function DateInput({ label, name, value }: { label: string; name: string; value:
         defaultValue={value ?? ""}
         className="rounded-lg border border-border bg-background px-2 py-1 text-[11px] text-foreground outline-none focus:border-brand-cyan"
       />
+    </label>
+  );
+}
+
+// Picks who handles a case: a partner in one picker, an employee in the other.
+function MemberSelect({
+  label,
+  name,
+  role,
+  members,
+  value,
+  compact,
+}: {
+  label: string;
+  name: string;
+  role: OrganizationMember["role"];
+  members: OrganizationMember[];
+  value: string | null;
+  compact?: boolean;
+}) {
+  const options = members.filter((m) => m.role === role);
+  const select = (
+    <select
+      name={name}
+      defaultValue={value ?? ""}
+      className={
+        compact
+          ? "min-w-0 rounded-lg border border-border bg-background px-2 py-1 text-[11px] text-foreground outline-none focus:border-brand-cyan"
+          : "w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-brand-cyan"
+      }
+    >
+      <option value="">ללא</option>
+      {options.map((m) => (
+        <option key={m.id} value={m.id}>
+          {m.name}
+        </option>
+      ))}
+    </select>
+  );
+
+  return compact ? (
+    <label className="flex items-center justify-between gap-2 text-[11px] text-muted">
+      <span>{label}</span>
+      {select}
+    </label>
+  ) : (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+      {select}
     </label>
   );
 }

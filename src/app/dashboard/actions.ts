@@ -29,6 +29,7 @@ import { deleteOutlookTwin, syncCalendar } from "@/lib/calendar-sync";
 import { removeCalendarConnection } from "@/lib/db/calendar-connection";
 import { rotateFeedToken } from "@/lib/db/calendar-feed";
 import { initialFee } from "@/lib/fees";
+import { listOrganizationMembers } from "@/lib/users";
 import { createUploadToken } from "@/lib/upload-token";
 import {
   BETTERMENT_LEVY,
@@ -105,6 +106,17 @@ async function resolveCaseType(ownerId: string, form: FormData, canAdd: boolean)
     return name;
   }
   return available.includes(chosen) ? chosen : "אחר";
+}
+
+// Who handles a case: one partner and one employee, each chosen from the
+// organization's own accounts (an id from anywhere else is ignored).
+async function assignees(ownerId: string, form: FormData) {
+  const members = await listOrganizationMembers(ownerId);
+  const pick = (key: string, role: "partner" | "employee") => {
+    const id = text(form, key);
+    return members.some((m) => m.id === id && m.role === role) ? id : "";
+  };
+  return { partnerId: pick("partnerId", "partner"), employeeId: pick("employeeId", "employee") };
 }
 
 // Today's calendar date in Israel, as midnight UTC, so the stored date (which
@@ -214,6 +226,7 @@ async function createCaseInternal(
       ? bettermentProgress(stage)
       : Math.min(100, Math.max(0, number(form, "progress"))),
     ...(isBettermentLevy ? { bettermentStage: stage } : {}),
+    ...(await assignees(ownerId, form)),
     ...propertyDetails(form),
     ...(isPartner ? {} : { feeNote: "" }),
     ...(options?.linkedQuoteId ? { fromQuoteId: options.linkedQuoteId } : {}),
@@ -248,6 +261,7 @@ export async function updateCaseProgress(id: string, form: FormData) {
 
   await casesRepo.update(ownerId, id, {
     status,
+    ...(await assignees(ownerId, form)),
     dueDate: date(form, "dueDate"),
     ...(isBettermentLevy
       ? {

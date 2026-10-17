@@ -129,6 +129,8 @@ export type Case = PropertyDetails & {
   // ...and last day to file a counter-appraisal (מועד ב׳).
   counterAppraisalDate: string | null;
   bettermentStage: string | null; // היטל השבחה only: one of bettermentStages
+  partnerId: string | null; // the partner handling the case
+  employeeId: string | null; // the employee handling the case
   progress: number;
   oneDriveFolderUrl: string | null;
   oneDriveFolderName: string | null; // folder name under the app folder, used to address its files
