@@ -15,6 +15,7 @@ import { currentRole, loadCaseTypes, requirePartnerId, requireOwnerId } from "@/
 import { seedDemoData } from "@/lib/db/seed";
 import { formatParcel } from "@/lib/format";
 import {
+  CASE_DOCUMENTS_FOLDER,
   createCaseFolder,
   createUploadSession,
   getAppFolderFile,
@@ -315,12 +316,14 @@ export async function startOneDriveUpload(
       const caseDoc = await casesRepo.get(ownerId, target.caseId);
       if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
       if (!caseDoc.oneDriveFolderName) return { ok: false, error: "לתיק הזה אין תיקיית OneDrive" };
-      parent = { appFolderName: caseDoc.oneDriveFolderName };
+      parent = { appFolderName: caseDoc.oneDriveFolderName, subFolder: CASE_DOCUMENTS_FOLDER };
     } else {
       const quote = await quotesRepo.get(ownerId, target.quoteId);
       if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
       const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-      parent = { appFolderName: linked?.oneDriveFolderName ?? QUOTES_FOLDER };
+      parent = linked?.oneDriveFolderName
+        ? { appFolderName: linked.oneDriveFolderName, subFolder: CASE_DOCUMENTS_FOLDER }
+        : { appFolderName: QUOTES_FOLDER };
     }
 
     const uploadUrl = await createUploadSession(accessToken, parent, fileName);
@@ -417,7 +420,9 @@ export async function createQuoteDocument(
     });
 
     const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-    const parent: UploadParent = { appFolderName: linked?.oneDriveFolderName ?? QUOTES_FOLDER };
+    const parent: UploadParent = linked?.oneDriveFolderName
+      ? { appFolderName: linked.oneDriveFolderName, subFolder: CASE_DOCUMENTS_FOLDER }
+      : { appFolderName: QUOTES_FOLDER };
     const file = await uploadSmallFile(
       accessToken,
       parent,
@@ -446,13 +451,18 @@ export async function getQuoteWordUri(
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
 
-    // The letter sits in the quotes folder until the quote becomes a job.
+    // The letter sits in the quotes folder until the quote becomes a job, then in
+    // the case's documents folder (or, for files moved there earlier, the case folder).
     const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-    const folders = [linked?.oneDriveFolderName, QUOTES_FOLDER].filter((f): f is string => !!f);
+    const caseFolder = linked?.oneDriveFolderName;
+    const candidates: string[][] = [
+      ...(caseFolder ? [[caseFolder, CASE_DOCUMENTS_FOLDER], [caseFolder]] : []),
+      [QUOTES_FOLDER],
+    ];
     let lastError: unknown;
-    for (const folder of folders) {
+    for (const folders of candidates) {
       try {
-        const item = await getAppFolderFile(accessToken, folder, quoteWordFileName(quote));
+        const item = await getAppFolderFile(accessToken, folders, quoteWordFileName(quote));
         return { ok: true, uri: wordDesktopUri(item) };
       } catch (err) {
         lastError = err;
@@ -490,7 +500,13 @@ async function moveQuoteFilesIntoCase(
 
     if (quote.wordFileId) {
       const fileName = quoteWordFileName(quote);
-      const moved = await moveFileBetweenFolders(accessToken, QUOTES_FOLDER, fileName, toFolder);
+      const moved = await moveFileBetweenFolders(
+        accessToken,
+        QUOTES_FOLDER,
+        fileName,
+        toFolder,
+        CASE_DOCUMENTS_FOLDER,
+      );
       patch.wordFileUrl = moved.webUrl;
       await casesRepo.push(ownerId, caseId, "attachments", {
         key: quote.wordFileId,
@@ -507,6 +523,7 @@ async function moveQuoteFilesIntoCase(
         QUOTES_FOLDER,
         quote.signedFile.fileName,
         toFolder,
+        CASE_DOCUMENTS_FOLDER,
       );
       patch.signedFile = { ...quote.signedFile, webUrl: moved.webUrl };
       await casesRepo.push(ownerId, caseId, "attachments", { ...patch.signedFile });

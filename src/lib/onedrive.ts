@@ -188,6 +188,9 @@ async function getAppFolder(accessToken: string, name: string): Promise<OneDrive
 // the one folder-creating call known to work here.
 const KEEP_FILE = ".keep";
 
+/** The sub-folder of every case folder that holds the case's documents. */
+export const CASE_DOCUMENTS_FOLDER = "מסמכים";
+
 async function ensureFolders(accessToken: string, ...folders: string[]) {
   const res = await fetch(
     `${GRAPH_ROOT}${appPath(...folders, KEEP_FILE)}:/content?@microsoft.graph.conflictBehavior=replace`,
@@ -214,7 +217,7 @@ async function ensureFolders(accessToken: string, ...folders: string[]) {
  */
 export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
   const folderName = sanitizeFolderName(name);
-  await ensureFolders(accessToken, folderName, "מסמכים");
+  await ensureFolders(accessToken, folderName, CASE_DOCUMENTS_FOLDER);
 
   const folder = await getAppFolder(accessToken, folderName);
   if (!folder) throw new Error(`התיקייה "${folderName}" נוצרה אך לא נמצאה ב-OneDrive`);
@@ -250,10 +253,10 @@ export async function uploadSmallFile(
 export type OneDriveItem = { id: string; webUrl: string; name: string; size: number };
 
 /** Where an upload goes: a named folder directly under the app folder. */
-export type UploadParent = { appFolderName: string };
+export type UploadParent = { appFolderName: string; subFolder?: string };
 
 function parentPath(parent: UploadParent) {
-  return appPath(parent.appFolderName);
+  return appPath(parent.appFolderName, ...(parent.subFolder ? [parent.subFolder] : []));
 }
 
 /**
@@ -307,11 +310,14 @@ export async function moveFileBetweenFolders(
   fromFolder: string,
   fileName: string,
   toFolder: string,
+  toSubFolder?: string,
 ): Promise<{ webUrl: string }> {
   const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
 
   // A move names its destination by id, so look that one folder's id up by path.
-  const dest = await fetch(`${GRAPH_ROOT}${appPath(toFolder)}?select=id`, { headers });
+  const dest = await fetch(`${GRAPH_ROOT}${appPath(toFolder, ...(toSubFolder ? [toSubFolder] : []))}?select=id`, {
+    headers,
+  });
   if (!dest.ok) throw new Error(`תיקיית היעד ב-OneDrive לא נמצאה: ${dest.status}`);
   const folderId = (await dest.json()).id;
 
@@ -332,11 +338,11 @@ type ItemLocation = {
 
 export async function getAppFolderFile(
   accessToken: string,
-  folderName: string,
+  folders: string[],
   fileName: string,
 ): Promise<ItemLocation> {
   const res = await fetch(
-    `${GRAPH_ROOT}${appPath(folderName, fileName)}?select=name,webUrl,parentReference`,
+    `${GRAPH_ROOT}${appPath(...folders, fileName)}?select=name,webUrl,parentReference`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!res.ok) {

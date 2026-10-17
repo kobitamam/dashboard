@@ -40,7 +40,9 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
    case folder when the quote is approved.
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/<Q-number - client>.docx` and
-`TA-Estate Dashboard/<TA-100-26>/{files, מסמכים/}`.
+`TA-Estate Dashboard/<TA-100-26>/מסמכים/<every case document>` - uploads, the quote's Word letter and the signed
+quote all live in `מסמכים` (`CASE_DOCUMENTS_FOLDER`). Two files moved earlier sit in the case folder root, so lookups
+also check there.
 
 ## Working here
 
