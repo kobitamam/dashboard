@@ -11,6 +11,7 @@ export type CalendarItem = {
   endTime: string | null;
   title: string;
   detail: string;
+  kind: string; // the event type, or "דדליין", for colouring
   eventId?: string;
 };
 
@@ -25,6 +26,7 @@ export function buildCalendarItems(events: CalendarEvent[], cases: Case[]): Cale
         time: e.start.slice(11, 16),
         endTime: addMinutes(e.start, 60).slice(11, 16),
         title: e.title,
+        kind: e.type,
         detail: [e.type, linked ? `תיק ${linked.caseNumber} · ${linked.clientName}` : "", e.location]
           .filter(Boolean)
           .join(" · "),
@@ -40,6 +42,7 @@ export function buildCalendarItems(events: CalendarEvent[], cases: Case[]): Cale
           time: null,
           endTime: null,
           title: `דדליין: ${d.label}`,
+          kind: "דדליין",
           detail: `תיק ${c.caseNumber} · ${c.clientName}`,
         })),
       ),
@@ -57,6 +60,20 @@ function addMinutes(iso: string, minutes: number) {
 
 export function todayInIsraelDay() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+}
+
+/** Minutes since midnight on the office clock (Israel). */
+export function israelNowMinutes() {
+  const [h, m] = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jerusalem",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(new Date())
+    .split(":")
+    .map(Number);
+  return h * 60 + m;
 }
 
 export function addDays(day: string, n: number) {

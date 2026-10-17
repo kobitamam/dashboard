@@ -48,7 +48,10 @@ Two files that an earlier version moved into a case folder are tolerated by the 
 - The calendar page is a Sunday-Thursday week (`src/lib/calendar.ts`). Case deadlines are derived from the cases (never stored);
   meetings/hearings are `events` (optionally linked to a case via `caseId`). Event times are floating office wall-clock times
   (stored as UTC fields) - the page, the .ics feed and Outlook all read them that way.
-- **Apple Calendar, two-way**: via a dedicated "TA-Estate" calendar in the user's Outlook (`src/lib/calendar-sync.ts`,
+- The calendar tab is a time-grid week like Apple Calendar (`src/components/WeekCalendar.tsx`): Sunday-Thursday, Friday/Saturday on request.
+- **The Apple Calendar link the user wants is the read-only .ics subscription** (below); the two-way Outlook sync described next is built
+  but its UI is hidden (the user said view-only is enough), so the connect button no longer appears.
+- **Apple Calendar, two-way** (UI hidden): via a dedicated "TA-Estate" calendar in the user's Outlook (`src/lib/calendar-sync.ts`,
   `src/lib/ms-calendar.ts`). This is a SEPARATE Microsoft connection (`calendarConnections`, scope `Calendars.ReadWrite`) from OneDrive,
   so the OneDrive token keeps its narrow app-folder scope and its refresh never asks for more. It returns through the OneDrive callback
   (`/api/onedrive/callback`, the registered redirect) with a `cal:` prefix on the signed state. Sync runs on calendar page load (throttled

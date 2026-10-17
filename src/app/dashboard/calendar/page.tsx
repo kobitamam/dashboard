@@ -1,34 +1,24 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import {
-  createEvent,
-  deleteEvent,
-  disconnectCalendarSync,
-  disconnectOneDrive,
-  rotateCalendarFeed,
-} from "@/app/dashboard/actions";
+import { createEvent, disconnectOneDrive, rotateCalendarFeed } from "@/app/dashboard/actions";
 import {
   AddRecord,
   DataUnavailable,
-  DeleteButton,
   Field,
   SelectField,
 } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
+import WeekCalendar from "@/components/WeekCalendar";
 import { isConnected } from "@/lib/db/onedrive-connection";
 import {
   addDays,
   buildCalendarItems,
-  dayNames,
+  israelNowMinutes,
   todayInIsraelDay,
   weekStartOf,
 } from "@/lib/calendar";
-import { syncCalendar } from "@/lib/calendar-sync";
-import { getCalendarConnection } from "@/lib/db/calendar-connection";
 import { getFeedToken } from "@/lib/db/calendar-feed";
-import { getCalendarAuthorizeUrl } from "@/lib/ms-calendar";
 import { loadDashboardData, requireOwnerId } from "@/lib/db/queries";
-import { formatDate } from "@/lib/format";
 import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
 import { eventTypes } from "@/lib/types";
 
@@ -45,17 +35,10 @@ export default async function CalendarPage({
   searchParams: Promise<{
     onedrive?: string;
     onedrive_error?: string;
-    calendar?: string;
-    calendar_error?: string;
     week?: string;
+    weekend?: string;
   }>;
 }) {
-  const ownerId = await requireOwnerId();
-  // Bring in what was added in the Outlook/Apple calendar before reading the events
-  // (a no-op when it isn't linked, or was synced in the last minute).
-  const sync = await syncCalendar(ownerId).catch(() => null);
-  const calendarLink = await getCalendarConnection(ownerId);
-
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const { events, cases } = result.data;
@@ -65,24 +48,34 @@ export default async function CalendarPage({
   const items = buildCalendarItems(events, cases);
 
   const params = await searchParams;
+  const ownerId = await requireOwnerId();
 
-  // The working week, Sunday to Thursday.
+  // A week starts on Sunday; Friday and Saturday are shown on request.
+  const showWeekend = params.weekend === "1";
   const weekStart = weekStartOf(params.week);
-  const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
-  const weekend = [addDays(weekStart, 5), addDays(weekStart, 6)];
+  const days = Array.from({ length: showWeekend ? 7 : 5 }, (_, i) => addDays(weekStart, i));
+  const hiddenDays = showWeekend ? [] : [addDays(weekStart, 5), addDays(weekStart, 6)];
+  const hiddenCount = items.filter((i) => hiddenDays.includes(i.day)).length;
   const today = todayInIsraelDay();
-  const weekItems = (day: string) => items.filter((i) => i.day === day);
-  const weekendItems = items.filter((i) => weekend.includes(i.day));
+  const nowMinutes = israelNowMinutes();
+  const weekHref = (week?: string, weekend = showWeekend) => {
+    const query = new URLSearchParams();
+    if (week) query.set("week", week);
+    if (weekend) query.set("weekend", "1");
+    const text = query.toString();
+    return `/dashboard/calendar${text ? `?${text}` : ""}`;
+  };
+  const monthLabel = new Intl.DateTimeFormat("he-IL", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${addDays(weekStart, 2)}T00:00:00Z`));
 
   const feedToken = await getFeedToken(ownerId);
   const origin = await getOrigin();
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
   const connected = isOneDriveConfigured() && (await isConnected(ownerId));
   const authorizeUrl = isOneDriveConfigured() ? getAuthorizeUrl(ownerId, origin) : null;
-  const calendarAuthorizeUrl = isOneDriveConfigured()
-    ? getCalendarAuthorizeUrl(ownerId, origin)
-    : null;
-  const syncError = sync && !sync.ok ? sync.error : (calendarLink?.lastError ?? null);
 
   const form = (
     <AddRecord label="+ פגישה חדשה" action={createEvent}>
@@ -108,6 +101,9 @@ export default async function CalendarPage({
     </AddRecord>
   );
 
+  const navButton =
+    "rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-semibold hover:bg-background";
+
   return (
     <div>
       <PageHeader
@@ -121,74 +117,93 @@ export default async function CalendarPage({
           OneDrive חובר בהצלחה
         </div>
       )}
-      {params.calendar === "connected" && (
-        <div className="mb-4 rounded-xl bg-success/10 px-4 py-3 text-sm font-medium text-success">
-          יומן Outlook חובר בהצלחה
-        </div>
-      )}
-      {params.calendar === "error" && (
-        <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
-          חיבור יומן Outlook נכשל{params.calendar_error ? `: ${params.calendar_error}` : ""}
-        </div>
-      )}
       {params.onedrive === "error" && (
         <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
           חיבור OneDrive נכשל{params.onedrive_error ? `: ${params.onedrive_error}` : ""}
         </div>
       )}
 
-      <Card className="p-4 sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold">
-            {formatDate(days[0])} – {formatDate(days[4])}
-          </h2>
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <Link
-              href={`/dashboard/calendar?week=${addDays(weekStart, -7)}`}
-              className="rounded-lg border border-border px-3 py-1.5 hover:bg-background"
-            >
-              → שבוע קודם
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+          <h2 className="text-2xl font-bold">{monthLabel}</h2>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Link href={weekHref(addDays(weekStart, -7))} className={navButton} aria-label="שבוע קודם">
+              →
             </Link>
-            <Link
-              href="/dashboard/calendar"
-              className="rounded-lg border border-border px-3 py-1.5 hover:bg-background"
-            >
+            <Link href={weekHref()} className={navButton}>
               היום
             </Link>
-            <Link
-              href={`/dashboard/calendar?week=${addDays(weekStart, 7)}`}
-              className="rounded-lg border border-border px-3 py-1.5 hover:bg-background"
-            >
-              שבוע הבא ←
+            <Link href={weekHref(addDays(weekStart, 7))} className={navButton} aria-label="שבוע הבא">
+              ←
+            </Link>
+            <Link href={weekHref(params.week, !showWeekend)} className={`${navButton} text-muted`}>
+              {showWeekend ? "הסתר שישי-שבת" : "הצג שישי-שבת"}
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          {days.map((day, i) => (
-            <DayColumn
-              key={day}
-              label={`יום ${dayNames[i]}`}
-              day={day}
-              isToday={day === today}
-              items={weekItems(day)}
-            />
-          ))}
-        </div>
-
-        {weekendItems.length > 0 && (
-          <div className="mt-4 rounded-xl border border-dashed border-border p-3">
-            <p className="mb-2 text-xs font-semibold text-muted">בסוף השבוע (שישי-שבת)</p>
-            <div className="space-y-2">
-              {weekendItems.map((item) => (
-                <EventCard key={item.id} item={item} showDay />
-              ))}
-            </div>
-          </div>
+        {hiddenCount > 0 && (
+          <p className="border-t border-border bg-warning/10 px-4 py-2 text-xs text-warning">
+            יש {hiddenCount} אירועים בשישי-שבת של השבוע הזה.{" "}
+            <Link href={weekHref(params.week, true)} className="font-semibold underline">
+              הצג
+            </Link>
+          </p>
         )}
+
+        <WeekCalendar days={days} today={today} nowMinutes={nowMinutes} items={items} />
       </Card>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="h-fit p-5">
+          <h2 className="text-lg font-bold">הצגה ביומן של Apple</h2>
+          <p className="mt-3 text-sm text-muted">
+            מוסיף ליומן של Apple יומן נוסף ברשימה שבצד, כמו היומנים האחרים שלך. אפשר לתת לו
+            שם וצבע משלו. הוא מציג את הפגישות, הדיונים והדדליינים של התיקים ומתעדכן לבד.
+            הוא לצפייה בלבד: אירוע שמוסיפים ב-Apple לא נכנס למערכת.
+          </p>
+          {feedPath ? (
+            <>
+              <a
+                href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
+                className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
+                הוסף ליומן Apple
+              </a>
+              <ol className="mt-3 list-decimal space-y-1 pr-5 text-xs text-muted">
+                <li>במק: לחץ על הכפתור, או ביומן: קובץ ← מנוי חדש ליומן, והדבק את הכתובת שמתחת.</li>
+                <li>בחר שם וצבע, ובשדה &quot;רענון אוטומטי&quot; בחר &quot;כל 5 דקות&quot;.</li>
+                <li>באייפון: הגדרות ← יומן ← חשבונות ← הוסף חשבון ← אחר ← הוסף יומן מנוי.</li>
+              </ol>
+              <p dir="ltr" className="mt-2 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
+                {origin}
+                {feedPath}
+              </p>
+              <p className="mt-2 text-xs text-warning">
+                הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אפשר להחליף אותו
+                והישן יפסיק לעבוד.
+              </p>
+              <form action={rotateCalendarFeed} className="mt-2">
+                <button
+                  type="submit"
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
+                >
+                  החלף קישור
+                </button>
+              </form>
+            </>
+          ) : (
+            <form action={rotateCalendarFeed} className="mt-3">
+              <button
+                type="submit"
+                className="rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
+                צור קישור לסנכרון
+              </button>
+            </form>
+          )}
+        </Card>
+
         <Card className="h-fit p-5">
           <h2 className="text-lg font-bold">OneDrive</h2>
 
@@ -236,169 +251,7 @@ export default async function CalendarPage({
             </>
           )}
         </Card>
-
-        <Card className="h-fit p-5">
-          <h2 className="text-lg font-bold">סנכרון עם יומן Apple (דרך Outlook)</h2>
-          <p className="mt-3 text-sm text-muted">
-            המערכת מסתנכרנת עם יומן בשם TA-Estate בחשבון Outlook של המשרד (y@ta-estate.co.il).
-            את אותו חשבון מוסיפים ליומן של Apple, ומשם הכול זז בשני הכיוונים: דדליין או דיון
-            שנוספו במערכת מופיעים ב-Apple, ואירוע שתוסיף ב-Apple ביומן TA-Estate מופיע
-            במערכת.
-          </p>
-
-          {calendarLink ? (
-            <>
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                מחובר
-              </span>
-              {syncError && (
-                <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
-                  הסנכרון האחרון נכשל: {syncError}
-                </p>
-              )}
-              <ol className="mt-3 list-decimal space-y-1 pr-5 text-xs text-muted">
-                <li>
-                  במק: הגדרות מערכת ← חשבונות אינטרנט ← הוסף חשבון ← Microsoft Exchange, עם
-                  y@ta-estate.co.il. באייפון: הגדרות ← יומן ← חשבונות ← הוסף חשבון ←
-                  Microsoft Exchange.
-                </li>
-                <li>הפעל &quot;יומנים&quot; בחשבון. ביומן של Apple יופיע יומן בשם TA-Estate.</li>
-                <li>אירועים חדשים מוסיפים אל יומן TA-Estate.</li>
-              </ol>
-              <p className="mt-3 text-xs text-muted">
-                אירוע שנוסף במערכת מופיע ב-Apple תוך דקות. אירוע שנוסף ב-Apple מופיע כאן כשמישהו
-                פותח את היומן במערכת (עד דקה).
-              </p>
-              <form action={disconnectCalendarSync} className="mt-3">
-                <button
-                  type="submit"
-                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
-                >
-                  נתק את יומן Outlook
-                </button>
-              </form>
-            </>
-          ) : calendarAuthorizeUrl ? (
-            <>
-              <a
-                href={calendarAuthorizeUrl}
-                className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-              >
-                חבר יומן Outlook
-              </a>
-              <p className="mt-2 text-xs text-muted">
-                תתבקש להיכנס עם y@ta-estate.co.il ולאשר גישה ליומן. אם מופיעה הודעה שנדרש
-                אישור מנהל, מנהל החשבון של המשרד צריך לאשר את האפליקציה.
-              </p>
-            </>
-          ) : (
-            <p className="mt-3 rounded-lg bg-background px-3 py-2 text-xs text-muted">
-              תצורת Microsoft חסרה בצד השרת
-            </p>
-          )}
-
-          <details className="mt-5 border-t border-border pt-4">
-            <summary className="cursor-pointer text-xs font-semibold text-muted">
-              אפשרות פשוטה יותר: צפייה בלבד ב-Apple (חד-כיווני)
-            </summary>
-            <p className="mt-3 text-xs text-muted">
-              מציגה ב-Apple את האירועים והדדליינים בלי חיבור ל-Microsoft, אבל אירוע שנוסף
-              ב-Apple לא יופיע במערכת. אל תשתמש בשתי האפשרויות יחד, כדי שהאירועים לא יוצגו
-              פעמיים.
-            </p>
-            {feedPath ? (
-              <>
-                <a
-                  href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
-                  className="mt-3 inline-block rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-background"
-                >
-                  הוסף ליומן Apple
-                </a>
-                <p dir="ltr" className="mt-2 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
-                  {origin}
-                  {feedPath}
-                </p>
-                <p className="mt-2 text-xs text-warning">
-                  הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אפשר להחליף אותו
-                  והישן יפסיק לעבוד.
-                </p>
-                <form action={rotateCalendarFeed} className="mt-2">
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
-                  >
-                    החלף קישור
-                  </button>
-                </form>
-              </>
-            ) : (
-              <form action={rotateCalendarFeed} className="mt-3">
-                <button
-                  type="submit"
-                  className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-background"
-                >
-                  צור קישור לסנכרון
-                </button>
-              </form>
-            )}
-          </details>
-        </Card>
       </div>
-    </div>
-  );
-}
-
-type Item = ReturnType<typeof buildCalendarItems>[number];
-
-function DayColumn({
-  label,
-  day,
-  isToday,
-  items,
-}: {
-  label: string;
-  day: string;
-  isToday: boolean;
-  items: Item[];
-}) {
-  return (
-    <div className={`rounded-xl border p-2.5 ${isToday ? "border-brand-cyan bg-brand-cyan-light/30" : "border-border"}`}>
-      <div className="mb-2 flex items-baseline justify-between">
-        <span className={`text-sm font-bold ${isToday ? "text-brand-blue" : "text-foreground"}`}>{label}</span>
-        <span className="text-xs text-muted">{formatDate(day)}</span>
-      </div>
-      <div className="space-y-2">
-        {items.length === 0 ? (
-          <p className="py-2 text-center text-[11px] text-muted/70">—</p>
-        ) : (
-          items.map((item) => <EventCard key={item.id} item={item} />)
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EventCard({ item, showDay }: { item: Item; showDay?: boolean }) {
-  const deadline = item.time === null;
-  return (
-    <div
-      className={`rounded-lg p-2 text-xs ${deadline ? "bg-warning/10" : "bg-brand-cyan-light"}`}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <span className={`font-bold ${deadline ? "text-warning" : "text-brand-blue"}`}>
-          {showDay && `${formatDate(item.day)} · `}
-          {deadline ? "דדליין" : item.time}
-        </span>
-        {item.eventId && (
-          <DeleteButton
-            action={deleteEvent.bind(null, item.eventId)}
-            confirmText="למחוק את הפגישה?"
-          />
-        )}
-      </div>
-      <p className="mt-0.5 font-semibold text-foreground">{item.title}</p>
-      {item.detail && <p className="mt-0.5 text-muted">{item.detail}</p>}
     </div>
   );
 }
