@@ -94,7 +94,6 @@ export default function Sidebar({
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{userName}</p>
-            <p className="truncate text-xs text-white/60">שמאי מקרקעין מוסמך</p>
           </div>
         </div>
       </div>

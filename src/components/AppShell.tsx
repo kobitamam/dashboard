@@ -92,7 +92,6 @@ export default function AppShell({
               </div>
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold text-foreground">{userName}</p>
-                <p className="text-xs text-muted">{isPartner ? "מנהל המשרד" : "עובד"}</p>
               </div>
             </div>
             <button
