@@ -172,32 +172,6 @@ async function graphError(res: Response, what: string) {
   return new Error(`${what}: ${res.status}${detail ? ` ${detail}` : ""}`);
 }
 
-async function createChildFolder(
-  accessToken: string,
-  parentPath: string,
-  name: string,
-  conflict: "rename" | "fail" = "rename",
-): Promise<OneDriveFolder> {
-  const res = await fetch(`${GRAPH_ROOT}${parentPath}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: sanitizeFolderName(name),
-      folder: {},
-      // "rename": Microsoft picks a free name on a clash instead of failing.
-      "@microsoft.graph.conflictBehavior": conflict,
-    }),
-  });
-
-  if (!res.ok) throw await graphError(res, `יצירת תיקיה "${name}" ב-OneDrive נכשלה`);
-
-  const json = await res.json();
-  return { id: json.id, webUrl: json.webUrl, name: json.name };
-}
-
 async function getAppFolder(accessToken: string, name: string): Promise<OneDriveFolder | null> {
   const res = await fetch(`${GRAPH_ROOT}${appPath(name)}?select=id,name,webUrl`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -208,26 +182,42 @@ async function getAppFolder(accessToken: string, name: string): Promise<OneDrive
   return { id: json.id, webUrl: json.webUrl, name: json.name };
 }
 
+// An empty file whose upload makes Graph create the folders on its path. Creating
+// the folders with a POST to ".../children" is rejected (400 invalidRequest) for
+// an app-folder token, while a path-based upload creates missing parents and is
+// the one folder-creating call known to work here.
+const KEEP_FILE = ".keep";
+
+async function ensureFolders(accessToken: string, ...folders: string[]) {
+  const res = await fetch(
+    `${GRAPH_ROOT}${appPath(...folders, KEEP_FILE)}:/content?@microsoft.graph.conflictBehavior=replace`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/octet-stream" },
+      body: new Uint8Array(0) as unknown as BodyInit,
+    },
+  );
+  if (!res.ok) throw await graphError(res, `יצירת התיקייה "${folders.join("/")}" ב-OneDrive נכשלה`);
+
+  // Only the folders were wanted; the marker file is cosmetic to remove.
+  await fetch(`${GRAPH_ROOT}${appPath(...folders, KEEP_FILE)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).catch((err) => console.error("Failed to remove the folder marker file:", err));
+}
+
 /**
  * Creates a case's folder directly under the app's special OneDrive folder,
- * plus a starter "מסמכים" sub-folder. Safe to run again: an existing folder
- * is reused rather than duplicated, and the sub-folder is best-effort so a
- * failure there can't lose the folder that was already made. Callers decide
- * what to do with an error - during case creation it is only logged.
+ * with a starter "מסמכים" sub-folder. Safe to run again: existing folders are
+ * reused. Callers decide what to do with an error - during case creation it is
+ * only logged.
  */
 export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
-  const folder =
-    (await getAppFolder(accessToken, sanitizeFolderName(name))) ??
-    (await createChildFolder(accessToken, "/me/drive/special/approot/children", name));
+  const folderName = sanitizeFolderName(name);
+  await ensureFolders(accessToken, folderName, "מסמכים");
 
-  try {
-    await createChildFolder(accessToken, `${appPath(folder.name)}:/children`, "מסמכים", "fail");
-  } catch (err) {
-    // 409 just means it is already there.
-    if (!(err instanceof Error && err.message.includes("409"))) {
-      console.error("Failed to create the case sub-folder:", err);
-    }
-  }
+  const folder = await getAppFolder(accessToken, folderName);
+  if (!folder) throw new Error(`התיקייה "${folderName}" נוצרה אך לא נמצאה ב-OneDrive`);
   return folder;
 }
 
@@ -370,9 +360,4 @@ export function wordDesktopUri(item: ItemLocation): string {
     if (cid) url = `https://d.docs.live.net/${cid}${folder}/${item.name}`;
   }
   return `ms-word:ofe|u|${encodeURI(url)}`;
-}
-
-/** Creates a standalone folder (not tied to a case) directly in the app folder. */
-export async function createCustomFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
-  return createChildFolder(accessToken, "/me/drive/special/approot/children", name);
 }
