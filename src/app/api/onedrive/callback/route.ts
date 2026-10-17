@@ -50,8 +50,7 @@ export async function GET(request: Request) {
   // The state carries the organization id (requireOwnerId's scope), not the
   // individual account id, since the connection is shared by the whole office.
   const session = await auth();
-  // Connecting an account is a partners-only action.
-  if (!session?.user?.id || session.user.organizationId !== stateOwnerId || session.user.role !== "partner") {
+  if (!session?.user?.id || session.user.organizationId !== stateOwnerId) {
     return redirectTo(url.origin, "error", "יש להתחבר למערכת לפני החיבור", param);
   }
 

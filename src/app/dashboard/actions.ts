@@ -252,7 +252,7 @@ async function attachOneDriveFolder(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - שותף צריך לחבר אותו בלשונית OneDrive" };
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
     // Named by the case number alone: short, unique and always a valid name.
     const folder = await createCaseFolder(accessToken, caseNumber);
     await casesRepo.update(ownerId, caseId, {
@@ -453,7 +453,7 @@ export async function disconnectCalendarSync() {
 }
 
 export async function disconnectOneDrive() {
-  const ownerId = await requirePartnerId();
+  const ownerId = await requireOwnerId();
   await disconnectOneDriveConnection(ownerId);
   refresh();
 }
@@ -479,7 +479,7 @@ export async function startOneDriveUpload(
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - שותף צריך לחבר אותו בלשונית OneDrive" };
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
 
     const quote = await quotesRepo.get(ownerId, target.quoteId);
     if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
@@ -556,7 +556,7 @@ export async function createQuoteDocument(
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - שותף צריך לחבר אותו בלשונית OneDrive" };
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
 
     const dates = formatQuoteDates(quote.date ?? todayInIsrael());
     const bytes = await buildQuoteDocx({
@@ -599,7 +599,7 @@ export async function getQuoteWordUri(
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - שותף צריך לחבר אותו בלשונית OneDrive" };
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
 
     // The letter lives in the quotes folder. The case folders are only checked for
     // the two files that an earlier version moved there.

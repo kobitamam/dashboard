@@ -10,13 +10,13 @@ const navItems = [
   { href: "/dashboard/attendance", label: "שעון נוכחות", icon: ClockIcon },
   { href: "/dashboard/alerts", label: "התראות חכמות", icon: BellIcon },
   { href: "/dashboard/calendar", label: "יומן", icon: CalendarIcon },
+  { href: "/dashboard/onedrive", label: "OneDrive", icon: CloudIcon },
 ];
 
 const partnerOnlyNavItems = [
   { href: "/dashboard/quotes", label: "הצעות מחיר", icon: QuoteIcon },
   { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
   { href: "/dashboard/team", label: "צוות", icon: TeamIcon },
-  { href: "/dashboard/onedrive", label: "OneDrive", icon: CloudIcon },
 ];
 
 export default function Sidebar({

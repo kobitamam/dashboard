@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { disconnectOneDrive } from "@/app/dashboard/actions";
 import { Card, PageHeader } from "@/components/ui";
 import { isConnected } from "@/lib/db/onedrive-connection";
-import { currentRole, requireOwnerId } from "@/lib/db/queries";
+import { requireOwnerId } from "@/lib/db/queries";
 import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
 
 async function getOrigin() {
@@ -17,15 +17,6 @@ export default async function OneDrivePage({
 }: {
   searchParams: Promise<{ onedrive?: string; onedrive_error?: string }>;
 }) {
-  if ((await currentRole()) !== "partner") {
-    return (
-      <div className="mx-auto max-w-lg rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
-        <p className="text-base font-semibold text-foreground">אין לך הרשאה לצפות בעמוד זה</p>
-        <p className="mt-2 text-sm text-muted">ניהול החיבור ל-OneDrive חשוף לשותפים בלבד.</p>
-      </div>
-    );
-  }
-
   const params = await searchParams;
   const ownerId = await requireOwnerId();
   const connected = isOneDriveConfigured() && (await isConnected(ownerId));

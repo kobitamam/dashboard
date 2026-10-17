@@ -36,8 +36,9 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
 9. The quote letter is generated from the office's own Word template (`src/lib/quote-template.ts`, base64,
    `{{PLACEHOLDERS}}`; fill logic in `src/lib/quote-document.ts`) and saved to `הצעות מחיר/` and STAYS there.
 
-The OneDrive connection (connect/disconnect) lives in its own partners-only tab, `/dashboard/onedrive`; the OAuth callback still
-returns through `/api/onedrive/callback` (the registered redirect) and requires a partner session.
+The OneDrive connection (connect/disconnect) lives in its own tab, `/dashboard/onedrive`, open to every member of the organization
+(employees too, so a partner never has to connect it for them); the OAuth callback still returns through `/api/onedrive/callback`
+(the registered redirect).
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
