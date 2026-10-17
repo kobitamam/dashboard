@@ -7,11 +7,15 @@ import { useState } from "react";
 export default function CaseFolderRetry({
   caseId,
   retry,
+  prompt = "📁 אין תיקיית OneDrive",
+  action = "צור תיקייה",
 }: {
   caseId: string;
   retry: (
     caseId: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  prompt?: string;
+  action?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -25,7 +29,7 @@ export default function CaseFolderRetry({
       if (!result.ok) setMessage(result.error);
       router.refresh();
     } catch {
-      setMessage("יצירת התיקייה נכשלה, נסה שוב");
+      setMessage("הפעולה נכשלה, נסה שוב");
     } finally {
       setBusy(false);
     }
@@ -33,14 +37,14 @@ export default function CaseFolderRetry({
 
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 text-muted">
-      📁 אין תיקיית OneDrive
+      {prompt}
       <button
         type="button"
         onClick={handleClick}
         disabled={busy}
         className="font-bold text-brand-blue hover:underline disabled:opacity-60"
       >
-        {busy ? "יוצר..." : "צור תיקייה"}
+        {busy ? "יוצר..." : action}
       </button>
       {message && <span className="w-full text-danger">{message}</span>}
     </span>

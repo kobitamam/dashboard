@@ -1,5 +1,6 @@
 import {
   createCase,
+  createCaseShareLink,
   deleteCaseType,
   deleteCase,
   renameCaseType,
@@ -237,17 +238,39 @@ export default async function CasesPage({
                       ))}
 
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                      {c.oneDriveFolderUrl ? (
+                      {/* Employees get a link that opens only the documents folder; the owner's
+                          own folder link would ask for (or expose) the office's OneDrive account. */}
+                      {isPartner &&
+                        (c.oneDriveFolderUrl ? (
+                          <a
+                            href={c.oneDriveFolderUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-brand-blue hover:underline"
+                          >
+                            📁 תיקיית התיק ב-OneDrive
+                          </a>
+                        ) : (
+                          <CaseFolderRetry caseId={c.id} retry={retryCaseOneDriveFolder} />
+                        ))}
+                      {c.oneDriveShareUrl ? (
                         <a
-                          href={c.oneDriveFolderUrl}
+                          href={c.oneDriveShareUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-medium text-brand-blue hover:underline"
                         >
-                          📁 תיקיית התיק ב-OneDrive
+                          📂 מסמכי התיק
                         </a>
+                      ) : c.oneDriveFolderUrl ? (
+                        <CaseFolderRetry
+                          caseId={c.id}
+                          retry={createCaseShareLink}
+                          prompt="📂 אין קישור למסמכי התיק"
+                          action="צור קישור"
+                        />
                       ) : (
-                        <CaseFolderRetry caseId={c.id} retry={retryCaseOneDriveFolder} />
+                        !isPartner && <span className="text-muted">📂 תיקיית המסמכים עדיין לא נוצרה</span>
                       )}
                       {isPartner && (
                         <Link href={`/dashboard/fees/${c.id}`} className="font-medium text-brand-blue hover:underline">

@@ -225,6 +225,25 @@ export async function createCaseFolder(accessToken: string, name: string): Promi
 }
 
 /**
+ * A link that opens ONLY a case's documents folder, for people without access to the
+ * office's OneDrive (the employees): anyone holding the link can view and edit that one
+ * folder and nothing above it. It is deliberately a link to the "מסמכים" sub-folder, so
+ * the quote files that may sit in the case folder's root are never reachable through it.
+ * Asking again for the same link returns the existing one.
+ */
+export async function createDocumentsShareLink(accessToken: string, caseFolderName: string): Promise<string> {
+  const res = await fetch(`${GRAPH_ROOT}${appPath(caseFolderName, CASE_DOCUMENTS_FOLDER)}:/createLink`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "edit", scope: "anonymous" }),
+  });
+  if (!res.ok) throw await graphError(res, "יצירת קישור שיתוף לתיקיית המסמכים נכשלה");
+  const url = (await res.json())?.link?.webUrl;
+  if (typeof url !== "string" || !url) throw new Error("יצירת קישור השיתוף נכשלה: לא התקבל קישור");
+  return url;
+}
+
+/**
  * Uploads a small file (under ~4MB, Graph's simple-upload limit) into a
  * folder. An existing file of the same name is replaced.
  */

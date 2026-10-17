@@ -74,6 +74,7 @@ export type CaseDoc = Owned &
     oneDriveFolderId?: string;
     oneDriveFolderName?: string;
     oneDriveFolderUrl?: string;
+    oneDriveShareUrl?: string;
     fromQuoteId?: string;
     fee?: FeeDoc | null;
   };
@@ -212,6 +213,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     employeeId: doc.employeeId || null,
     progress: doc.progress,
     oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
+    oneDriveShareUrl: doc.oneDriveShareUrl ?? null,
     oneDriveFolderName: doc.oneDriveFolderName ?? null,
     fromQuoteId: doc.fromQuoteId ?? null,
     fee: toFee(doc.fee),

@@ -23,6 +23,7 @@ import { formatParcel } from "@/lib/format";
 import {
   CASE_DOCUMENTS_FOLDER,
   createCaseFolder,
+  createDocumentsShareLink,
   createUploadSession,
   getAppFolderFile,
   sanitizeFolderName,
@@ -258,11 +259,37 @@ async function attachOneDriveFolder(
       oneDriveFolderName: folder.name,
       oneDriveFolderUrl: folder.webUrl,
     });
+    // The documents link for employees is best-effort too; "צור קישור" on the card retries it.
+    await createDocumentsShareLink(accessToken, folder.name)
+      .then((url) => casesRepo.update(ownerId, caseId, { oneDriveShareUrl: url }))
+      .catch((err) => console.error("Failed to create the documents share link:", err));
     return { ok: true };
   } catch (err) {
     console.error("Failed to create OneDrive folder for case:", err);
     // The message carries only an HTTP status / Graph error code, never a token.
     return { ok: false, error: err instanceof Error ? err.message : "יצירת התיקייה נכשלה" };
+  }
+}
+
+/** Creates (or fetches again) the link that opens only the case's documents folder. */
+export async function createCaseShareLink(
+  caseId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ownerId = await requireOwnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
+  if (!caseDoc.oneDriveFolderName) return { ok: false, error: "לתיק הזה אין עדיין תיקיית OneDrive" };
+
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
+    const url = await createDocumentsShareLink(accessToken, caseDoc.oneDriveFolderName);
+    await casesRepo.update(ownerId, caseId, { oneDriveShareUrl: url });
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    console.error("Failed to create the documents share link:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "יצירת הקישור נכשלה" };
   }
 }
 
