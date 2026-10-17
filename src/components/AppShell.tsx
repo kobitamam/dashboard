@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
@@ -82,10 +83,11 @@ export default function AppShell({
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="relative rounded-full border border-border p-2 text-brand-blue"
-              aria-label="התראות"
+            <Link
+              href="/dashboard/alerts"
+              className="relative rounded-full border border-border p-2 text-brand-blue hover:bg-background"
+              aria-label={alertCount > 0 ? `התראות (${alertCount})` : "התראות"}
+              title={alertCount > 0 ? `${alertCount} התראות פתוחות` : "אין התראות פתוחות"}
             >
               <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
                 <path
@@ -95,8 +97,10 @@ export default function AppShell({
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="absolute -left-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-danger" />
-            </button>
+              {alertCount > 0 && (
+                <span className="absolute -left-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-danger" />
+              )}
+            </Link>
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-cyan-light text-sm font-bold text-brand-blue">
                 {initials}
