@@ -304,32 +304,6 @@ export async function uploadChunk(
   return { done: true, item: { id: json.id, webUrl: json.webUrl, name: json.name, size: json.size } };
 }
 
-/** Moves a file between two folders of the app folder; returns its new web link. */
-export async function moveFileBetweenFolders(
-  accessToken: string,
-  fromFolder: string,
-  fileName: string,
-  toFolder: string,
-  toSubFolder?: string,
-): Promise<{ webUrl: string }> {
-  const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
-
-  // A move names its destination by id, so look that one folder's id up by path.
-  const dest = await fetch(`${GRAPH_ROOT}${appPath(toFolder, ...(toSubFolder ? [toSubFolder] : []))}?select=id`, {
-    headers,
-  });
-  if (!dest.ok) throw new Error(`תיקיית היעד ב-OneDrive לא נמצאה: ${dest.status}`);
-  const folderId = (await dest.json()).id;
-
-  const res = await fetch(`${GRAPH_ROOT}${appPath(fromFolder, fileName)}`, {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify({ parentReference: { id: folderId } }),
-  });
-  if (!res.ok) throw new Error(`העברת קובץ ב-OneDrive נכשלה: ${res.status} ${await res.text()}`);
-  return { webUrl: (await res.json()).webUrl };
-}
-
 type ItemLocation = {
   name: string;
   webUrl: string;

@@ -19,7 +19,6 @@ import {
   createCaseFolder,
   createUploadSession,
   getAppFolderFile,
-  moveFileBetweenFolders,
   sanitizeFolderName,
   uploadSmallFile,
   wordDesktopUri,
@@ -157,26 +156,18 @@ async function attachOneDriveFolder(
   }
 }
 
-/** Retries a case's missing OneDrive folder (and files waiting from its quote). */
+/** Retries a case's missing OneDrive folder. */
 export async function retryCaseOneDriveFolder(
   caseId: string,
-): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const ownerId = await requireOwnerId();
   const caseDoc = await casesRepo.get(ownerId, caseId);
   if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
+  if (caseDoc.oneDriveFolderName) return { ok: true };
 
-  if (!caseDoc.oneDriveFolderName) {
-    const result = await attachOneDriveFolder(ownerId, caseId, caseDoc.caseNumber);
-    if (!result.ok) return result;
-  }
-
-  let warning: string | undefined;
-  if (caseDoc.fromQuoteId) {
-    const moveError = await moveQuoteFilesIntoCase(ownerId, caseDoc.fromQuoteId, caseId);
-    if (moveError) warning = `התיקייה נוצרה, אך העברת קבצי ההצעה נכשלה (${moveError})`;
-  }
-  refresh();
-  return { ok: true, warning };
+  const result = await attachOneDriveFolder(ownerId, caseId, caseDoc.caseNumber);
+  if (result.ok) refresh();
+  return result;
 }
 
 async function createCaseInternal(
@@ -320,10 +311,8 @@ export async function startOneDriveUpload(
     } else {
       const quote = await quotesRepo.get(ownerId, target.quoteId);
       if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
-      const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-      parent = linked?.oneDriveFolderName
-        ? { appFolderName: linked.oneDriveFolderName, subFolder: CASE_DOCUMENTS_FOLDER }
-        : { appFolderName: QUOTES_FOLDER };
+      // Quote files stay in the partners-only quotes folder, never in the case folder.
+      parent = { appFolderName: QUOTES_FOLDER };
     }
 
     const uploadUrl = await createUploadSession(accessToken, parent, fileName);
@@ -419,10 +408,7 @@ export async function createQuoteDocument(
         (quote.amount > 0 ? `${quote.amount.toLocaleString("he-IL")} ₪ + מע״מ` : ""),
     });
 
-    const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
-    const parent: UploadParent = linked?.oneDriveFolderName
-      ? { appFolderName: linked.oneDriveFolderName, subFolder: CASE_DOCUMENTS_FOLDER }
-      : { appFolderName: QUOTES_FOLDER };
+    const parent: UploadParent = { appFolderName: QUOTES_FOLDER };
     const file = await uploadSmallFile(
       accessToken,
       parent,
@@ -451,13 +437,13 @@ export async function getQuoteWordUri(
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
 
-    // The letter sits in the quotes folder until the quote becomes a job, then in
-    // the case's documents folder (or, for files moved there earlier, the case folder).
+    // The letter lives in the quotes folder. The case folders are only checked for
+    // the two files that an earlier version moved there.
     const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
     const caseFolder = linked?.oneDriveFolderName;
     const candidates: string[][] = [
-      ...(caseFolder ? [[caseFolder, CASE_DOCUMENTS_FOLDER], [caseFolder]] : []),
       [QUOTES_FOLDER],
+      ...(caseFolder ? [[caseFolder, CASE_DOCUMENTS_FOLDER], [caseFolder]] : []),
     ];
     let lastError: unknown;
     for (const folders of candidates) {
@@ -474,65 +460,6 @@ export async function getQuoteWordUri(
     // The reason carries only an HTTP status / Graph error code, never a token.
     const reason = err instanceof Error ? err.message : "";
     return { ok: false, error: `לא הצלחנו לפתוח ב-Word${reason ? ` (${reason})` : ""}` };
-  }
-}
-
-/**
- * Once a quote becomes a job, its Word letter and the signed copy move into
- * the job's own OneDrive folder and are listed on the case, so everything for
- * the job sits in one place. Best-effort: the approval itself must not fail
- * because OneDrive did.
- */
-async function moveQuoteFilesIntoCase(
-  ownerId: string,
-  quoteId: string,
-  caseId: string,
-): Promise<string | null> {
-  try {
-    const quote = await quotesRepo.get(ownerId, quoteId);
-    const caseDoc = await casesRepo.get(ownerId, caseId);
-    const toFolder = caseDoc?.oneDriveFolderName;
-    if (!quote || !toFolder) return null;
-    const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return null;
-
-    const patch: { wordFileUrl?: string; signedFile?: NonNullable<typeof quote.signedFile> } = {};
-
-    if (quote.wordFileId) {
-      const fileName = quoteWordFileName(quote);
-      const moved = await moveFileBetweenFolders(
-        accessToken,
-        QUOTES_FOLDER,
-        fileName,
-        toFolder,
-        CASE_DOCUMENTS_FOLDER,
-      );
-      patch.wordFileUrl = moved.webUrl;
-      await casesRepo.push(ownerId, caseId, "attachments", {
-        key: quote.wordFileId,
-        fileName,
-        size: 0,
-        contentType: DOCX_TYPE,
-        uploadedAt: new Date(),
-        webUrl: moved.webUrl,
-      });
-    }
-    if (quote.signedFile) {
-      const moved = await moveFileBetweenFolders(
-        accessToken,
-        QUOTES_FOLDER,
-        quote.signedFile.fileName,
-        toFolder,
-        CASE_DOCUMENTS_FOLDER,
-      );
-      patch.signedFile = { ...quote.signedFile, webUrl: moved.webUrl };
-      await casesRepo.push(ownerId, caseId, "attachments", { ...patch.signedFile });
-    }
-    if (patch.wordFileUrl || patch.signedFile) await quotesRepo.update(ownerId, quoteId, patch);
-    return null;
-  } catch (err) {
-    console.error("Failed to move quote files into the case folder:", err);
-    return err instanceof Error ? err.message : "שגיאה";
   }
 }
 
@@ -564,7 +491,6 @@ export async function approveQuote(quoteId: string) {
   caseForm.set("notes", quote.notes ?? "");
   caseForm.set("feeNote", quote.feeNote ?? "");
   const caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
-  if (caseId) await moveQuoteFilesIntoCase(ownerId, quoteId, caseId);
 
   await quotesRepo.update(ownerId, quoteId, {
     status: "אושרה",

@@ -11,7 +11,7 @@ export default function CaseFolderRetry({
   caseId: string;
   retry: (
     caseId: string,
-  ) => Promise<{ ok: true; warning?: string } | { ok: false; error: string }>;
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -23,7 +23,6 @@ export default function CaseFolderRetry({
     try {
       const result = await retry(caseId);
       if (!result.ok) setMessage(result.error);
-      else if (result.warning) setMessage(result.warning);
       router.refresh();
     } catch {
       setMessage("יצירת התיקייה נכשלה, נסה שוב");

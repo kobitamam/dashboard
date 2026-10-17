@@ -23,26 +23,23 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
    `/api/onedrive/upload` (Vercel caps request bodies at ~4.5MB; chunks are 9x320KiB, Graph requires multiples
    of 320KiB except the last). The pre-authenticated `uploadUrl` never reaches the browser - it travels as an
    AES-GCM token (`src/lib/upload-token.ts`). There is intentionally no size cap.
-4. **Moving files** between folders: `PATCH <source path>` with `{ parentReference: { id: <destination folder id> } }`;
-   get the destination id with a path GET (`moveFileBetweenFolders`). Works.
-5. **Names**: `sanitizeFolderName()` strips control/bidi marks (pasted from Word) and `/ \ : * ? " < > |`.
+4. **Names**: `sanitizeFolderName()` strips control/bidi marks (pasted from Word) and `/ \ : * ? " < > |`.
    A case folder is named by its case number alone: `TA-100/26` -> `TA-100-26`. Never put addresses in folder names.
-6. **Open in Word desktop**: the `ms-word:ofe|u|<direct file URL>` link (`wordDesktopUri`). For work/school accounts the
+5. **Open in Word desktop**: the `ms-word:ofe|u|<direct file URL>` link (`wordDesktopUri`). For work/school accounts the
    direct URL is `webUrl`; for personal OneDrive it is rebuilt as `https://d.docs.live.net/<cid>/<path>`.
-7. **Return errors as data from server actions.** Production masks thrown errors (React error #441), which hid the
+6. **Return errors as data from server actions.** Production masks thrown errors (React error #441), which hid the
    real cause for hours. Actions that talk to OneDrive return `{ ok: false, error }` with the HTTP status and
    Graph code/message (never a token); `graphError()` builds that text.
-8. **OneDrive failures must not break the app.** Case/quote creation continues if the folder can't be made; the case card
-   then shows "צור תיקייה" (`retryCaseOneDriveFolder`), which also moves the quote's Word + signed files in.
-9. Removing a file in the UI only removes it from the list; the file stays in OneDrive.
-10. The quote letter is generated from the office's own Word template (`src/lib/quote-template.ts`, base64,
-   `{{PLACEHOLDERS}}`; fill logic in `src/lib/quote-document.ts`) and saved to `הצעות מחיר/`, moving into the
-   case folder when the quote is approved.
+7. **OneDrive failures must not break the app.** Case/quote creation continues if the folder can't be made; the case card
+   then shows "צור תיקייה" (`retryCaseOneDriveFolder`).
+8. Removing a file in the UI only removes it from the list; the file stays in OneDrive.
+9. The quote letter is generated from the office's own Word template (`src/lib/quote-template.ts`, base64,
+   `{{PLACEHOLDERS}}`; fill logic in `src/lib/quote-document.ts`) and saved to `הצעות מחיר/` and STAYS there.
 
-Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/<Q-number - client>.docx` and
-`TA-Estate Dashboard/<TA-100-26>/מסמכים/<every case document>` - uploads, the quote's Word letter and the signed
-quote all live in `מסמכים` (`CASE_DOCUMENTS_FOLDER`). Two files moved earlier sit in the case folder root, so lookups
-also check there.
+Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
+only, they are never moved into a case and never listed on the case card (employees must not reach them).
+`TA-Estate Dashboard/<TA-100-26>/מסמכים/` (`CASE_DOCUMENTS_FOLDER`) holds the case's documents, which employees may use.
+Two files that an earlier version moved into a case folder are tolerated by the Word lookup only.
 
 ## Working here
 
