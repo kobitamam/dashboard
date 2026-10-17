@@ -2,10 +2,12 @@ import {
   createCase,
   deleteCase,
   removeCaseAttachment,
+  retryCaseOneDriveFolder,
   startOneDriveUpload,
   updateCaseProgress,
 } from "@/app/dashboard/actions";
 import CaseAttachments from "@/components/CaseAttachments";
+import CaseFolderRetry from "@/components/CaseFolderRetry";
 import {
   AddRecord,
   DataUnavailable,
@@ -147,9 +149,7 @@ export default async function CasesPage({
                           📁 תיקיית התיק ב-OneDrive
                         </a>
                       ) : (
-                        <span className="text-muted">
-                          📁 אין תיקיית OneDrive (חבר את OneDrive ביומן)
-                        </span>
+                        <CaseFolderRetry caseId={c.id} retry={retryCaseOneDriveFolder} />
                       )}
                       {isPartner && (
                         <Link href={`/dashboard/fees/${c.id}`} className="font-medium text-brand-blue hover:underline">

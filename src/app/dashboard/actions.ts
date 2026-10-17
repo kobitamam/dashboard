@@ -129,23 +129,53 @@ export async function deleteClient(id: string) {
 }
 
 /**
- * Creates the case's OneDrive folder and stores the link back on it. Kept
- * best-effort: a case is fully usable without OneDrive, so a failure here is
- * logged, never thrown back at the caller.
+ * Creates the case's OneDrive folder and stores its name and link on the case.
+ * Best-effort during case creation (a case is fully usable without OneDrive),
+ * so the reason for a failure is returned for callers that want to show it.
  */
-async function attachOneDriveFolder(ownerId: string, caseId: string, caseNumber: string, address: string) {
+async function attachOneDriveFolder(
+  ownerId: string,
+  caseId: string,
+  caseNumber: string,
+  address: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return;
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
     const folder = await createCaseFolder(accessToken, [caseNumber, address].filter(Boolean).join(" - "));
     await casesRepo.update(ownerId, caseId, {
       oneDriveFolderId: folder.id,
       oneDriveFolderName: folder.name,
       oneDriveFolderUrl: folder.webUrl,
     });
+    return { ok: true };
   } catch (err) {
     console.error("Failed to create OneDrive folder for case:", err);
+    // The message carries only an HTTP status / Graph error code, never a token.
+    return { ok: false, error: err instanceof Error ? err.message : "יצירת התיקייה נכשלה" };
   }
+}
+
+/** Retries a case's missing OneDrive folder (and files waiting from its quote). */
+export async function retryCaseOneDriveFolder(
+  caseId: string,
+): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
+  const ownerId = await requireOwnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
+
+  if (!caseDoc.oneDriveFolderName) {
+    const result = await attachOneDriveFolder(ownerId, caseId, caseDoc.caseNumber, caseDoc.address);
+    if (!result.ok) return result;
+  }
+
+  let warning: string | undefined;
+  if (caseDoc.fromQuoteId) {
+    const moveError = await moveQuoteFilesIntoCase(ownerId, caseDoc.fromQuoteId, caseId);
+    if (moveError) warning = `התיקייה נוצרה, אך העברת קבצי ההצעה נכשלה (${moveError})`;
+  }
+  refresh();
+  return { ok: true, warning };
 }
 
 async function createCaseInternal(
@@ -443,14 +473,18 @@ export async function getQuoteWordUri(
  * the job sits in one place. Best-effort: the approval itself must not fail
  * because OneDrive did.
  */
-async function moveQuoteFilesIntoCase(ownerId: string, quoteId: string, caseId: string) {
+async function moveQuoteFilesIntoCase(
+  ownerId: string,
+  quoteId: string,
+  caseId: string,
+): Promise<string | null> {
   try {
     const quote = await quotesRepo.get(ownerId, quoteId);
     const caseDoc = await casesRepo.get(ownerId, caseId);
     const toFolder = caseDoc?.oneDriveFolderName;
-    if (!quote || !toFolder) return;
+    if (!quote || !toFolder) return null;
     const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return;
+    if (!accessToken) return null;
 
     const patch: { wordFileUrl?: string; signedFile?: NonNullable<typeof quote.signedFile> } = {};
 
@@ -478,8 +512,10 @@ async function moveQuoteFilesIntoCase(ownerId: string, quoteId: string, caseId: 
       await casesRepo.push(ownerId, caseId, "attachments", { ...patch.signedFile });
     }
     if (patch.wordFileUrl || patch.signedFile) await quotesRepo.update(ownerId, quoteId, patch);
+    return null;
   } catch (err) {
     console.error("Failed to move quote files into the case folder:", err);
+    return err instanceof Error ? err.message : "שגיאה";
   }
 }
 

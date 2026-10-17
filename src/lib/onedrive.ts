@@ -156,10 +156,16 @@ function appPath(...segments: string[]) {
   return `/me/drive/special/approot:/${segments.map((s) => encodeURIComponent(sanitizeFolderName(s))).join("/")}`;
 }
 
+async function graphError(res: Response, what: string) {
+  const code = (await res.json().catch(() => null))?.error?.code;
+  return new Error(`${what}: ${res.status}${code ? ` ${code}` : ""}`);
+}
+
 async function createChildFolder(
   accessToken: string,
   parentPath: string,
   name: string,
+  conflict: "rename" | "fail" = "rename",
 ): Promise<OneDriveFolder> {
   const res = await fetch(`${GRAPH_ROOT}${parentPath}`, {
     method: "POST",
@@ -170,29 +176,47 @@ async function createChildFolder(
     body: JSON.stringify({
       name: sanitizeFolderName(name),
       folder: {},
-      // Microsoft renames on a clash instead of failing the request outright.
-      "@microsoft.graph.conflictBehavior": "rename",
+      // "rename": Microsoft picks a free name on a clash instead of failing.
+      "@microsoft.graph.conflictBehavior": conflict,
     }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`יצירת תיקיה ב-OneDrive נכשלה: ${res.status} ${body}`);
-  }
+  if (!res.ok) throw await graphError(res, `יצירת תיקיה "${name}" ב-OneDrive נכשלה`);
 
   const json = await res.json();
   return { id: json.id, webUrl: json.webUrl, name: json.name };
 }
 
+async function getAppFolder(accessToken: string, name: string): Promise<OneDriveFolder | null> {
+  const res = await fetch(`${GRAPH_ROOT}${appPath(name)}?select=id,name,webUrl`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw await graphError(res, `בדיקת תיקייה "${name}" ב-OneDrive נכשלה`);
+  const json = await res.json();
+  return { id: json.id, webUrl: json.webUrl, name: json.name };
+}
+
 /**
- * Creates a folder for a case directly under the app's special OneDrive
- * folder, plus one starter sub-folder for files. Best-effort by design: a
- * case is still usable if OneDrive is unreachable, so callers should catch
- * and log rather than fail the surrounding action.
+ * Creates a case's folder directly under the app's special OneDrive folder,
+ * plus a starter "מסמכים" sub-folder. Safe to run again: an existing folder
+ * is reused rather than duplicated, and the sub-folder is best-effort so a
+ * failure there can't lose the folder that was already made. Callers decide
+ * what to do with an error - during case creation it is only logged.
  */
 export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
-  const folder = await createChildFolder(accessToken, "/me/drive/special/approot/children", name);
-  await createChildFolder(accessToken, `${appPath(folder.name)}:/children`, "מסמכים");
+  const folder =
+    (await getAppFolder(accessToken, sanitizeFolderName(name))) ??
+    (await createChildFolder(accessToken, "/me/drive/special/approot/children", name));
+
+  try {
+    await createChildFolder(accessToken, `${appPath(folder.name)}:/children`, "מסמכים", "fail");
+  } catch (err) {
+    // 409 just means it is already there.
+    if (!(err instanceof Error && err.message.includes("409"))) {
+      console.error("Failed to create the case sub-folder:", err);
+    }
+  }
   return folder;
 }
 
