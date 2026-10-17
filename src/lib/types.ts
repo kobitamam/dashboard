@@ -2,7 +2,7 @@ export type ClientStatus = "פעיל" | "ליד חדש" | "סגור";
 export type CaseStatus = "בתהליך" | "ממתין למידע" | "דחוף" | "הושלם";
 export type InvoiceStatus = "שולם" | "ממתין לתשלום" | "באיחור";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
-export type EventType = "ביקור בנכס" | "פגישת לקוח" | "הגשת שומה" | "שיחת טלפון";
+export type EventType = "ביקור בנכס" | "פגישת לקוח" | "דיון" | "הגשת שומה" | "שיחת טלפון";
 export type CaseType =
   | "שומה לצרכי מכירה"
   | "שומה לצרכי מימון/משכנתא"
@@ -10,6 +10,7 @@ export type CaseType =
   | "שומת ירושה"
   | "שומה לבית משפט/ליטיגציה"
   | "ייעוץ והשגה"
+  | "היטל השבחה"
   | "אחר";
 export type QuoteStatus = "ממתין לאישור" | "אושרה" | "נדחתה";
 export type Role = "partner" | "employee";
@@ -20,6 +21,7 @@ export const invoiceStatuses: InvoiceStatus[] = ["ממתין לתשלום", "ש�
 export const eventTypes: EventType[] = [
   "ביקור בנכס",
   "פגישת לקוח",
+  "דיון",
   "הגשת שומה",
   "שיחת טלפון",
 ];
@@ -30,8 +32,12 @@ export const caseTypes: CaseType[] = [
   "שומת ירושה",
   "שומה לבית משפט/ליטיגציה",
   "ייעוץ והשגה",
+  "היטל השבחה",
   "אחר",
 ];
+
+// A betterment-levy case has two statutory deadlines on top of the general due date.
+export const BETTERMENT_LEVY: CaseType = "היטל השבחה";
 export const quoteStatuses: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
 
 // The select's sentinel for "add a type that isn't in the list yet".
@@ -94,6 +100,10 @@ export type Case = PropertyDetails & {
   type: string;
   status: CaseStatus;
   dueDate: string | null;
+  // היטל השבחה only: last day to ask for an arbitrator appraiser (מועד א׳)...
+  arbitratorRequestDate: string | null;
+  // ...and last day to file a counter-appraisal (מועד ב׳).
+  counterAppraisalDate: string | null;
   progress: number;
   oneDriveFolderUrl: string | null;
   oneDriveFolderName: string | null; // folder name under the app folder, used to address its files
@@ -140,6 +150,7 @@ export type CalendarEvent = {
   start: string;
   location: string;
   type: EventType;
+  caseId: string | null; // the case a hearing/meeting belongs to, if any
 };
 
 export type Alert = {

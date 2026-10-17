@@ -27,6 +27,7 @@ import {
 import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
 import { createUploadToken } from "@/lib/upload-token";
 import {
+  BETTERMENT_LEVY,
   caseStatuses,
   clientStatuses,
   eventTypes,
@@ -184,13 +185,22 @@ async function createCaseInternal(
   // the field directly.
   const isPartner = (await currentRole()) === "partner";
 
+  const type = await resolveCaseType(ownerId, form, isPartner);
+  const isBettermentLevy = type === BETTERMENT_LEVY;
+
   const caseId = await casesRepo.insert(ownerId, {
     caseNumber,
     clientName,
     address,
-    type: await resolveCaseType(ownerId, form, isPartner),
+    type,
     status: oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך"),
     dueDate: date(form, "dueDate"),
+    ...(isBettermentLevy
+      ? {
+          arbitratorRequestDate: date(form, "arbitratorRequestDate"),
+          counterAppraisalDate: date(form, "counterAppraisalDate"),
+        }
+      : {}),
     progress: Math.min(100, Math.max(0, number(form, "progress"))),
     ...propertyDetails(form),
     ...(isPartner ? {} : { feeNote: "" }),
@@ -208,9 +218,19 @@ export async function createCase(form: FormData): Promise<void> {
 
 export async function updateCaseProgress(id: string, form: FormData) {
   const ownerId = await requireOwnerId();
+  const caseDoc = await casesRepo.get(ownerId, id);
+  if (!caseDoc) return;
+
   await casesRepo.update(ownerId, id, {
     status: oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך"),
     progress: Math.min(100, Math.max(0, number(form, "progress"))),
+    dueDate: date(form, "dueDate"),
+    ...(caseDoc.type === BETTERMENT_LEVY
+      ? {
+          arbitratorRequestDate: date(form, "arbitratorRequestDate"),
+          counterAppraisalDate: date(form, "counterAppraisalDate"),
+        }
+      : {}),
   });
   refresh();
 }
@@ -257,11 +277,16 @@ export async function createEvent(form: FormData) {
   const start = date(form, "start");
   if (!title || !start) return;
 
+  // Link to a case only if it really belongs to this organization.
+  const linkedCaseId = text(form, "caseId");
+  const linkedCase = linkedCaseId ? await casesRepo.get(ownerId, linkedCaseId) : null;
+
   await eventsRepo.insert(ownerId, {
     title,
     start,
     location: text(form, "location"),
     type: oneOf<EventType>(form, "type", eventTypes, "פגישת לקוח"),
+    ...(linkedCase ? { caseId: linkedCaseId } : {}),
   });
   refresh();
 }

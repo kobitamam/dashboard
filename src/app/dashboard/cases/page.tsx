@@ -19,8 +19,9 @@ import {
 import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
-import { formatDate, formatParcel } from "@/lib/format";
-import { caseStatuses, type CaseStatus } from "@/lib/types";
+import { caseDeadlines } from "@/lib/deadlines";
+import { daysUntil, formatDate, formatParcel, formatTime } from "@/lib/format";
+import { BETTERMENT_LEVY, caseStatuses, type CaseStatus } from "@/lib/types";
 
 const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
 
@@ -54,6 +55,8 @@ export default async function CasesPage({
       <Field label="טלפון" name="clientPhone" />
       <SelectField label="סטטוס" name="status" options={caseStatuses} defaultValue="בתהליך" />
       <Field label="תאריך יעד" name="dueDate" type="date" />
+      <Field label="היטל השבחה - מועד א׳: יום אחרון לבקשת מינוי שמאי מכריע" name="arbitratorRequestDate" type="date" />
+      <Field label="היטל השבחה - מועד ב׳: יום אחרון להגשת שומה נגדית" name="counterAppraisalDate" type="date" />
       <Field label="התקדמות (%)" name="progress" type="number" min={0} max={100} defaultValue={0} />
       {isPartner && (
         <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
@@ -139,6 +142,21 @@ export default async function CasesPage({
                       <p className="mt-1 text-xs text-muted">שכ״ט: {c.feeNote}</p>
                     )}
                     {c.notes && <p className="mt-1 text-xs text-muted">{c.notes}</p>}
+                    {result.data.events
+                      .filter((e) => e.caseId === c.id && (daysUntil(e.start) ?? 0) >= 0)
+                      .slice(0, 2)
+                      .map((e) => (
+                        <p key={e.id} className="mt-1 text-xs font-medium text-brand-blue">
+                          {e.type}: {formatDate(e.start)} {formatTime(e.start)}
+                        </p>
+                      ))}
+                    {caseDeadlines(c)
+                      .filter((d) => d.key !== "due")
+                      .map((d) => (
+                        <p key={d.key} className="mt-1 text-xs font-medium text-warning">
+                          {d.label}: {formatDate(d.date)}
+                        </p>
+                      ))}
 
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                       {c.oneDriveFolderUrl ? (
@@ -180,32 +198,47 @@ export default async function CasesPage({
                       <ProgressBar value={c.progress} />
                     </div>
 
-                    <form
-                      action={updateCaseProgress.bind(null, c.id)}
-                      className="mt-3 flex items-center gap-1.5"
-                    >
-                      <select
-                        name="status"
-                        defaultValue={c.status}
-                        className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
-                      >
-                        {caseStatuses.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        name="progress"
-                        type="number"
-                        min={0}
-                        max={100}
-                        defaultValue={c.progress}
-                        className="w-14 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
-                      />
+                    <form action={updateCaseProgress.bind(null, c.id)} className="mt-3 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          name="status"
+                          defaultValue={c.status}
+                          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
+                        >
+                          {caseStatuses.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          name="progress"
+                          type="number"
+                          min={0}
+                          max={100}
+                          defaultValue={c.progress}
+                          aria-label="אחוז התקדמות"
+                          className="w-14 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
+                        />
+                      </div>
+                      <DateInput label="תאריך יעד" name="dueDate" value={c.dueDate} />
+                      {c.type === BETTERMENT_LEVY && (
+                        <>
+                          <DateInput
+                            label="מועד א׳ - בקשת מינוי שמאי מכריע"
+                            name="arbitratorRequestDate"
+                            value={c.arbitratorRequestDate}
+                          />
+                          <DateInput
+                            label="מועד ב׳ - הגשת שומה נגדית"
+                            name="counterAppraisalDate"
+                            value={c.counterAppraisalDate}
+                          />
+                        </>
+                      )}
                       <button
                         type="submit"
-                        className="rounded-lg bg-brand-cyan-light px-2 py-1.5 text-[11px] font-bold text-brand-blue hover:opacity-80"
+                        className="w-full rounded-lg bg-brand-cyan-light px-2 py-1.5 text-[11px] font-bold text-brand-blue hover:opacity-80"
                       >
                         עדכון
                       </button>
@@ -231,5 +264,19 @@ export default async function CasesPage({
         </div>
       )}
     </div>
+  );
+}
+
+function DateInput({ label, name, value }: { label: string; name: string; value: string | null }) {
+  return (
+    <label className="flex items-center justify-between gap-2 text-[11px] text-muted">
+      <span>{label}</span>
+      <input
+        name={name}
+        type="date"
+        defaultValue={value ?? ""}
+        className="rounded-lg border border-border bg-background px-2 py-1 text-[11px] text-foreground outline-none focus:border-brand-cyan"
+      />
+    </label>
   );
 }

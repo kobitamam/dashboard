@@ -64,6 +64,8 @@ export type CaseDoc = Owned &
     type: string;
     status: CaseStatus;
     dueDate: Date | null;
+    arbitratorRequestDate?: Date | null;
+    counterAppraisalDate?: Date | null;
     progress: number;
     // Legacy: files once uploaded through the app. Case files now live only in OneDrive.
     attachments?: AttachmentDoc[];
@@ -107,6 +109,7 @@ export type EventDoc = Owned & {
   start: Date;
   location: string;
   type: EventType;
+  caseId?: string;
 };
 
 // Appraisal types a partner added on top of the built-in caseTypes list.
@@ -199,6 +202,8 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     type: doc.type,
     status: doc.status,
     dueDate: day(doc.dueDate),
+    arbitratorRequestDate: day(doc.arbitratorRequestDate),
+    counterAppraisalDate: day(doc.counterAppraisalDate),
     progress: doc.progress,
     oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
     oneDriveFolderName: doc.oneDriveFolderName ?? null,
@@ -244,6 +249,7 @@ export function toEvent(doc: WithId<EventDoc>): CalendarEvent {
     start: doc.start.toISOString(),
     location: doc.location,
     type: doc.type,
+    caseId: doc.caseId ?? null,
   };
 }
 

@@ -1,3 +1,4 @@
+import { caseDeadlines } from "@/lib/deadlines";
 import { daysUntil } from "@/lib/format";
 import type { Alert, CalendarEvent, Case, Invoice } from "@/lib/types";
 
@@ -59,6 +60,21 @@ export function deriveAlerts(
         title: "תיק מתקרב לדדליין",
         description: `תיק ${item.caseNumber} (${item.clientName}) להגשה ${days === 0 ? "היום" : `בעוד ${days} ימים`} - נותרו ${100 - item.progress}% להשלמה`,
         severity: days === 0 ? "גבוהה" : "בינונית",
+        category: "תיק",
+      });
+    }
+
+    // The statutory betterment-levy deadlines (the general due date is handled above).
+    for (const deadline of caseDeadlines(item).filter((d) => d.key !== "due")) {
+      const left = daysUntil(deadline.date, today);
+      if (left === null || left > DEADLINE_WARNING_DAYS) continue;
+      alerts.push({
+        id: `case-${deadline.key}-${item.id}`,
+        title: left < 0 ? "מועד חוקי בתיק עבר" : "מועד חוקי מתקרב",
+        description: `תיק ${item.caseNumber} (${item.clientName}) - ${deadline.label}: ${
+          left < 0 ? `עבר לפני ${Math.abs(left)} ימים` : left === 0 ? "היום" : `בעוד ${left} ימים`
+        }`,
+        severity: left <= 0 ? "גבוהה" : "בינונית",
         category: "תיק",
       });
     }

@@ -4,6 +4,7 @@ import { loadDemoData } from "@/app/dashboard/actions";
 import { DataUnavailable, SubmitButton } from "@/components/form";
 import { Card, PageHeader, ProgressBar, StatCard, StatusBadge } from "@/components/ui";
 import { deriveAlerts } from "@/lib/alerts";
+import { caseDeadlines } from "@/lib/deadlines";
 import { loadDashboardData } from "@/lib/db/queries";
 import { daysUntil, formatDate, formatMoney, formatTime, isSameDay } from "@/lib/format";
 
@@ -31,9 +32,13 @@ export default async function Dashboard() {
 
   const today = new Date();
   const todayEvents = events.filter((e) => isSameDay(e.start, today));
+  // Each open case with its nearest deadline (a betterment-levy case may have three).
   const nextDeadlines = openCases
-    .filter((c) => c.dueDate)
-    .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""))
+    .flatMap((c) => {
+      const [nearest] = caseDeadlines(c);
+      return nearest ? [{ case: c, deadline: nearest }] : [];
+    })
+    .sort((a, b) => a.deadline.date.localeCompare(b.deadline.date))
     .slice(0, 4);
 
   if (isEmpty) {
@@ -122,8 +127,8 @@ export default async function Dashboard() {
             <p className="py-6 text-center text-sm text-muted">אין תיקים פתוחים עם תאריך יעד</p>
           ) : (
             <div className="space-y-3">
-              {nextDeadlines.map((c) => {
-                const days = daysUntil(c.dueDate);
+              {nextDeadlines.map(({ case: c, deadline }) => {
+                const days = daysUntil(deadline.date);
                 return (
                   <div
                     key={c.id}
@@ -143,7 +148,8 @@ export default async function Dashboard() {
                       <div className="mb-1 flex items-center justify-between text-xs">
                         <span className="text-muted">{c.progress}%</span>
                         <span className={days !== null && days < 0 ? "font-semibold text-danger" : "text-muted"}>
-                          {formatDate(c.dueDate)}
+                          {deadline.key !== "due" && `${deadline.label.split(" - ")[0]} · `}
+                          {formatDate(deadline.date)}
                         </span>
                       </div>
                       <ProgressBar value={c.progress} />
