@@ -1,10 +1,13 @@
 import {
   createCase,
+  createQuoteDocument,
   deleteCase,
+  getQuoteWordUri,
   retryCaseOneDriveFolder,
   updateCaseProgress,
 } from "@/app/dashboard/actions";
 import CaseFolderRetry from "@/components/CaseFolderRetry";
+import QuoteWordButton from "@/components/QuoteWordButton";
 import {
   AddRecord,
   DataUnavailable,
@@ -32,6 +35,8 @@ export default async function CasesPage({
   const isPartner = (await currentRole()) === "partner";
   const types = await loadCaseTypes(await requireOwnerId());
   const allCases = result.data.cases;
+  // Quotes are partners-only, so for an employee this stays empty and no quote link is shown.
+  const quotesById = new Map(result.data.quotes.map((q) => [q.id, q]));
   const cases = typeFilter ? allCases.filter((c) => c.type === typeFilter) : allCases;
   const urgent = cases.filter((c) => c.status === "דחוף").length;
 
@@ -154,6 +159,18 @@ export default async function CasesPage({
                         </Link>
                       )}
                     </div>
+
+                    {isPartner && c.fromQuoteId && quotesById.get(c.fromQuoteId)?.wordFileUrl && (
+                      <div className="mt-2">
+                        <QuoteWordButton
+                          quoteId={c.fromQuoteId}
+                          url={quotesById.get(c.fromQuoteId)!.wordFileUrl}
+                          oneDriveConnected
+                          createDocument={createQuoteDocument}
+                          getWordUri={getQuoteWordUri}
+                        />
+                      </div>
+                    )}
 
                     <div className="mt-3">
                       <div className="mb-1 flex justify-between text-[11px] text-muted">
