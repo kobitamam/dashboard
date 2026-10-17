@@ -1,5 +1,5 @@
 export type ClientStatus = "פעיל" | "ליד חדש" | "סגור";
-export type CaseStatus = "בתהליך" | "ממתין למידע" | "דחוף" | "הושלם";
+export type CaseStatus = "בתהליך" | "ממתין למידע" | "נשלחה טיוטה" | "דחוף" | "הושלם";
 export type InvoiceStatus = "שולם" | "ממתין לתשלום" | "באיחור";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
 export type EventType = "ביקור בנכס" | "פגישת לקוח" | "דיון" | "הגשת שומה" | "שיחת טלפון";
@@ -16,7 +16,7 @@ export type QuoteStatus = "ממתין לאישור" | "אושרה" | "נדחתה
 export type Role = "partner" | "employee";
 
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
-export const caseStatuses: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
+export const caseStatuses: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "נשלחה טיוטה", "הושלם"];
 export const invoiceStatuses: InvoiceStatus[] = ["ממתין לתשלום", "שולם", "באיחור"];
 export const eventTypes: EventType[] = [
   "ביקור בנכס",

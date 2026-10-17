@@ -28,7 +28,7 @@ import {
   type CaseStatus,
 } from "@/lib/types";
 
-const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
+const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "נשלחה טיוטה", "הושלם"];
 
 export default async function CasesPage({
   searchParams,
@@ -115,7 +115,7 @@ export default async function CasesPage({
           action={form}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {columns.map((status) => {
             const items = cases.filter((c) => c.status === status);
             return (
