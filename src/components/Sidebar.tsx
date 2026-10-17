@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/dashboard", label: "דשבורד", icon: HomeIcon },
+  { href: "/dashboard", label: "שולחן עבודה", icon: HomeIcon },
   { href: "/dashboard/clients", label: "לקוחות", icon: UsersIcon },
   { href: "/dashboard/cases", label: "מעקב תיקים", icon: FolderIcon },
   { href: "/dashboard/attendance", label: "שעון נוכחות", icon: ClockIcon },

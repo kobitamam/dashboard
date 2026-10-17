@@ -44,7 +44,7 @@ export default async function Dashboard() {
   if (isEmpty) {
     return (
       <div>
-        <PageHeader title={`ברוך הבא, ${firstName} 👋`} subtitle="הדשבורד שלך עדיין ריק" />
+        <PageHeader title={`ברוך הבא, ${firstName} 👋`} subtitle="שולחן העבודה שלך עדיין ריק" />
         <Card className="p-10 text-center">
           <p className="text-lg font-bold text-foreground">בוא נתחיל</p>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
