@@ -3,18 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
+import HeaderSearch from "@/components/HeaderSearch";
 import Sidebar from "@/components/Sidebar";
+import type { SearchEntry } from "@/lib/search";
 
 export default function AppShell({
   children,
   userName,
   alertCount,
   isPartner,
+  searchIndex,
 }: {
   children: React.ReactNode;
   userName: string;
   alertCount: number;
   isPartner: boolean;
+  searchIndex: SearchEntry[];
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const initials = userName.slice(0, 2);
@@ -44,7 +48,7 @@ export default function AppShell({
 
       <div className="flex min-h-full min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:px-8">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:flex-none">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
@@ -60,29 +64,10 @@ export default function AppShell({
                 />
               </svg>
             </button>
-            <div className="relative hidden sm:block">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-muted"
-              >
-                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-                <path
-                  d="M20 20l-3.2-3.2"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <input
-                type="text"
-                placeholder="חיפוש לקוח או תיק..."
-                className="w-72 rounded-full border border-border bg-background py-2 pr-9 pl-4 text-sm outline-none focus:border-brand-cyan"
-              />
-            </div>
+            <HeaderSearch index={searchIndex} />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <Link
               href="/dashboard/alerts"
               className="relative rounded-full border border-border p-2 text-brand-blue hover:bg-background"

@@ -20,6 +20,7 @@ import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
 import { currentRole, currentUserId, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { caseDeadlines } from "@/lib/deadlines";
+import { caseHaystack, matchesQuery } from "@/lib/search";
 import { listOrganizationMembers, type OrganizationMember } from "@/lib/users";
 import { daysUntil, formatDate, formatParcel, formatTime } from "@/lib/format";
 import {
@@ -35,11 +36,11 @@ const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למיד�
 export default async function CasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; scope?: string }>;
+  searchParams: Promise<{ type?: string; scope?: string; search?: string }>;
 }) {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
-  const { type: typeFilter, scope } = await searchParams;
+  const { type: typeFilter, scope, search } = await searchParams;
   const isPartner = (await currentRole()) === "partner";
   const ownerId = await requireOwnerId();
   const types = await loadCaseTypes(ownerId);
@@ -53,11 +54,13 @@ export default async function CasesPage({
   const mineCount = allCases.filter(isMine).length;
   const cases = allCases
     .filter((c) => !typeFilter || c.type === typeFilter)
-    .filter((c) => !mineOnly || isMine(c));
-  const href = (next: { type?: string; mine?: boolean }) => {
+    .filter((c) => !mineOnly || isMine(c))
+    .filter((c) => !search || matchesQuery(caseHaystack(c), search));
+  const href = (next: { type?: string; mine?: boolean; keepSearch?: boolean }) => {
     const params = new URLSearchParams();
     if (next.type) params.set("type", next.type);
     if (next.mine) params.set("scope", "mine");
+    if (search && next.keepSearch !== false) params.set("search", search);
     const query = params.toString();
     return `/dashboard/cases${query ? `?${query}` : ""}`;
   };
@@ -108,6 +111,17 @@ export default async function CasesPage({
         }
         action={allCases.length > 0 ? form : undefined}
       />
+
+      {search && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl bg-brand-cyan-light px-4 py-2.5 text-sm text-brand-blue">
+          <span>
+            תוצאות חיפוש: <strong>{search}</strong> ({cases.length})
+          </span>
+          <Link href={href({ type: typeFilter, mine: mineOnly, keepSearch: false })} className="font-semibold underline">
+            נקה
+          </Link>
+        </div>
+      )}
 
       {allCases.length > 0 && (
         <div className="mb-4 space-y-2">

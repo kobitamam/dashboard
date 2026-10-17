@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient, deleteClient } from "@/app/dashboard/actions";
 import {
   AddRecord,
@@ -11,10 +12,16 @@ import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { syncClientsFromCases, clientKey } from "@/lib/db/clients-sync";
 import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { feeTotals } from "@/lib/fees";
+import { clientHaystack, matchesQuery } from "@/lib/search";
 import { formatMoney } from "@/lib/format";
 import { clientStatuses } from "@/lib/types";
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string }>;
+}) {
+  const { search } = await searchParams;
   // Clients of cases opened before cases fed this list are added here (idempotent).
   await syncClientsFromCases(await requireOwnerId()).catch((err) =>
     console.error("Failed to sync clients from cases:", err),
@@ -23,7 +30,8 @@ export default async function ClientsPage() {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const isPartner = (await currentRole()) === "partner";
-  const { clients, cases } = result.data;
+  const { clients: allClients, cases } = result.data;
+  const clients = search ? allClients.filter((c) => matchesQuery(clientHaystack(c), search)) : allClients;
 
   // Derived rather than stored, so the numbers can never go stale.
   const openCasesFor = (name: string) =>
@@ -34,7 +42,7 @@ export default async function ClientsPage() {
       .filter((c) => clientKey(c.clientName) === clientKey(name))
       .reduce((sum, c) => sum + feeTotals(c.fee, c.status === "הושלם").dueNow, 0);
 
-  const activeCount = clients.filter((c) => c.status === "פעיל").length;
+  const activeCount = allClients.filter((c) => c.status === "פעיל").length;
 
   const form = (
     <AddRecord label="+ לקוח חדש" action={createClient}>
@@ -52,19 +60,32 @@ export default async function ClientsPage() {
       <PageHeader
         title="לקוחות"
         subtitle={
-          clients.length
-            ? `${clients.length} לקוחות במערכת · ${activeCount} פעילים`
+          allClients.length
+            ? `${allClients.length} לקוחות במערכת · ${activeCount} פעילים`
             : "עדיין לא הוספת לקוחות"
         }
-        action={clients.length > 0 ? form : undefined}
+        action={allClients.length > 0 ? form : undefined}
       />
 
-      {clients.length === 0 ? (
+      {search && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl bg-brand-cyan-light px-4 py-2.5 text-sm text-brand-blue">
+          <span>
+            תוצאות חיפוש: <strong>{search}</strong> ({clients.length})
+          </span>
+          <Link href="/dashboard/clients" className="font-semibold underline">
+            נקה
+          </Link>
+        </div>
+      )}
+
+      {allClients.length === 0 ? (
         <EmptyState
           title="אין עדיין לקוחות"
           hint="הוסף את הלקוח הראשון שלך, וכל התיקים שלו יתחברו אליו אוטומטית."
           action={form}
         />
+      ) : clients.length === 0 ? (
+        <EmptyState title="לא נמצאו לקוחות" hint="נסה חיפוש אחר, או לחץ על ״נקה״ כדי לראות את כולם." />
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
