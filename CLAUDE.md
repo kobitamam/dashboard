@@ -78,4 +78,6 @@ Two files that an earlier version moved into a case folder are tolerated by the 
   advance first, then a percentage of the reduction). Payments cover stage 1 first. The billing tab lists what is due now.
   Approving a quote seeds the case's fee from the quote (`initialFee`).
 - Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`).
+- Each case has one handling partner and one handling employee (`partnerId`/`employeeId`, user ids from the organization). The cases
+  tab's "התיקים שלי" is only a filter (`?scope=mine`); everyone can always switch to all cases.
 - Types of appraisal are a built-in list plus partner-added ones (`loadCaseTypes`).

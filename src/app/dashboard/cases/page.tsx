@@ -18,7 +18,7 @@ import {
 } from "@/components/form";
 import Link from "next/link";
 import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
-import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
+import { currentRole, currentUserId, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { caseDeadlines } from "@/lib/deadlines";
 import { listOrganizationMembers, type OrganizationMember } from "@/lib/users";
 import { daysUntil, formatDate, formatParcel, formatTime } from "@/lib/format";
@@ -34,11 +34,11 @@ const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למיד�
 export default async function CasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; scope?: string }>;
 }) {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
-  const { type: typeFilter } = await searchParams;
+  const { type: typeFilter, scope } = await searchParams;
   const isPartner = (await currentRole()) === "partner";
   const ownerId = await requireOwnerId();
   const types = await loadCaseTypes(ownerId);
@@ -47,7 +47,23 @@ export default async function CasesPage({
   const allCases = result.data.cases;
   // Quotes are partners-only, so for an employee this stays empty and no quote link is shown.
   const quotesById = new Map(result.data.quotes.map((q) => [q.id, q]));
-  const cases = typeFilter ? allCases.filter((c) => c.type === typeFilter) : allCases;
+  // "My cases" is only a filter - everyone can switch back to see all the cases.
+  const userId = await currentUserId();
+  const isMine = (c: (typeof allCases)[number]) => c.partnerId === userId || c.employeeId === userId;
+  const mineOnly = scope === "mine";
+  const mineCount = allCases.filter(isMine).length;
+  const cases = allCases
+    .filter((c) => !typeFilter || c.type === typeFilter)
+    .filter((c) => !mineOnly || isMine(c));
+  const href = (next: { type?: string; mine?: boolean }) => {
+    const params = new URLSearchParams();
+    if (next.type) params.set("type", next.type);
+    if (next.mine) params.set("scope", "mine");
+    const query = params.toString();
+    return `/dashboard/cases${query ? `?${query}` : ""}`;
+  };
+  const chip = (active: boolean) =>
+    `rounded-full px-3 py-1 text-xs font-semibold ${active ? "bg-brand-blue text-white" : "bg-surface text-muted hover:bg-background"}`;
   const urgent = cases.filter((c) => c.status === "דחוף").length;
 
   const form = (
@@ -95,31 +111,41 @@ export default async function CasesPage({
       />
 
       {allCases.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          <Link
-            href="/dashboard/cases"
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${!typeFilter ? "bg-brand-blue text-white" : "bg-surface text-muted hover:bg-background"}`}
-          >
-            הכל
-          </Link>
-          {types.map((t) => (
-            <Link
-              key={t}
-              href={`/dashboard/cases?type=${encodeURIComponent(t)}`}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${typeFilter === t ? "bg-brand-blue text-white" : "bg-surface text-muted hover:bg-background"}`}
-            >
-              {t}
+        <div className="mb-4 space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            <Link href={href({ type: typeFilter })} className={chip(!mineOnly)}>
+              כל התיקים
             </Link>
-          ))}
+            <Link href={href({ type: typeFilter, mine: true })} className={chip(mineOnly)}>
+              התיקים שלי ({mineCount})
+            </Link>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Link href={href({ mine: mineOnly })} className={chip(!typeFilter)}>
+              הכל
+            </Link>
+            {types.map((t) => (
+              <Link key={t} href={href({ type: t, mine: mineOnly })} className={chip(typeFilter === t)}>
+                {t}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
       {cases.length === 0 ? (
-        <EmptyState
-          title="אין עדיין תיקים"
-          hint="פתח תיק ראשון. תיק עם תאריך יעד מתקרב יפיק אוטומטית התראה במסך ההתראות."
-          action={form}
-        />
+        allCases.length > 0 ? (
+          <EmptyState
+            title={mineOnly ? "אין תיקים שמשויכים אליך" : "אין תיקים מהסוג הזה"}
+            hint={mineOnly ? "לחץ על \"כל התיקים\" כדי לראות את כולם." : "בחר סוג אחר או \"הכל\"."}
+          />
+        ) : (
+          <EmptyState
+            title="אין עדיין תיקים"
+            hint="פתח תיק ראשון. תיק עם תאריך יעד מתקרב יפיק אוטומטית התראה במסך ההתראות."
+            action={form}
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {columns.map((status) => {
