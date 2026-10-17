@@ -417,7 +417,9 @@ export async function getQuoteWordUri(
     return { ok: true, uri: wordDesktopUri(await getItemLocation(accessToken, quote.wordFileId)) };
   } catch (err) {
     console.error("Failed to build the Word link:", err);
-    return { ok: false, error: "לא הצלחנו לפתוח ב-Word, נסה שוב" };
+    // The reason carries only an HTTP status / Graph error code, never a token.
+    const reason = err instanceof Error ? err.message : "";
+    return { ok: false, error: `לא הצלחנו לפתוח ב-Word${reason ? ` (${reason})` : ""}` };
   }
 }
 

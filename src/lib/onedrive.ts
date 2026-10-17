@@ -297,7 +297,10 @@ export async function getItemLocation(accessToken: string, itemId: string): Prom
     `${GRAPH_ROOT}/me/drive/items/${itemId}?select=name,webUrl,parentReference`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
-  if (!res.ok) throw new Error(`קריאת פרטי קובץ מ-OneDrive נכשלה: ${res.status}`);
+  if (!res.ok) {
+    const code = (await res.json().catch(() => null))?.error?.code;
+    throw new Error(`קריאת פרטי קובץ מ-OneDrive נכשלה: ${res.status}${code ? ` ${code}` : ""}`);
+  }
   return res.json();
 }
 
