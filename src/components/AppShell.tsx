@@ -75,7 +75,7 @@ export default function AppShell({
               </svg>
               <input
                 type="text"
-                placeholder="חיפוש לקוח, תיק או חשבונית..."
+                placeholder="חיפוש לקוח או תיק..."
                 className="w-72 rounded-full border border-border bg-background py-2 pr-9 pl-4 text-sm outline-none focus:border-brand-cyan"
               />
             </div>

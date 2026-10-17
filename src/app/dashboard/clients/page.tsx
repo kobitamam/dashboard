@@ -10,6 +10,7 @@ import {
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { syncClientsFromCases, clientKey } from "@/lib/db/clients-sync";
 import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
+import { feeTotals } from "@/lib/fees";
 import { formatMoney } from "@/lib/format";
 import { clientStatuses } from "@/lib/types";
 
@@ -22,15 +23,16 @@ export default async function ClientsPage() {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const isPartner = (await currentRole()) === "partner";
-  const { clients, cases, invoices } = result.data;
+  const { clients, cases } = result.data;
 
   // Derived rather than stored, so the numbers can never go stale.
   const openCasesFor = (name: string) =>
     cases.filter((c) => clientKey(c.clientName) === clientKey(name) && c.status !== "הושלם").length;
+  // What has become billable on the client's cases (stage 1 from the opening, stage 2 once completed).
   const billedTo = (name: string) =>
-    invoices
-      .filter((i) => clientKey(i.clientName) === clientKey(name))
-      .reduce((sum, i) => sum + i.amount, 0);
+    cases
+      .filter((c) => clientKey(c.clientName) === clientKey(name))
+      .reduce((sum, c) => sum + feeTotals(c.fee, c.status === "הושלם").dueNow, 0);
 
   const activeCount = clients.filter((c) => c.status === "פעיל").length;
 
@@ -60,7 +62,7 @@ export default async function ClientsPage() {
       {clients.length === 0 ? (
         <EmptyState
           title="אין עדיין לקוחות"
-          hint="הוסף את הלקוח הראשון שלך, וכל התיקים והחשבוניות שלו יתחברו אליו אוטומטית."
+          hint="הוסף את הלקוח הראשון שלך, וכל התיקים שלו יתחברו אליו אוטומטית."
           action={form}
         />
       ) : (

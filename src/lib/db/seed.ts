@@ -1,4 +1,4 @@
-import { casesRepo, clientsRepo, eventsRepo, invoicesRepo } from "@/lib/db/entities";
+import { casesRepo, clientsRepo, eventsRepo } from "@/lib/db/entities";
 
 const at = (dayOffset: number, hour = 9, minute = 0) => {
   const date = new Date();
@@ -100,41 +100,6 @@ export async function seedDemoData(ownerId: string) {
       status: "הושלם",
       dueDate: at(-7),
       progress: 100,
-    },
-  ]);
-
-  await invoicesRepo.insertMany(ownerId, [
-    {
-      invoiceNumber: "3021",
-      clientName: "בנק הפועלים - סניף רמת גן",
-      amount: 8500,
-      issueDate: at(-8),
-      dueDate: at(6),
-      status: "ממתין לתשלום",
-    },
-    {
-      invoiceNumber: "3020",
-      clientName: "מיכל לוי",
-      amount: 4200,
-      issueDate: at(-20),
-      dueDate: at(-5),
-      status: "באיחור",
-    },
-    {
-      invoiceNumber: "3019",
-      clientName: "דוד מזרחי",
-      amount: 3200,
-      issueDate: at(-25),
-      dueDate: at(-10),
-      status: "שולם",
-    },
-    {
-      invoiceNumber: "3022",
-      clientName: "אבי כהן",
-      amount: 2600,
-      issueDate: at(-2),
-      dueDate: at(12),
-      status: "ממתין לתשלום",
     },
   ]);
 

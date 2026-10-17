@@ -1,6 +1,5 @@
 export type ClientStatus = "פעיל" | "ליד חדש" | "סגור";
 export type CaseStatus = "בתהליך" | "ממתין למידע" | "נשלחה טיוטה" | "דחוף" | "הושלם";
-export type InvoiceStatus = "שולם" | "ממתין לתשלום" | "באיחור";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
 // The built-in kinds plus any the office added (see loadEventTypes), so it is just a string.
 export type EventType = string;
@@ -18,7 +17,6 @@ export type Role = "partner" | "employee";
 
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
 export const caseStatuses: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "נשלחה טיוטה", "הושלם"];
-export const invoiceStatuses: InvoiceStatus[] = ["ממתין לתשלום", "שולם", "באיחור"];
 export const MEDIATOR_REQUEST_DEADLINE = "יום אחרון לבקשת מינוי שמאי מכריע";
 export const eventTypes: EventType[] = [
   "ביקור בנכס",
@@ -154,16 +152,6 @@ export type Quote = PropertyDetails & {
   status: QuoteStatus;
   signedFile: Attachment | null;
   linkedCaseId: string | null;
-};
-
-export type Invoice = {
-  id: string;
-  invoiceNumber: string;
-  clientName: string;
-  amount: number;
-  issueDate: string | null;
-  dueDate: string | null;
-  status: InvoiceStatus;
 };
 
 export type AttendanceEntry = {

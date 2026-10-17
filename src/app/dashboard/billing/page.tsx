@@ -1,18 +1,9 @@
 import Link from "next/link";
-import { createInvoice, deleteInvoice, markInvoicePaid } from "@/app/dashboard/actions";
-import {
-  AddRecord,
-  DataUnavailable,
-  DeleteButton,
-  EmptyState,
-  Field,
-  SelectField,
-} from "@/components/form";
-import { Card, PageHeader, StatCard, StatusBadge } from "@/components/ui";
+import { DataUnavailable } from "@/components/form";
+import { Card, PageHeader, StatCard } from "@/components/ui";
 import { currentRole, loadDashboardData } from "@/lib/db/queries";
 import { feeTotals } from "@/lib/fees";
-import { daysUntil, formatDate, formatMoney } from "@/lib/format";
-import { invoiceStatuses } from "@/lib/types";
+import { formatMoney } from "@/lib/format";
 
 export default async function BillingPage() {
   if ((await currentRole()) !== "partner") {
@@ -26,52 +17,41 @@ export default async function BillingPage() {
 
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
-  const { invoices, cases } = result.data;
+  const { cases } = result.data;
 
   // Each case is billed in two stages: the first when it is opened, the second
-  // when it is completed. Cases with something to collect (or no fee set yet)
-  // are listed, the ones to collect now first.
-  const billing = cases
-    .map((c) => ({ case: c, completed: c.status === "הושלם", ...feeTotals(c.fee, c.status === "הושלם") }))
+  // when it is completed (or, for a betterment levy, when its stage reaches
+  // "הושלם"). Cases with something to collect (or no fee set yet) are listed,
+  // the ones to collect now first. Payments are recorded on the case's fee page.
+  const rows = cases.map((c) => ({
+    case: c,
+    completed: c.status === "הושלם",
+    ...feeTotals(c.fee, c.status === "הושלם"),
+  }));
+  const billing = rows
     .filter((r) => r.balanceDue > 0 || !r.case.fee || r.completed)
     .sort(
       (a, b) =>
         Number(b.balanceDue > 0) - Number(a.balanceDue > 0) || b.balanceDue - a.balanceDue,
     );
-  const awaitingCollection = billing.reduce((sum, r) => sum + r.balanceDue, 0);
-
-  const sum = (predicate: (status: string) => boolean) =>
-    invoices.filter((i) => predicate(i.status)).reduce((total, i) => total + i.amount, 0);
-
-  const paid = sum((s) => s === "שולם");
-  const pending = sum((s) => s === "ממתין לתשלום");
-  const overdue = sum((s) => s === "באיחור");
-
-  const form = (
-    <AddRecord label="+ חשבונית חדשה" action={createInvoice}>
-      <Field label="מספר חשבונית" name="invoiceNumber" required placeholder="3023" />
-      <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
-      <Field label="סכום (₪)" name="amount" type="number" min={0} placeholder="0" />
-      <Field label="תאריך הפקה" name="issueDate" type="date" />
-      <Field label="לתשלום עד" name="dueDate" type="date" />
-      <SelectField
-        label="סטטוס"
-        name="status"
-        options={invoiceStatuses}
-        defaultValue="ממתין לתשלום"
-      />
-    </AddRecord>
-  );
+  const awaitingCollection = rows.reduce((sum, r) => sum + r.balanceDue, 0);
+  const received = rows.reduce((sum, r) => sum + r.paid, 0);
+  const upcoming = rows.reduce((sum, r) => sum + Math.max(0, r.total - Math.max(r.dueNow, r.paid)), 0);
 
   return (
     <div>
       <PageHeader
         title="גבייה"
-        subtitle="מעקב חשבוניות ותשלומים מול לקוחות"
-        action={invoices.length > 0 ? form : undefined}
+        subtitle="שכר הטרחה של התיקים, שלב א׳ בפתיחת תיק ושלב ב׳ בהשלמתו"
       />
 
-      <Card className="mb-6 overflow-hidden">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="לגבייה כעת" value={formatMoney(awaitingCollection)} tone="danger" />
+        <StatCard label="התקבל" value={formatMoney(received)} tone="success" />
+        <StatCard label="צפוי בהמשך" value={formatMoney(upcoming)} tone="warning" />
+      </div>
+
+      <Card className="mt-6 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <div>
             <h2 className="text-lg font-bold">
@@ -152,90 +132,6 @@ export default async function BillingPage() {
           </div>
         )}
       </Card>
-
-      {invoices.length === 0 ? (
-        <EmptyState
-          title="אין עדיין חשבוניות"
-          hint="הפק חשבונית ראשונה. חשבונית שתאריך התשלום שלה חלף תסומן אוטומטית כהתראה דחופה."
-          action={form}
-        />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatCard label="שולם" value={formatMoney(paid)} tone="success" />
-            <StatCard label="ממתין לתשלום" value={formatMoney(pending)} tone="warning" />
-            <StatCard label="בפיגור" value={formatMoney(overdue)} tone="danger" />
-          </div>
-
-          <Card className="mt-6 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-right text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-background text-xs text-muted">
-                    <th className="px-4 py-3 font-medium">חשבונית</th>
-                    <th className="px-4 py-3 font-medium">לקוח</th>
-                    <th className="px-4 py-3 font-medium">סכום</th>
-                    <th className="px-4 py-3 font-medium">הופקה</th>
-                    <th className="px-4 py-3 font-medium">לתשלום עד</th>
-                    <th className="px-4 py-3 font-medium">סטטוס</th>
-                    <th className="px-4 py-3 font-medium"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv) => {
-                    const days = daysUntil(inv.dueDate);
-                    const late = inv.status !== "שולם" && days !== null && days < 0;
-                    return (
-                      <tr
-                        key={inv.id}
-                        className="border-b border-border last:border-0 hover:bg-background/60"
-                      >
-                        <td className="px-4 py-3 font-mono text-xs text-muted">
-                          #{inv.invoiceNumber}
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-foreground">
-                          {inv.clientName}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-foreground">
-                          {formatMoney(inv.amount)}
-                        </td>
-                        <td className="px-4 py-3 text-muted">{formatDate(inv.issueDate)}</td>
-                        <td className="px-4 py-3">
-                          <span className={late ? "font-semibold text-danger" : "text-muted"}>
-                            {formatDate(inv.dueDate)}
-                            {late && ` (${Math.abs(days)} ימי איחור)`}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={inv.status} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            {inv.status !== "שולם" && (
-                              <form action={markInvoicePaid.bind(null, inv.id)}>
-                                <button
-                                  type="submit"
-                                  className="rounded-lg px-2 py-1 text-xs font-semibold text-success hover:bg-success/10"
-                                >
-                                  סמן כשולם
-                                </button>
-                              </form>
-                            )}
-                            <DeleteButton
-                              action={deleteInvoice.bind(null, inv.id)}
-                              confirmText={`למחוק את חשבונית ${inv.invoiceNumber}?`}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </>
-      )}
     </div>
   );
 }

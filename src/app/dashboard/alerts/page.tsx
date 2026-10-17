@@ -12,20 +12,20 @@ const categoryIcon: Record<string, string> = {
 export default async function AlertsPage() {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
-  const { cases, invoices, events } = result.data;
-  const alerts = deriveAlerts({ cases, invoices, events });
+  const { cases, events } = result.data;
+  const alerts = deriveAlerts({ cases, events });
 
   return (
     <div>
       <PageHeader
         title="התראות חכמות"
-        subtitle="נגזרות אוטומטית מהתיקים, החשבוניות והפגישות שלך - אין צורך להזין אותן"
+        subtitle="נגזרות אוטומטית מהתיקים והפגישות שלך - אין צורך להזין אותן"
       />
 
       {alerts.length === 0 ? (
         <EmptyState
           title="הכל תחת שליטה"
-          hint="אין כרגע חשבוניות באיחור, תיקים לקראת דדליין או פגישות להיום."
+          hint="אין כרגע תיקים לקראת דדליין, תיקים שממתינים לגבייה או פגישות להיום."
         />
       ) : (
         <div className="space-y-3">

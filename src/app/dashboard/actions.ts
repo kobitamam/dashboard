@@ -8,7 +8,6 @@ import {
   clientsRepo,
   eventsRepo,
   eventTypesRepo,
-  invoicesRepo,
   quotesRepo,
 } from "@/lib/db/entities";
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
@@ -49,11 +48,9 @@ import {
   caseTypes,
   clientStatuses,
   eventTypes,
-  invoiceStatuses,
   NEW_CASE_TYPE,
   type CaseStatus,
   type ClientStatus,
-  type InvoiceStatus,
   type UploadTarget,
 } from "@/lib/types";
 
@@ -376,36 +373,6 @@ export async function updateCaseProgress(id: string, form: FormData) {
 export async function deleteCase(id: string) {
   const ownerId = await requireOwnerId();
   await casesRepo.remove(ownerId, id);
-  refresh();
-}
-
-// Invoices (גבייה) are partners-only, like quotes and fee data.
-export async function createInvoice(form: FormData) {
-  const ownerId = await requirePartnerId();
-  const invoiceNumber = text(form, "invoiceNumber");
-  const clientName = text(form, "clientName");
-  if (!invoiceNumber || !clientName) return;
-
-  await invoicesRepo.insert(ownerId, {
-    invoiceNumber,
-    clientName,
-    amount: Math.max(0, number(form, "amount")),
-    issueDate: date(form, "issueDate"),
-    dueDate: date(form, "dueDate"),
-    status: oneOf<InvoiceStatus>(form, "status", invoiceStatuses, "ממתין לתשלום"),
-  });
-  refresh();
-}
-
-export async function markInvoicePaid(id: string) {
-  const ownerId = await requirePartnerId();
-  await invoicesRepo.update(ownerId, id, { status: "שולם" });
-  refresh();
-}
-
-export async function deleteInvoice(id: string) {
-  const ownerId = await requirePartnerId();
-  await invoicesRepo.remove(ownerId, id);
   refresh();
 }
 
@@ -740,7 +707,7 @@ export async function removeFeePayment(caseId: string, paymentIndex: number) {
   refresh();
 }
 
-// Seeds invoices too, so it's partners-only.
+// Demo data is partners-only.
 export async function loadDemoData() {
   const ownerId = await requirePartnerId();
   // Guard against a double click turning into two copies of everything.

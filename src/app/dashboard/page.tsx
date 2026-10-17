@@ -4,6 +4,7 @@ import { loadDemoData } from "@/app/dashboard/actions";
 import { DataUnavailable, SubmitButton } from "@/components/form";
 import { Card, PageHeader, ProgressBar, StatCard, StatusBadge } from "@/components/ui";
 import { deriveAlerts } from "@/lib/alerts";
+import { feeTotals } from "@/lib/fees";
 import { caseDeadlines } from "@/lib/deadlines";
 import { loadDashboardData } from "@/lib/db/queries";
 import { daysUntil, formatDate, formatMoney, formatTime, isSameDay } from "@/lib/format";
@@ -15,17 +16,16 @@ export default async function Dashboard() {
 
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
-  const { clients, cases, invoices, events } = result.data;
-  const alerts = deriveAlerts({ cases, invoices, events });
+  const { clients, cases, events } = result.data;
+  const alerts = deriveAlerts({ cases, events });
   const isEmpty =
-    clients.length === 0 && cases.length === 0 && invoices.length === 0 && events.length === 0;
+    clients.length === 0 && cases.length === 0 && events.length === 0;
 
-  const overdueAmount = invoices
-    .filter((i) => i.status === "באיחור")
-    .reduce((sum, i) => sum + i.amount, 0);
-  const pendingAmount = invoices
-    .filter((i) => i.status === "ממתין לתשלום")
-    .reduce((sum, i) => sum + i.amount, 0);
+  // What can be collected right now, from the fees of the cases (partners only: an
+  // employee's cases carry no fee data).
+  const billing = cases.map((c) => feeTotals(c.fee, c.status === "הושלם"));
+  const owedNow = billing.reduce((sum, b) => sum + b.balanceDue, 0);
+  const casesToCollect = billing.filter((b) => b.balanceDue > 0).length;
   const activeClients = clients.filter((c) => c.status === "פעיל").length;
   const openCases = cases.filter((c) => c.status !== "הושלם");
   const urgentCases = openCases.filter((c) => c.status === "דחוף");
@@ -49,7 +49,7 @@ export default async function Dashboard() {
           <p className="text-lg font-bold text-foreground">בוא נתחיל</p>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
             {isPartner
-              ? "אפשר להוסיף לקוחות, תיקים וחשבוניות ידנית מהתפריט בצד, או לטעון נתוני דוגמה כדי לראות איך המערכת נראית מלאה. תמיד אפשר למחוק אותם אחר כך."
+              ? "אפשר להוסיף לקוחות ותיקים ידנית מהתפריט בצד, או לטעון נתוני דוגמה כדי לראות איך המערכת נראית מלאה. תמיד אפשר למחוק אותם אחר כך."
               : "אפשר להוסיף לקוחות ותיקים ידנית מהתפריט בצד."}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -95,16 +95,16 @@ export default async function Dashboard() {
         {isPartner && (
           <>
             <StatCard
-              label="חובות בפיגור"
-              value={formatMoney(overdueAmount)}
-              hint="דורש טיפול מיידי"
+              label="לגבייה כעת"
+              value={formatMoney(owedNow)}
+              hint="שכר טרחה שהגיע מועד גבייתו"
               tone="danger"
               icon={<AlertMini />}
             />
             <StatCard
-              label="ממתין לתשלום"
-              value={formatMoney(pendingAmount)}
-              hint="בטווח התשלום התקין"
+              label="תיקים לגבייה"
+              value={String(casesToCollect)}
+              hint="עם יתרה שממתינה לתשלום"
               tone="warning"
               icon={<WalletMini />}
             />

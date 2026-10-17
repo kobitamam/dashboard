@@ -84,7 +84,9 @@ Two files that an earlier version moved into a case folder are tolerated by the 
 - Fees are collected in two stages (`src/lib/fees.ts`): stage 1 (`baseAmount`) when the case is opened, stage 2 when it is
   completed - `finalAmount` (second half of an ordinary fee) and/or `successPercentage` x `successAmount` (betterment levy:
   advance first, then a percentage of the reduction). Payments cover stage 1 first. The billing tab lists what is due now.
-  Approving a quote seeds the case's fee from the quote (`initialFee`).
+  Approving a quote seeds the case's fee from the quote (`initialFee`). There are NO invoices any more (removed at the user's request):
+  the billing tab, dashboard cards, alerts and the clients tab's "סה"כ חויב" all derive from the cases' fees. Employees' cases are
+  loaded with `fee: null` / `feeNote: ""` (`loadDashboardData`).
 - Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`).
 - Each case has one handling partner and one handling employee (`partnerId`/`employeeId`, user ids from the organization). The cases
   tab's "התיקים שלי" is only a filter (`?scope=mine`); everyone can always switch to all cases.

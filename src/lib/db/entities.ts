@@ -11,8 +11,6 @@ import type {
   EventType,
   Fee,
   FeePayment,
-  Invoice,
-  InvoiceStatus,
   PropertyDetails,
   Quote,
   QuoteStatus,
@@ -97,16 +95,6 @@ export type QuoteDoc = Owned &
     linkedCaseId?: string;
   };
 
-export type InvoiceDoc = Owned & {
-  _id?: ObjectId;
-  invoiceNumber: string;
-  clientName: string;
-  amount: number;
-  issueDate: Date | null;
-  dueDate: Date | null;
-  status: InvoiceStatus;
-};
-
 export type EventDoc = Owned & {
   _id?: ObjectId;
   title: string;
@@ -144,7 +132,6 @@ export type AttendanceDoc = Owned & {
 
 export const clientsRepo = new Repository<ClientDoc>("clients");
 export const casesRepo = new Repository<CaseDoc>("cases");
-export const invoicesRepo = new Repository<InvoiceDoc>("invoices");
 export const eventsRepo = new Repository<EventDoc>("events");
 export const quotesRepo = new Repository<QuoteDoc>("quotes");
 export const attendanceRepo = new Repository<AttendanceDoc>("attendance");
@@ -246,18 +233,6 @@ export function toQuote(doc: WithId<QuoteDoc>): Quote {
     status: doc.status,
     signedFile: doc.signedFile ? toAttachment(doc.signedFile) : null,
     linkedCaseId: doc.linkedCaseId ?? null,
-  };
-}
-
-export function toInvoice(doc: WithId<InvoiceDoc>): Invoice {
-  return {
-    id: doc._id.toString(),
-    invoiceNumber: doc.invoiceNumber,
-    clientName: doc.clientName,
-    amount: doc.amount,
-    issueDate: day(doc.issueDate),
-    dueDate: day(doc.dueDate),
-    status: doc.status,
   };
 }
 

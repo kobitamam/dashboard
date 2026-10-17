@@ -6,20 +6,17 @@ import {
   clientsRepo,
   eventsRepo,
   eventTypesRepo,
-  invoicesRepo,
   quotesRepo,
   toCase,
   toClient,
   toEvent,
-  toInvoice,
   toQuote,
 } from "@/lib/db/entities";
-import { caseTypes, eventTypes, type CalendarEvent, type Case, type CaseType, type Client, type Invoice, type Quote } from "@/lib/types";
+import { caseTypes, eventTypes, type CalendarEvent, type Case, type CaseType, type Client, type Quote } from "@/lib/types";
 
 export type DashboardData = {
   clients: Client[];
   cases: Case[];
-  invoices: Invoice[];
   events: CalendarEvent[];
   quotes: Quote[];
 };
@@ -111,13 +108,11 @@ export async function loadDashboardData(): Promise<LoadResult> {
   const isPartner = (await currentRole()) === "partner";
 
   try {
-    const [clients, cases, invoices, events, quotes] = await Promise.all([
+    const [clients, cases, events, quotes] = await Promise.all([
       clientsRepo.list(ownerId, { name: 1 }),
       casesRepo.list(ownerId, { dueDate: 1 }),
-      // Invoices and quotes are partners-only, so an employee's session never
-      // loads them (which also keeps payment alerts and totals off their screens).
-      isPartner ? invoicesRepo.list(ownerId, { dueDate: 1 }) : Promise.resolve([]),
       eventsRepo.list(ownerId, { start: 1 }),
+      // Quotes are partners-only, so an employee's session never loads them.
       isPartner ? quotesRepo.list(ownerId) : Promise.resolve([]),
     ]);
 
@@ -125,8 +120,11 @@ export async function loadDashboardData(): Promise<LoadResult> {
       ok: true,
       data: {
         clients: clients.map(toClient),
-        cases: cases.map(toCase),
-        invoices: invoices.map(toInvoice),
+        // Fee data is partners-only: an employee's cases arrive without it.
+        cases: cases.map((c) => {
+          const view = toCase(c);
+          return isPartner ? view : { ...view, fee: null, feeNote: "" };
+        }),
         events: events.map(toEvent),
         quotes: quotes.map(toQuote),
       },
