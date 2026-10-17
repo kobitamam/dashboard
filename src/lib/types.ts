@@ -106,6 +106,7 @@ export type Quote = PropertyDetails & {
   type: string;
   amount: number;
   feePercent: number | null; // אחוז שכ״ט מהפחתה
+  wordFileUrl: string | null; // the quote letter (Word) created in OneDrive
   status: QuoteStatus;
   draftFile: Attachment | null;
   signedFile: Attachment | null;

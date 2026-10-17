@@ -3,6 +3,7 @@ import {
   approveQuote,
   confirmQuoteUpload,
   createQuote,
+  createQuoteDocument,
   deleteQuote,
   rejectQuote,
   requestQuoteDownloadUrl,
@@ -18,9 +19,12 @@ import {
   SelectWithNewField,
 } from "@/components/form";
 import QuoteFileSlot from "@/components/QuoteFileSlot";
+import QuoteWordButton from "@/components/QuoteWordButton";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
+import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatMoney, formatParcel } from "@/lib/format";
+import { isOneDriveConfigured } from "@/lib/onedrive";
 import { isR2Configured } from "@/lib/r2";
 import type { QuoteStatus } from "@/lib/types";
 
@@ -43,8 +47,10 @@ export default async function QuotesPage({
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const { type: typeFilter } = await searchParams;
-  const types = await loadCaseTypes(await requireOwnerId());
+  const ownerId = await requireOwnerId();
+  const types = await loadCaseTypes(ownerId);
   const uploadsEnabled = isR2Configured();
+  const oneDriveConnected = isOneDriveConfigured() && (await isConnected(ownerId));
   const allQuotes = result.data.quotes;
   const quotes = typeFilter ? allQuotes.filter((q) => q.type === typeFilter) : allQuotes;
 
@@ -152,15 +158,11 @@ export default async function QuotesPage({
                     {q.notes && <p className="mt-1 text-xs text-muted">{q.notes}</p>}
 
                     <div className="mt-3 space-y-1.5">
-                      <QuoteFileSlot
+                      <QuoteWordButton
                         quoteId={q.id}
-                        slot="draftFile"
-                        label="הצעה (טיוטה)"
-                        file={q.draftFile}
-                        requestUploadUrl={requestQuoteUploadUrl}
-                        confirmUpload={confirmQuoteUpload}
-                        requestDownloadUrl={requestQuoteDownloadUrl}
-                        uploadsEnabled={uploadsEnabled}
+                        url={q.wordFileUrl}
+                        oneDriveConnected={oneDriveConnected}
+                        createDocument={createQuoteDocument}
                       />
                       {q.status !== "נדחתה" && (
                         <QuoteFileSlot

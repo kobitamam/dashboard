@@ -14,7 +14,9 @@ import {
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
 import { currentRole, loadCaseTypes, requirePartnerId, requireOwnerId } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
-import { createCaseFolder } from "@/lib/onedrive";
+import { formatParcel } from "@/lib/format";
+import { createCaseFolder, sanitizeFolderName, uploadAppFolderFile } from "@/lib/onedrive";
+import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
 import {
   createDownloadUrl,
   createUploadUrl,
@@ -358,6 +360,57 @@ export async function rejectQuote(id: string) {
   const ownerId = await requirePartnerId();
   await quotesRepo.update(ownerId, id, { status: "נדחתה" });
   refresh();
+}
+
+const QUOTES_FOLDER = "הצעות מחיר";
+const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/**
+ * Fills the office's Word template with the quote's details, saves it into the
+ * "הצעות מחיר" folder in OneDrive and remembers the link. Returns the error
+ * as data: production masks a thrown server-action error, which would leave
+ * the user with no explanation.
+ */
+export async function createQuoteDocument(
+  quoteId: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const ownerId = await requirePartnerId();
+  const quote = await quotesRepo.get(ownerId, quoteId);
+  if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
+  if (quote.wordFileUrl) return { ok: true, url: quote.wordFileUrl };
+
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
+
+    const dates = formatQuoteDates(quote.date ?? todayInIsrael());
+    const bytes = await buildQuoteDocx({
+      ...dates,
+      reference: quote.quoteNumber,
+      client: quote.clientName,
+      subject: quote.description || quote.type,
+      parcel: formatParcel(quote.block ?? "", quote.parcel ?? "", quote.subParcel ?? ""),
+      address: [quote.address, quote.city].filter(Boolean).join(", "),
+      work: quote.description || quote.type,
+      fee:
+        quote.feeNote ||
+        (quote.amount > 0 ? `${quote.amount.toLocaleString("he-IL")} ₪ + מע״מ` : ""),
+    });
+
+    const file = await uploadAppFolderFile(
+      accessToken,
+      QUOTES_FOLDER,
+      `${sanitizeFolderName(`${quote.quoteNumber} - ${quote.clientName}`)}.docx`,
+      bytes,
+      DOCX_TYPE,
+    );
+    await quotesRepo.update(ownerId, quoteId, { wordFileUrl: file.webUrl });
+    refresh();
+    return { ok: true, url: file.webUrl };
+  } catch (err) {
+    console.error("Failed to create quote document:", err);
+    return { ok: false, error: "יצירת הקובץ ב-OneDrive נכשלה, נסה שוב" };
+  }
 }
 
 type QuoteFileSlot = "draftFile" | "signedFile";

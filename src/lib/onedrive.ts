@@ -189,6 +189,39 @@ export async function createCaseFolder(accessToken: string, name: string): Promi
   return folder;
 }
 
+/**
+ * Uploads a small file (under ~4MB, Graph's simple-upload limit) to a path
+ * inside the app folder. Missing parent folders are created by Graph itself,
+ * and an existing file of the same name is replaced.
+ */
+export async function uploadAppFolderFile(
+  accessToken: string,
+  folderName: string,
+  fileName: string,
+  bytes: Uint8Array,
+  contentType: string,
+): Promise<OneDriveFolder> {
+  const path = [folderName, fileName]
+    .map((segment) => encodeURIComponent(sanitizeFolderName(segment)))
+    .join("/");
+  const res = await fetch(
+    `${GRAPH_ROOT}/me/drive/special/approot:/${path}:/content?@microsoft.graph.conflictBehavior=replace`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": contentType },
+      body: bytes as unknown as BodyInit,
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`העלאת קובץ ל-OneDrive נכשלה: ${res.status} ${body}`);
+  }
+
+  const json = await res.json();
+  return { id: json.id, webUrl: json.webUrl };
+}
+
 /** Creates a standalone folder (not tied to a case) directly in the app folder. */
 export async function createCustomFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
   return createChildFolder(accessToken, "/me/drive/special/approot/children", name);
