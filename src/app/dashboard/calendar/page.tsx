@@ -1,6 +1,12 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { createEvent, disconnectOneDrive, rotateCalendarFeed } from "@/app/dashboard/actions";
+import {
+  createEvent,
+  deleteEventType,
+  disconnectOneDrive,
+  renameEventType,
+  rotateCalendarFeed,
+} from "@/app/dashboard/actions";
 import {
   AddRecord,
   DataUnavailable,
@@ -9,6 +15,7 @@ import {
   WhenField,
 } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
+import TypeManager from "@/components/TypeManager";
 import WeekCalendar from "@/components/WeekCalendar";
 import { isConnected } from "@/lib/db/onedrive-connection";
 import {
@@ -19,8 +26,9 @@ import {
   weekStartOf,
 } from "@/lib/calendar";
 import { getFeedToken } from "@/lib/db/calendar-feed";
-import { loadDashboardData, loadEventTypes, requireOwnerId } from "@/lib/db/queries";
+import { currentRole, loadDashboardData, loadEventTypes, requireOwnerId } from "@/lib/db/queries";
 import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
+import { eventTypes as builtInEventTypes } from "@/lib/types";
 
 async function getOrigin() {
   const h = await headers();
@@ -72,6 +80,8 @@ export default async function CalendarPage({
   }).format(new Date(`${addDays(weekStart, 2)}T00:00:00Z`));
 
   const eventTypes = await loadEventTypes(ownerId);
+  const isPartner = (await currentRole()) === "partner";
+  const customEventTypes = eventTypes.filter((t) => !builtInEventTypes.includes(t));
   const feedToken = await getFeedToken(ownerId);
   const origin = await getOrigin();
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
@@ -162,6 +172,18 @@ export default async function CalendarPage({
 
         <WeekCalendar days={days} today={today} nowMinutes={nowMinutes} items={items} />
       </Card>
+
+      {isPartner && (
+        <div className="mt-6">
+          <TypeManager
+            title="ניהול סוגי אירועים"
+            types={customEventTypes}
+            deleteNote="אירועים מהסוג הזה יעברו ל״פגישת לקוח״."
+            rename={renameEventType}
+            remove={deleteEventType}
+          />
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="h-fit p-5">

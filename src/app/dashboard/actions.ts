@@ -36,6 +36,7 @@ import { deleteOutlookTwin, syncCalendar } from "@/lib/calendar-sync";
 import { removeCalendarConnection } from "@/lib/db/calendar-connection";
 import { rotateFeedToken } from "@/lib/db/calendar-feed";
 import { initialFee } from "@/lib/fees";
+import { getDb } from "@/lib/mongodb";
 import { listOrganizationMembers } from "@/lib/users";
 import { createUploadToken } from "@/lib/upload-token";
 import {
@@ -44,7 +45,9 @@ import {
   bettermentStageNames,
   COMPLETED_STAGE,
   caseStatuses,
+  caseTypes,
   clientStatuses,
+  eventTypes,
   invoiceStatuses,
   NEW_CASE_TYPE,
   type CaseStatus,
@@ -137,6 +140,75 @@ async function resolveEventType(ownerId: string, form: FormData): Promise<string
     return name;
   }
   return available.includes(chosen) ? chosen : fallback;
+}
+
+// ---- managing the types a partner added (the built-in ones can't be touched) ----
+
+type TypeResult = { ok: true } | { ok: false; error: string };
+
+async function renameCustomType(
+  repo: typeof caseTypesRepo,
+  builtIn: readonly string[],
+  collections: string[],
+  oldName: string,
+  rawNewName: string,
+): Promise<TypeResult> {
+  const ownerId = await requirePartnerId();
+  const newName = rawNewName.trim().slice(0, 60);
+  if (!newName) return { ok: false, error: "יש להקליד שם" };
+  if (newName === oldName) return { ok: true };
+
+  const docs = await repo.list(ownerId);
+  const doc = docs.find((d) => d.name === oldName);
+  if (!doc) return { ok: false, error: "הסוג לא נמצא" };
+  if (builtIn.includes(newName) || docs.some((d) => d.name === newName)) {
+    return { ok: false, error: "כבר קיים סוג בשם הזה" };
+  }
+
+  await repo.update(ownerId, String(doc._id), { name: newName });
+  // Everything that used the old name follows the rename.
+  const db = await getDb();
+  for (const collection of collections) {
+    await db.collection(collection).updateMany({ ownerId, type: oldName }, { $set: { type: newName } });
+  }
+  refresh();
+  return { ok: true };
+}
+
+async function deleteCustomType(
+  repo: typeof caseTypesRepo,
+  collections: string[],
+  fallback: string,
+  name: string,
+): Promise<TypeResult> {
+  const ownerId = await requirePartnerId();
+  const doc = (await repo.list(ownerId)).find((d) => d.name === name);
+  if (!doc) return { ok: false, error: "הסוג לא נמצא" };
+
+  await repo.remove(ownerId, String(doc._id));
+  // Records of the deleted type move to the fallback type rather than keeping a type nobody can pick.
+  const db = await getDb();
+  for (const collection of collections) {
+    await db.collection(collection).updateMany({ ownerId, type: name }, { $set: { type: fallback } });
+  }
+  refresh();
+  return { ok: true };
+}
+
+export async function renameEventType(oldName: string, newName: string): Promise<TypeResult> {
+  return renameCustomType(eventTypesRepo, eventTypes, ["events"], oldName, newName);
+}
+
+export async function deleteEventType(name: string): Promise<TypeResult> {
+  return deleteCustomType(eventTypesRepo, ["events"], "פגישת לקוח", name);
+}
+
+export async function renameCaseType(oldName: string, newName: string): Promise<TypeResult> {
+  return renameCustomType(caseTypesRepo, caseTypes, ["cases", "quotes"], oldName, newName);
+}
+
+export async function deleteCaseType(name: string): Promise<TypeResult> {
+  return deleteCustomType(caseTypesRepo, ["cases", "quotes"], "אחר", name);
 }
 
 // Today's calendar date in Israel, as midnight UTC, so the stored date (which

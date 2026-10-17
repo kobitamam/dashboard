@@ -1,10 +1,13 @@
 import {
   createCase,
+  deleteCaseType,
   deleteCase,
+  renameCaseType,
   retryCaseOneDriveFolder,
   updateCaseProgress,
 } from "@/app/dashboard/actions";
 import CaseFolderRetry from "@/components/CaseFolderRetry";
+import TypeManager from "@/components/TypeManager";
 import {
   AddRecord,
   DataUnavailable,
@@ -23,6 +26,7 @@ import {
   BETTERMENT_LEVY,
   bettermentStageNames,
   caseStatuses,
+  caseTypes as builtInCaseTypes,
   type CaseStatus,
 } from "@/lib/types";
 
@@ -125,6 +129,18 @@ export default async function CasesPage({
               </Link>
             ))}
           </div>
+        </div>
+      )}
+
+      {isPartner && (
+        <div className="mb-4">
+          <TypeManager
+            title="ניהול סוגי שומה"
+            types={types.filter((t) => !(builtInCaseTypes as string[]).includes(t))}
+            deleteNote="תיקים והצעות מהסוג הזה יעברו ל״אחר״."
+            rename={renameCaseType}
+            remove={deleteCaseType}
+          />
         </div>
       )}
 
