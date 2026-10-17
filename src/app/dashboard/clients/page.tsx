@@ -8,11 +8,17 @@ import {
   SelectField,
 } from "@/components/form";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
-import { currentRole, loadDashboardData } from "@/lib/db/queries";
+import { syncClientsFromCases, clientKey } from "@/lib/db/clients-sync";
+import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatMoney } from "@/lib/format";
 import { clientStatuses } from "@/lib/types";
 
 export default async function ClientsPage() {
+  // Clients of cases opened before cases fed this list are added here (idempotent).
+  await syncClientsFromCases(await requireOwnerId()).catch((err) =>
+    console.error("Failed to sync clients from cases:", err),
+  );
+
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const isPartner = (await currentRole()) === "partner";
@@ -20,10 +26,10 @@ export default async function ClientsPage() {
 
   // Derived rather than stored, so the numbers can never go stale.
   const openCasesFor = (name: string) =>
-    cases.filter((c) => c.clientName === name && c.status !== "הושלם").length;
+    cases.filter((c) => clientKey(c.clientName) === clientKey(name) && c.status !== "הושלם").length;
   const billedTo = (name: string) =>
     invoices
-      .filter((i) => i.clientName === name)
+      .filter((i) => clientKey(i.clientName) === clientKey(name))
       .reduce((sum, i) => sum + i.amount, 0);
 
   const activeCount = clients.filter((c) => c.status === "פעיל").length;

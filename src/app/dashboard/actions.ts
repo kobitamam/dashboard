@@ -36,6 +36,7 @@ import { deleteOutlookTwin, syncCalendar } from "@/lib/calendar-sync";
 import { removeCalendarConnection } from "@/lib/db/calendar-connection";
 import { rotateFeedToken } from "@/lib/db/calendar-feed";
 import { initialFee } from "@/lib/fees";
+import { ensureClients } from "@/lib/db/clients-sync";
 import { getDb } from "@/lib/mongodb";
 import { listOrganizationMembers } from "@/lib/users";
 import { createUploadToken } from "@/lib/upload-token";
@@ -323,6 +324,11 @@ async function createCaseInternal(
     ...(isPartner ? {} : { feeNote: "" }),
     ...(options?.linkedQuoteId ? { fromQuoteId: options.linkedQuoteId } : {}),
   });
+
+  // The client joins the clients list (once, however many cases they have).
+  await ensureClients(ownerId, [
+    { name: clientName, phone: text(form, "clientPhone"), email: text(form, "clientEmail") },
+  ]).catch((err) => console.error("Failed to add the client of a new case:", err));
 
   await attachOneDriveFolder(ownerId, caseId, caseNumber);
   refresh();
