@@ -215,25 +215,10 @@ async function getAppFolder(accessToken: string, name: string): Promise<OneDrive
  * failure there can't lose the folder that was already made. Callers decide
  * what to do with an error - during case creation it is only logged.
  */
-export async function createCaseFolder(
-  accessToken: string,
-  name: string,
-  fallbackName?: string,
-): Promise<OneDriveFolder> {
-  const create = async (folderName: string) =>
-    (await getAppFolder(accessToken, sanitizeFolderName(folderName))) ??
-    (await createChildFolder(accessToken, "/me/drive/special/approot/children", folderName));
-
-  let folder: OneDriveFolder;
-  try {
-    folder = await create(name);
-  } catch (err) {
-    // A rejected name (400) shouldn't leave the case with no folder: fall back
-    // to the plain case number, which is always a valid name.
-    if (!fallbackName || !(err instanceof Error && err.message.includes(": 400"))) throw err;
-    console.error("Case folder name rejected, retrying with the case number:", err);
-    folder = await create(fallbackName);
-  }
+export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
+  const folder =
+    (await getAppFolder(accessToken, sanitizeFolderName(name))) ??
+    (await createChildFolder(accessToken, "/me/drive/special/approot/children", name));
 
   try {
     await createChildFolder(accessToken, `${appPath(folder.name)}:/children`, "מסמכים", "fail");

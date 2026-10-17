@@ -137,16 +137,12 @@ async function attachOneDriveFolder(
   ownerId: string,
   caseId: string,
   caseNumber: string,
-  address: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
-    const folder = await createCaseFolder(
-      accessToken,
-      [caseNumber, address].filter(Boolean).join(" - "),
-      caseNumber,
-    );
+    // Named by the case number alone: short, unique and always a valid name.
+    const folder = await createCaseFolder(accessToken, caseNumber);
     await casesRepo.update(ownerId, caseId, {
       oneDriveFolderId: folder.id,
       oneDriveFolderName: folder.name,
@@ -169,7 +165,7 @@ export async function retryCaseOneDriveFolder(
   if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
 
   if (!caseDoc.oneDriveFolderName) {
-    const result = await attachOneDriveFolder(ownerId, caseId, caseDoc.caseNumber, caseDoc.address);
+    const result = await attachOneDriveFolder(ownerId, caseId, caseDoc.caseNumber);
     if (!result.ok) return result;
   }
 
@@ -209,7 +205,7 @@ async function createCaseInternal(
     ...(options?.linkedQuoteId ? { fromQuoteId: options.linkedQuoteId } : {}),
   });
 
-  await attachOneDriveFolder(ownerId, caseId, caseNumber, address);
+  await attachOneDriveFolder(ownerId, caseId, caseNumber);
   refresh();
   return caseId;
 }
