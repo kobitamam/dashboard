@@ -13,7 +13,8 @@ export type UploadTokenPayload = {
   expires: number;
 };
 
-const TOKEN_TTL_MS = 60 * 60 * 1000;
+// Long enough for a very large file over a slow connection.
+const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 
 export function createUploadToken(payload: Omit<UploadTokenPayload, "expires">): string {
   return encryptSecret(JSON.stringify({ ...payload, expires: Date.now() + TOKEN_TTL_MS }));

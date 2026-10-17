@@ -255,7 +255,6 @@ export async function disconnectOneDrive() {
 
 const QUOTES_FOLDER = "הצעות מחיר";
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 /**
  * Opens a OneDrive upload for a file the browser is about to send in chunks to
@@ -273,9 +272,6 @@ export async function startOneDriveUpload(
   // The signed quote belongs to the partners-only quotes tab.
   const ownerId = target.kind === "quote" ? await requirePartnerId() : await requireOwnerId();
   if (!Number.isInteger(size) || size <= 0) return { ok: false, error: "הקובץ ריק" };
-  if (size > MAX_UPLOAD_BYTES) {
-    return { ok: false, error: `הקובץ חורג מהגודל המותר (${MAX_UPLOAD_BYTES / 1024 / 1024}MB)` };
-  }
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
