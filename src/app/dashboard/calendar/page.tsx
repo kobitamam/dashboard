@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   createEvent,
   deleteEventType,
-  disconnectOneDrive,
   renameEventType,
   rotateCalendarFeed,
 } from "@/app/dashboard/actions";
@@ -17,7 +16,6 @@ import {
 import { Card, PageHeader } from "@/components/ui";
 import TypeManager from "@/components/TypeManager";
 import WeekCalendar from "@/components/WeekCalendar";
-import { isConnected } from "@/lib/db/onedrive-connection";
 import {
   addDays,
   buildCalendarItems,
@@ -27,7 +25,6 @@ import {
 } from "@/lib/calendar";
 import { getFeedToken } from "@/lib/db/calendar-feed";
 import { currentRole, loadDashboardData, loadEventTypes, requireOwnerId } from "@/lib/db/queries";
-import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
 import { eventTypes as builtInEventTypes } from "@/lib/types";
 
 async function getOrigin() {
@@ -41,8 +38,6 @@ export default async function CalendarPage({
   searchParams,
 }: {
   searchParams: Promise<{
-    onedrive?: string;
-    onedrive_error?: string;
     week?: string;
     weekend?: string;
   }>;
@@ -85,8 +80,6 @@ export default async function CalendarPage({
   const feedToken = await getFeedToken(ownerId);
   const origin = await getOrigin();
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
-  const connected = isOneDriveConfigured() && (await isConnected(ownerId));
-  const authorizeUrl = isOneDriveConfigured() ? getAuthorizeUrl(ownerId, origin) : null;
 
   const form = (
     <AddRecord label="+ פגישה חדשה" action={createEvent}>
@@ -130,17 +123,6 @@ export default async function CalendarPage({
         subtitle="הפגישות, הדיונים, הביקורים בנכסים ודדליינים של התיקים"
         action={form}
       />
-
-      {params.onedrive === "connected" && (
-        <div className="mb-4 rounded-xl bg-success/10 px-4 py-3 text-sm font-medium text-success">
-          OneDrive חובר בהצלחה
-        </div>
-      )}
-      {params.onedrive === "error" && (
-        <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
-          חיבור OneDrive נכשל{params.onedrive_error ? `: ${params.onedrive_error}` : ""}
-        </div>
-      )}
 
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
@@ -232,54 +214,6 @@ export default async function CalendarPage({
                 צור קישור לסנכרון
               </button>
             </form>
-          )}
-        </Card>
-
-        <Card className="h-fit p-5">
-          <h2 className="text-lg font-bold">OneDrive</h2>
-
-          {connected ? (
-            <>
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                מחובר
-              </span>
-              <p className="mt-3 text-sm text-muted">
-                התיקיות שהמערכת יוצרת לתיקים שלך נשמרות בתיקיה הייעודית של האפליקציה
-                ב-OneDrive שלך.
-              </p>
-              <form action={disconnectOneDrive} className="mt-3">
-                <button
-                  type="submit"
-                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
-                >
-                  נתק את OneDrive
-                </button>
-              </form>
-            </>
-          ) : (
-            <>
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1.5 text-xs font-semibold text-warning">
-                <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-                לא מחובר
-              </span>
-              <p className="mt-3 text-sm text-muted">
-                חיבור ל-OneDrive שלך מאפשר למערכת ליצור תיקיה לכל תיק, בתוך תיקיה ייעודית
-                באחסון שלך - לגישה רק לתיקיה הזו, לא לשאר הקבצים שלך.
-              </p>
-              {authorizeUrl ? (
-                <a
-                  href={authorizeUrl}
-                  className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-                >
-                  התחבר ל-OneDrive
-                </a>
-              ) : (
-                <p className="mt-3 rounded-lg bg-background px-3 py-2 text-xs text-muted">
-                  תצורת OneDrive חסרה בצד השרת (MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET)
-                </p>
-              )}
-            </>
           )}
         </Card>
       </div>

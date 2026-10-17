@@ -13,7 +13,7 @@ function redirectTo(
   message?: string,
   param: "onedrive" | "calendar" = "onedrive",
 ) {
-  const url = new URL("/dashboard/calendar", origin);
+  const url = new URL(param === "calendar" ? "/dashboard/calendar" : "/dashboard/onedrive", origin);
   url.searchParams.set(param, status);
   if (message) url.searchParams.set(`${param}_error`, message);
   return NextResponse.redirect(url);
@@ -50,7 +50,8 @@ export async function GET(request: Request) {
   // The state carries the organization id (requireOwnerId's scope), not the
   // individual account id, since the connection is shared by the whole office.
   const session = await auth();
-  if (!session?.user?.id || session.user.organizationId !== stateOwnerId) {
+  // Connecting an account is a partners-only action.
+  if (!session?.user?.id || session.user.organizationId !== stateOwnerId || session.user.role !== "partner") {
     return redirectTo(url.origin, "error", "יש להתחבר למערכת לפני החיבור", param);
   }
 

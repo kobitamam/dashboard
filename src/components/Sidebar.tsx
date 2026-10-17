@@ -16,6 +16,7 @@ const partnerOnlyNavItems = [
   { href: "/dashboard/quotes", label: "הצעות מחיר", icon: QuoteIcon },
   { href: "/dashboard/billing", label: "גבייה", icon: WalletIcon },
   { href: "/dashboard/team", label: "צוות", icon: TeamIcon },
+  { href: "/dashboard/onedrive", label: "OneDrive", icon: CloudIcon },
 ];
 
 export default function Sidebar({
@@ -264,6 +265,19 @@ function CalendarIcon({ className }: { className?: string }) {
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CloudIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.6 4.7 4.7 0 0 1 17.5 18H7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
       />
     </svg>
   );
