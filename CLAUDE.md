@@ -43,6 +43,20 @@ The case card does NOT list or upload case files: it only links to the case's On
 employees add and read documents directly in OneDrive. The in-app upload exists only for the signed quote.
 Two files that an earlier version moved into a case folder are tolerated by the Word lookup only.
 
+## Calendar
+
+- The calendar page is a Sunday-Thursday week (`src/lib/calendar.ts`). Case deadlines are derived from the cases (never stored);
+  meetings/hearings are `events` (optionally linked to a case via `caseId`). Event times are floating office wall-clock times
+  (stored as UTC fields) - the page, the .ics feed and Outlook all read them that way.
+- **Apple Calendar, two-way**: via a dedicated "TA-Estate" calendar in the user's Outlook (`src/lib/calendar-sync.ts`,
+  `src/lib/ms-calendar.ts`). This is a SEPARATE Microsoft connection (`calendarConnections`, scope `Calendars.ReadWrite`) from OneDrive,
+  so the OneDrive token keeps its narrow app-folder scope and its refresh never asks for more. It returns through the OneDrive callback
+  (`/api/onedrive/callback`, the registered redirect) with a `cal:` prefix on the signed state. Sync runs on calendar page load (throttled
+  to 1/min) and after creating an event; events carry `outlookId`/`syncHash`; deleting an event removes its Outlook twin first
+  (`deleteOutlookTwin`), otherwise the next sync would re-import it. Not tested live: it needs the Microsoft account to have an Outlook
+  mailbox (Graph otherwise answers MailboxNotEnabledForRESTAPI) and `Calendars.ReadWrite` consent.
+- A one-way read-only .ics feed (`/api/calendar/<token>.ics`) also exists as a simpler alternative (`calendarFeeds`).
+
 ## Working here
 
 - Develop on branch `claude/focused-goodall-iexeqf`. **Merge/push to `main` only when the user asks** (they test on

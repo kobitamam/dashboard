@@ -25,6 +25,8 @@ import {
   type UploadParent,
 } from "@/lib/onedrive";
 import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
+import { deleteOutlookTwin, syncCalendar } from "@/lib/calendar-sync";
+import { removeCalendarConnection } from "@/lib/db/calendar-connection";
 import { rotateFeedToken } from "@/lib/db/calendar-feed";
 import { initialFee } from "@/lib/fees";
 import { createUploadToken } from "@/lib/upload-token";
@@ -312,11 +314,14 @@ export async function createEvent(form: FormData) {
     type: oneOf<EventType>(form, "type", eventTypes, "פגישת לקוח"),
     ...(linkedCase ? { caseId: linkedCaseId } : {}),
   });
+  // Mirror it to the Outlook calendar right away (a failure is shown on the calendar page).
+  await syncCalendar(ownerId, { force: true }).catch(() => undefined);
   refresh();
 }
 
 export async function deleteEvent(id: string) {
   const ownerId = await requireOwnerId();
+  await deleteOutlookTwin(ownerId, id);
   await eventsRepo.remove(ownerId, id);
   refresh();
 }
@@ -328,6 +333,13 @@ export async function deleteEvent(id: string) {
 export async function rotateCalendarFeed() {
   const ownerId = await requireOwnerId();
   await rotateFeedToken(ownerId);
+  refresh();
+}
+
+/** Unlinks the Outlook calendar. Events stay here; the "TA-Estate" calendar in Outlook is left as it is. */
+export async function disconnectCalendarSync() {
+  const ownerId = await requireOwnerId();
+  await removeCalendarConnection(ownerId);
   refresh();
 }
 

@@ -7,9 +7,9 @@ export class MissingOneDriveConfigError extends Error {
   }
 }
 
-const AUTHORIZE_ENDPOINT = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
+export const AUTHORIZE_ENDPOINT = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
 const TOKEN_ENDPOINT = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
-const GRAPH_ROOT = "https://graph.microsoft.com/v1.0";
+export const GRAPH_ROOT = "https://graph.microsoft.com/v1.0";
 
 // Delegated, and deliberately not the broad Files.ReadWrite: this scope limits
 // the app to its own special OneDrive folder, so a bug here can never reach
@@ -22,14 +22,14 @@ export function isOneDriveConfigured() {
   return !!(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
 }
 
-function config() {
+export function config() {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new MissingOneDriveConfigError();
   return { clientId, clientSecret };
 }
 
-function callbackUrl(origin: string) {
+export function callbackUrl(origin: string) {
   return `${origin}/api/onedrive/callback`;
 }
 
@@ -82,7 +82,7 @@ export type TokenSet = {
   scope: string;
 };
 
-async function requestTokens(body: URLSearchParams): Promise<TokenSet> {
+export async function requestTokens(body: URLSearchParams): Promise<TokenSet> {
   const res = await fetch(TOKEN_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -163,7 +163,7 @@ function appPath(...segments: string[]) {
   return `/me/drive/special/approot:/${segments.map((s) => encodeURIComponent(sanitizeFolderName(s))).join("/")}`;
 }
 
-async function graphError(res: Response, what: string) {
+export async function graphError(res: Response, what: string) {
   const error = (await res.json().catch(() => null))?.error;
   // Graph's message is a generic description of the problem, never a secret.
   const detail = [error?.code, typeof error?.message === "string" ? error.message.slice(0, 120) : ""]

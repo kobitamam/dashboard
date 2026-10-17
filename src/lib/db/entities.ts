@@ -112,6 +112,9 @@ export type EventDoc = Owned & {
   location: string;
   type: EventType;
   caseId?: string;
+  // Set while the event is mirrored in the Outlook calendar (see lib/calendar-sync.ts).
+  outlookId?: string;
+  syncHash?: string;
 };
 
 // Appraisal types a partner added on top of the built-in caseTypes list.

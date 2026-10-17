@@ -1,6 +1,12 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { createEvent, deleteEvent, disconnectOneDrive, rotateCalendarFeed } from "@/app/dashboard/actions";
+import {
+  createEvent,
+  deleteEvent,
+  disconnectCalendarSync,
+  disconnectOneDrive,
+  rotateCalendarFeed,
+} from "@/app/dashboard/actions";
 import {
   AddRecord,
   DataUnavailable,
@@ -17,7 +23,10 @@ import {
   todayInIsraelDay,
   weekStartOf,
 } from "@/lib/calendar";
+import { syncCalendar } from "@/lib/calendar-sync";
+import { getCalendarConnection } from "@/lib/db/calendar-connection";
 import { getFeedToken } from "@/lib/db/calendar-feed";
+import { getCalendarAuthorizeUrl } from "@/lib/ms-calendar";
 import { loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate } from "@/lib/format";
 import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
@@ -33,8 +42,20 @@ async function getOrigin() {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ onedrive?: string; onedrive_error?: string; week?: string }>;
+  searchParams: Promise<{
+    onedrive?: string;
+    onedrive_error?: string;
+    calendar?: string;
+    calendar_error?: string;
+    week?: string;
+  }>;
 }) {
+  const ownerId = await requireOwnerId();
+  // Bring in what was added in the Outlook/Apple calendar before reading the events
+  // (a no-op when it isn't linked, or was synced in the last minute).
+  const sync = await syncCalendar(ownerId).catch(() => null);
+  const calendarLink = await getCalendarConnection(ownerId);
+
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const { events, cases } = result.data;
@@ -44,7 +65,6 @@ export default async function CalendarPage({
   const items = buildCalendarItems(events, cases);
 
   const params = await searchParams;
-  const ownerId = await requireOwnerId();
 
   // The working week, Sunday to Thursday.
   const weekStart = weekStartOf(params.week);
@@ -59,6 +79,10 @@ export default async function CalendarPage({
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
   const connected = isOneDriveConfigured() && (await isConnected(ownerId));
   const authorizeUrl = isOneDriveConfigured() ? getAuthorizeUrl(ownerId, origin) : null;
+  const calendarAuthorizeUrl = isOneDriveConfigured()
+    ? getCalendarAuthorizeUrl(ownerId, origin)
+    : null;
+  const syncError = sync && !sync.ok ? sync.error : (calendarLink?.lastError ?? null);
 
   const form = (
     <AddRecord label="+ פגישה חדשה" action={createEvent}>
@@ -95,6 +119,16 @@ export default async function CalendarPage({
       {params.onedrive === "connected" && (
         <div className="mb-4 rounded-xl bg-success/10 px-4 py-3 text-sm font-medium text-success">
           OneDrive חובר בהצלחה
+        </div>
+      )}
+      {params.calendar === "connected" && (
+        <div className="mb-4 rounded-xl bg-success/10 px-4 py-3 text-sm font-medium text-success">
+          יומן Outlook חובר בהצלחה
+        </div>
+      )}
+      {params.calendar === "error" && (
+        <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+          חיבור יומן Outlook נכשל{params.calendar_error ? `: ${params.calendar_error}` : ""}
         </div>
       )}
       {params.onedrive === "error" && (
@@ -204,51 +238,100 @@ export default async function CalendarPage({
         </Card>
 
         <Card className="h-fit p-5">
-          <h2 className="text-lg font-bold">סנכרון עם יומן Apple</h2>
+          <h2 className="text-lg font-bold">סנכרון עם יומן Apple (דו-כיווני)</h2>
           <p className="mt-3 text-sm text-muted">
-            האירועים והדדליינים של כל התיקים מופיעים ביומן שלך באייפון או במק, ומתעדכנים
-            לבד (בדרך כלל תוך שעה). הסנכרון הוא בכיוון אחד: מהמערכת אל היומן של Apple.
-            אירוע שתוסיף ישירות ביומן של Apple לא יופיע במערכת.
+            המערכת מסתנכרנת עם יומן בשם TA-Estate בחשבון ה-Outlook שלך. את אותו חשבון מוסיפים
+            לאייפון או למק, ומשם הכול זז לשני הכיוונים: דדליין או דיון שנוספו כאן מופיעים
+            ב-Apple, ואירוע שתוסיף ב-Apple, ביומן TA-Estate, יופיע כאן.
           </p>
-          {feedPath ? (
+
+          {calendarLink ? (
             <>
-              <a
-                href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
-                className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-              >
-                הוסף ליומן Apple
-              </a>
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                מחובר
+              </span>
+              {syncError && (
+                <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
+                  הסנכרון האחרון נכשל: {syncError}
+                </p>
+              )}
+              <ol className="mt-3 list-decimal space-y-1 pr-5 text-xs text-muted">
+                <li>באייפון: הגדרות ← יומן ← חשבונות ← הוסף חשבון ← Outlook.com.</li>
+                <li>היכנס עם אותו חשבון Microsoft שחיברת כאן, והפעל &quot;יומנים&quot;.</li>
+                <li>באפליקציית היומן יופיע יומן TA-Estate. אירועים חדשים מוסיפים אליו.</li>
+              </ol>
               <p className="mt-3 text-xs text-muted">
-                בטלפון או במק, הלחיצה על הכפתור פותחת את היומן ושואלת אם להירשם. אפשר גם
-                להוסיף ידנית כיומן מנוי (Subscribed Calendar) עם הכתובת:
+                אירוע שנוסף ב-Apple מופיע כאן כשמישהו פותח את היומן במערכת (עד דקה).
+                אירוע שנוסף במערכת מופיע ב-Apple תוך דקות.
               </p>
-              <p dir="ltr" className="mt-1 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
-                {origin}
-                {feedPath}
-              </p>
-              <p className="mt-3 text-xs text-warning">
-                הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אם הוא הגיע למי
-                שלא צריך, החלף אותו (הקישור הישן יפסיק לעבוד).
-              </p>
-              <form action={rotateCalendarFeed} className="mt-3">
+              <form action={disconnectCalendarSync} className="mt-3">
                 <button
                   type="submit"
                   className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
                 >
-                  החלף קישור
+                  נתק את יומן Outlook
                 </button>
               </form>
             </>
+          ) : calendarAuthorizeUrl ? (
+            <a
+              href={calendarAuthorizeUrl}
+              className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              חבר יומן Outlook
+            </a>
           ) : (
-            <form action={rotateCalendarFeed} className="mt-3">
-              <button
-                type="submit"
-                className="rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-              >
-                צור קישור לסנכרון
-              </button>
-            </form>
+            <p className="mt-3 rounded-lg bg-background px-3 py-2 text-xs text-muted">
+              תצורת Microsoft חסרה בצד השרת
+            </p>
           )}
+
+          <details className="mt-5 border-t border-border pt-4">
+            <summary className="cursor-pointer text-xs font-semibold text-muted">
+              אפשרות פשוטה יותר: צפייה בלבד ב-Apple (חד-כיווני)
+            </summary>
+            <p className="mt-3 text-xs text-muted">
+              מציגה ב-Apple את האירועים והדדליינים בלי חיבור ל-Microsoft, אבל אירוע שנוסף
+              ב-Apple לא יופיע במערכת. אל תשתמש בשתי האפשרויות יחד, כדי שהאירועים לא יוצגו
+              פעמיים.
+            </p>
+            {feedPath ? (
+              <>
+                <a
+                  href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
+                  className="mt-3 inline-block rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-background"
+                >
+                  הוסף ליומן Apple
+                </a>
+                <p dir="ltr" className="mt-2 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
+                  {origin}
+                  {feedPath}
+                </p>
+                <p className="mt-2 text-xs text-warning">
+                  הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אפשר להחליף אותו
+                  והישן יפסיק לעבוד.
+                </p>
+                <form action={rotateCalendarFeed} className="mt-2">
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
+                  >
+                    החלף קישור
+                  </button>
+                </form>
+              </>
+            ) : (
+              <form action={rotateCalendarFeed} className="mt-3">
+                <button
+                  type="submit"
+                  className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-background"
+                >
+                  צור קישור לסנכרון
+                </button>
+              </form>
+            )}
+          </details>
         </Card>
       </div>
     </div>
