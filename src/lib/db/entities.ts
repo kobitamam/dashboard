@@ -35,6 +35,7 @@ export type FeePaymentDoc = {
 
 export type FeeDoc = {
   baseAmount: number;
+  finalAmount?: number;
   successPercentage: number;
   successAmount: number;
   payments: FeePaymentDoc[];
@@ -173,6 +174,7 @@ function toFee(doc: FeeDoc | null | undefined): Fee | null {
   if (!doc) return null;
   return {
     baseAmount: doc.baseAmount,
+    finalAmount: doc.finalAmount ?? 0,
     successPercentage: doc.successPercentage,
     successAmount: doc.successAmount,
     payments: (doc.payments ?? []).map(toFeePayment),

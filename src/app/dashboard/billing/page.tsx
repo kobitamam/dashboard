@@ -28,12 +28,17 @@ export default async function BillingPage() {
   if (!result.ok) return <DataUnavailable />;
   const { invoices, cases } = result.data;
 
-  // A finished case moves to billing: the ones still owed money come first.
-  const completed = cases
-    .filter((c) => c.status === "הושלם")
-    .map((c) => ({ case: c, ...feeTotals(c.fee) }))
-    .sort((a, b) => Number(b.balance > 0) - Number(a.balance > 0) || b.balance - a.balance);
-  const awaitingCollection = completed.reduce((sum, c) => sum + Math.max(0, c.balance), 0);
+  // Each case is billed in two stages: the first when it is opened, the second
+  // when it is completed. Cases with something to collect (or no fee set yet)
+  // are listed, the ones to collect now first.
+  const billing = cases
+    .map((c) => ({ case: c, completed: c.status === "הושלם", ...feeTotals(c.fee, c.status === "הושלם") }))
+    .filter((r) => r.balanceDue > 0 || !r.case.fee || r.completed)
+    .sort(
+      (a, b) =>
+        Number(b.balanceDue > 0) - Number(a.balanceDue > 0) || b.balanceDue - a.balanceDue,
+    );
+  const awaitingCollection = billing.reduce((sum, r) => sum + r.balanceDue, 0);
 
   const sum = (predicate: (status: string) => boolean) =>
     invoices.filter((i) => predicate(i.status)).reduce((total, i) => total + i.amount, 0);
@@ -68,55 +73,73 @@ export default async function BillingPage() {
 
       <Card className="mb-6 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-lg font-bold">
-            תיקים שהושלמו - לגבייה
-            <span className="mr-2 text-sm font-normal text-muted">({completed.length})</span>
-          </h2>
-          {completed.length > 0 && (
+          <div>
+            <h2 className="text-lg font-bold">
+              תיקים לגבייה
+              <span className="mr-2 text-sm font-normal text-muted">({billing.length})</span>
+            </h2>
+            <p className="text-xs text-muted">
+              שלב א׳ - כשנפתח תיק · שלב ב׳ - כשהתיק הושלם
+            </p>
+          </div>
+          {billing.length > 0 && (
             <span className="text-sm text-muted">
-              יתרה לגבייה:{" "}
+              לגבייה כעת:{" "}
               <span className="font-bold text-foreground">{formatMoney(awaitingCollection)}</span>
             </span>
           )}
         </div>
-        {completed.length === 0 ? (
+        {billing.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted">
-            תיק שיסומן כ&quot;הושלם&quot; יופיע כאן אוטומטית.
+            אין כרגע תיקים לגבייה. תיק חדש יופיע כאן אוטומטית.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-right text-sm">
+            <table className="w-full min-w-[760px] text-right text-sm">
               <thead>
                 <tr className="border-b border-border bg-background text-xs text-muted">
                   <th className="px-4 py-3 font-medium">תיק</th>
                   <th className="px-4 py-3 font-medium">לקוח</th>
-                  <th className="px-4 py-3 font-medium">שכר טרחה</th>
+                  <th className="px-4 py-3 font-medium">שלב א׳</th>
+                  <th className="px-4 py-3 font-medium">שלב ב׳</th>
                   <th className="px-4 py-3 font-medium">שולם</th>
-                  <th className="px-4 py-3 font-medium">יתרה</th>
+                  <th className="px-4 py-3 font-medium">לגבייה כעת</th>
                   <th className="px-4 py-3 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
-                {completed.map(({ case: c, total, paid: paidSoFar, balance }) => (
-                  <tr key={c.id} className="border-b border-border last:border-0 hover:bg-background/60">
-                    <td className="px-4 py-3 font-mono text-xs text-muted">{c.caseNumber}</td>
-                    <td className="px-4 py-3 font-semibold text-foreground">{c.clientName}</td>
+                {billing.map((r) => (
+                  <tr key={r.case.id} className="border-b border-border last:border-0 hover:bg-background/60">
+                    <td className="px-4 py-3 font-mono text-xs text-muted">{r.case.caseNumber}</td>
+                    <td className="px-4 py-3 font-semibold text-foreground">{r.case.clientName}</td>
                     <td className="px-4 py-3 text-foreground">
-                      {c.fee ? formatMoney(total) : <span className="text-warning">לא הוגדר</span>}
+                      {r.case.fee ? formatMoney(r.first) : <span className="text-warning">לא הוגדר</span>}
                     </td>
-                    <td className="px-4 py-3 text-muted">{formatMoney(paidSoFar)}</td>
+                    <td className="px-4 py-3 text-muted">
+                      {!r.case.fee
+                        ? "—"
+                        : r.completed
+                          ? formatMoney(r.second)
+                          : `${formatMoney(r.second)} · בהשלמת התיק`}
+                    </td>
+                    <td className="px-4 py-3 text-muted">{formatMoney(r.paid)}</td>
                     <td className="px-4 py-3">
-                      {!c.fee ? (
+                      {!r.case.fee ? (
                         <span className="text-muted">—</span>
-                      ) : balance > 0 ? (
-                        <span className="font-semibold text-danger">{formatMoney(balance)}</span>
+                      ) : r.balanceDue > 0 ? (
+                        <span className="font-semibold text-danger">
+                          {formatMoney(r.balanceDue)}
+                          <span className="mr-1 text-xs font-normal text-muted">
+                            ({r.stageDue === "first" ? "שלב א׳" : "שלב ב׳"})
+                          </span>
+                        </span>
                       ) : (
-                        <span className="font-semibold text-success">שולם במלואו</span>
+                        <span className="font-semibold text-success">שולם</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-left">
                       <Link
-                        href={`/dashboard/fees/${c.id}`}
+                        href={`/dashboard/fees/${r.case.id}`}
                         className="text-xs font-semibold text-brand-blue hover:underline"
                       >
                         💰 שכר טרחה ותשלומים

@@ -25,6 +25,7 @@ import {
   type UploadParent,
 } from "@/lib/onedrive";
 import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
+import { initialFee } from "@/lib/fees";
 import { createUploadToken } from "@/lib/upload-token";
 import {
   BETTERMENT_LEVY,
@@ -523,6 +524,14 @@ export async function approveQuote(quoteId: string) {
   caseForm.set("feeNote", quote.feeNote ?? "");
   const caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
 
+  // The first fee stage becomes due as soon as the case is opened, so the case
+  // starts with its fee structure (editable on the fee page).
+  if (caseId && quote.amount > 0) {
+    await casesRepo.update(ownerId, caseId, {
+      fee: initialFee(quote.type === BETTERMENT_LEVY, quote.amount, quote.feePercent ?? null),
+    });
+  }
+
   await quotesRepo.update(ownerId, quoteId, {
     status: "אושרה",
     ...(caseId ? { linkedCaseId: caseId } : {}),
@@ -534,15 +543,36 @@ export async function approveQuote(quoteId: string) {
 // employee account even if it somehow reaches this action directly.
 export async function setCaseFee(caseId: string, form: FormData) {
   const ownerId = await requirePartnerId();
-  const existing = (await casesRepo.get(ownerId, caseId))?.fee;
-  await casesRepo.update(ownerId, caseId, {
-    fee: {
-      baseAmount: Math.max(0, number(form, "baseAmount")),
-      successPercentage: Math.max(0, number(form, "successPercentage")),
-      successAmount: Math.max(0, number(form, "successAmount")),
-      payments: existing?.payments ?? [],
-    },
-  });
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc) return;
+  const payments = caseDoc.fee?.payments ?? [];
+
+  if (caseDoc.type === BETTERMENT_LEVY) {
+    // Stage 1: an advance. Stage 2: a percentage of the reduction.
+    await casesRepo.update(ownerId, caseId, {
+      fee: {
+        baseAmount: Math.max(0, number(form, "baseAmount")),
+        finalAmount: 0,
+        successPercentage: Math.min(100, Math.max(0, number(form, "successPercentage"))),
+        successAmount: Math.max(0, number(form, "successAmount")),
+        payments,
+      },
+    });
+  } else {
+    // Stage 1: a share of the total when the case is opened (usually half). Stage 2: the rest.
+    const total = Math.max(0, number(form, "totalFee"));
+    const firstPercent = Math.min(100, Math.max(0, number(form, "firstPercent", 50)));
+    const first = Math.round((total * firstPercent) / 100);
+    await casesRepo.update(ownerId, caseId, {
+      fee: {
+        baseAmount: first,
+        finalAmount: total - first,
+        successPercentage: 0,
+        successAmount: 0,
+        payments,
+      },
+    });
+  }
   refresh();
 }
 

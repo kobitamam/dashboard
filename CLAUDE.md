@@ -59,5 +59,9 @@ Two files that an earlier version moved into a case folder are tolerated by the 
   A partner is the root of their organization; employees share the partner's data. `requirePartnerId()` gates actions.
 - **Partners only**: quotes (הצעות מחיר), billing (גבייה), fee tracking (שכר טרחה), team management, demo data.
   Employees must never receive that data (it is not even loaded for their session).
+- Fees are collected in two stages (`src/lib/fees.ts`): stage 1 (`baseAmount`) when the case is opened, stage 2 when it is
+  completed - `finalAmount` (second half of an ordinary fee) and/or `successPercentage` x `successAmount` (betterment levy:
+  advance first, then a percentage of the reduction). Payments cover stage 1 first. The billing tab lists what is due now.
+  Approving a quote seeds the case's fee from the quote (`initialFee`).
 - Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`).
 - Types of appraisal are a built-in list plus partner-added ones (`loadCaseTypes`).

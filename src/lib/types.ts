@@ -90,8 +90,13 @@ export type FeePayment = {
   note: string;
 };
 
+// The fee is collected in two stages: stage 1 (baseAmount) when the case is
+// opened, stage 2 when it is completed. Stage 2 is a fixed amount (finalAmount,
+// the second half of an ordinary fee) and/or a percentage of the reduction
+// achieved (betterment levy).
 export type Fee = {
   baseAmount: number;
+  finalAmount: number;
   successPercentage: number;
   successAmount: number;
   payments: FeePayment[];
