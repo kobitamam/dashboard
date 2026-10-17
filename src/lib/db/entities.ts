@@ -66,6 +66,7 @@ export type CaseDoc = Owned &
     dueDate: Date | null;
     arbitratorRequestDate?: Date | null;
     counterAppraisalDate?: Date | null;
+    bettermentStage?: string;
     progress: number;
     // Legacy: files once uploaded through the app. Case files now live only in OneDrive.
     attachments?: AttachmentDoc[];
@@ -204,6 +205,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     dueDate: day(doc.dueDate),
     arbitratorRequestDate: day(doc.arbitratorRequestDate),
     counterAppraisalDate: day(doc.counterAppraisalDate),
+    bettermentStage: doc.bettermentStage ?? null,
     progress: doc.progress,
     oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
     oneDriveFolderName: doc.oneDriveFolderName ?? null,

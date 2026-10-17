@@ -38,6 +38,23 @@ export const caseTypes: CaseType[] = [
 
 // A betterment-levy case has two statutory deadlines on top of the general due date.
 export const BETTERMENT_LEVY: CaseType = "היטל השבחה";
+
+// A betterment-levy case moves through fixed stages instead of a hand-typed
+// percentage; the stage sets the progress. The first entry is the state before
+// the first stage, so a freshly opened case doesn't start out "25% done".
+export const bettermentStages = [
+  { name: "טרם נשלחה טיוטה", progress: 0 },
+  { name: "נשלחה טיוטה", progress: 25 },
+  { name: "נשלח חתום, ממתין לדיון", progress: 50 },
+  { name: "ממתין להחלטה", progress: 75 },
+  { name: "הושלם", progress: 100 },
+] as const;
+
+export const bettermentStageNames: string[] = bettermentStages.map((s) => s.name);
+
+export function bettermentProgress(stage: string) {
+  return bettermentStages.find((s) => s.name === stage)?.progress ?? 0;
+}
 export const quoteStatuses: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
 
 // The select's sentinel for "add a type that isn't in the list yet".
@@ -104,6 +121,7 @@ export type Case = PropertyDetails & {
   arbitratorRequestDate: string | null;
   // ...and last day to file a counter-appraisal (מועד ב׳).
   counterAppraisalDate: string | null;
+  bettermentStage: string | null; // היטל השבחה only: one of bettermentStages
   progress: number;
   oneDriveFolderUrl: string | null;
   oneDriveFolderName: string | null; // folder name under the app folder, used to address its files

@@ -21,7 +21,12 @@ import { Card, PageHeader, ProgressBar, StatusBadge } from "@/components/ui";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { caseDeadlines } from "@/lib/deadlines";
 import { daysUntil, formatDate, formatParcel, formatTime } from "@/lib/format";
-import { BETTERMENT_LEVY, caseStatuses, type CaseStatus } from "@/lib/types";
+import {
+  BETTERMENT_LEVY,
+  bettermentStageNames,
+  caseStatuses,
+  type CaseStatus,
+} from "@/lib/types";
 
 const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "הושלם"];
 
@@ -58,6 +63,12 @@ export default async function CasesPage({
       <Field label="היטל השבחה - מועד א׳: יום אחרון לבקשת מינוי שמאי מכריע" name="arbitratorRequestDate" type="date" />
       <Field label="היטל השבחה - מועד ב׳: יום אחרון להגשת שומה נגדית" name="counterAppraisalDate" type="date" />
       <Field label="התקדמות (%)" name="progress" type="number" min={0} max={100} defaultValue={0} />
+      <SelectField
+        label="היטל השבחה - שלב (במקום אחוז ההתקדמות)"
+        name="bettermentStage"
+        options={bettermentStageNames}
+        defaultValue={bettermentStageNames[0]}
+      />
       {isPartner && (
         <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
       )}
@@ -192,7 +203,11 @@ export default async function CasesPage({
 
                     <div className="mt-3">
                       <div className="mb-1 flex justify-between text-[11px] text-muted">
-                        <span>התקדמות</span>
+                        <span>
+                          {c.type === BETTERMENT_LEVY
+                            ? `שלב: ${c.bettermentStage ?? bettermentStageNames[0]}`
+                            : "התקדמות"}
+                        </span>
                         <span>{c.progress}%</span>
                       </div>
                       <ProgressBar value={c.progress} />
@@ -211,15 +226,30 @@ export default async function CasesPage({
                             </option>
                           ))}
                         </select>
-                        <input
-                          name="progress"
-                          type="number"
-                          min={0}
-                          max={100}
-                          defaultValue={c.progress}
-                          aria-label="אחוז התקדמות"
-                          className="w-14 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
-                        />
+                        {c.type === BETTERMENT_LEVY ? (
+                          <select
+                            name="bettermentStage"
+                            defaultValue={c.bettermentStage ?? bettermentStageNames[0]}
+                            aria-label="שלב"
+                            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
+                          >
+                            {bettermentStageNames.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            name="progress"
+                            type="number"
+                            min={0}
+                            max={100}
+                            defaultValue={c.progress}
+                            aria-label="אחוז התקדמות"
+                            className="w-14 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
+                          />
+                        )}
                       </div>
                       <DateInput label="תאריך יעד" name="dueDate" value={c.dueDate} />
                       {c.type === BETTERMENT_LEVY && (
