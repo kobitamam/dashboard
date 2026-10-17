@@ -168,10 +168,11 @@ export default function WeekCalendar({
                   <div className="flex items-start justify-between gap-1">
                     <p className="font-semibold">{item.title}</p>
                     {item.eventId && (
-                      <div className="shrink-0 -mt-1 -ml-1 scale-90">
+                      <div className="-mt-1 -ml-1.5 shrink-0">
                         <DeleteButton
                           action={deleteEvent.bind(null, item.eventId)}
                           confirmText="למחוק את הפגישה?"
+                          label="✕"
                         />
                       </div>
                     )}

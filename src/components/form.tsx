@@ -181,9 +181,11 @@ export function AddRecord({
 export function DeleteButton({
   action,
   confirmText = "למחוק את הרשומה?",
+  label = "מחיקה",
 }: {
   action: () => Promise<void>;
   confirmText?: string;
+  label?: string;
 }) {
   return (
     <form
@@ -194,9 +196,11 @@ export function DeleteButton({
     >
       <button
         type="submit"
+        aria-label="מחיקה"
+        title="מחיקה"
         className="rounded-lg px-2 py-1 text-xs font-semibold text-danger hover:bg-danger/10"
       >
-        מחיקה
+        {label}
       </button>
     </form>
   );
