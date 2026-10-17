@@ -2,7 +2,8 @@ export type ClientStatus = "פעיל" | "ליד חדש" | "סגור";
 export type CaseStatus = "בתהליך" | "ממתין למידע" | "נשלחה טיוטה" | "דחוף" | "הושלם";
 export type InvoiceStatus = "שולם" | "ממתין לתשלום" | "באיחור";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
-export type EventType = "ביקור בנכס" | "פגישת לקוח" | "דיון" | "הגשת שומה" | "שיחת טלפון";
+// The built-in kinds plus any the office added (see loadEventTypes), so it is just a string.
+export type EventType = string;
 export type CaseType =
   | "שומה לצרכי מכירה"
   | "שומה לצרכי מימון/משכנתא"
@@ -18,12 +19,14 @@ export type Role = "partner" | "employee";
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
 export const caseStatuses: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "נשלחה טיוטה", "הושלם"];
 export const invoiceStatuses: InvoiceStatus[] = ["ממתין לתשלום", "שולם", "באיחור"];
+export const MEDIATOR_REQUEST_DEADLINE = "יום אחרון לבקשת מינוי שמאי מכריע";
 export const eventTypes: EventType[] = [
   "ביקור בנכס",
   "פגישת לקוח",
   "דיון",
   "הגשת שומה",
   "שיחת טלפון",
+  MEDIATOR_REQUEST_DEADLINE,
 ];
 export const caseTypes: CaseType[] = [
   "שומה לצרכי מכירה",

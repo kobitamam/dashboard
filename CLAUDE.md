@@ -48,6 +48,7 @@ Two files that an earlier version moved into a case folder are tolerated by the 
 - The calendar page is a Sunday-Thursday week (`src/lib/calendar.ts`). Case deadlines are derived from the cases (never stored);
   meetings/hearings are `events` (optionally linked to a case via `caseId`). Event times are floating office wall-clock times
   (stored as UTC fields) - the page, the .ics feed and Outlook all read them that way.
+- Event types are a built-in list (`eventTypes`) plus ones anybody adds from the new-event form (`eventTypesRepo`, `loadEventTypes`).
 - The calendar tab is a time-grid week like Apple Calendar (`src/components/WeekCalendar.tsx`): Sunday-Thursday, Friday/Saturday on request.
 - **The Apple Calendar link the user wants is the read-only .ics subscription** (below); the two-way Outlook sync described next is built
   but its UI is hidden (the user said view-only is enough), so the connect button no longer appears.

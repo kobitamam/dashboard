@@ -78,12 +78,16 @@ export function SelectWithNewField({
   options,
   newName,
   defaultValue,
+  newOptionLabel = "➕ סוג חדש...",
+  newPlaceholder = "שם סוג השומה החדש",
 }: {
   label: string;
   name: string;
   options: readonly string[];
   newName: string;
   defaultValue?: string;
+  newOptionLabel?: string;
+  newPlaceholder?: string;
 }) {
   const [value, setValue] = useState(defaultValue ?? options[0]);
 
@@ -102,14 +106,14 @@ export function SelectWithNewField({
               {option}
             </option>
           ))}
-          <option value={NEW_CASE_TYPE}>➕ סוג חדש...</option>
+          <option value={NEW_CASE_TYPE}>{newOptionLabel}</option>
         </select>
       </label>
       {value === NEW_CASE_TYPE && (
         <input
           className={`${fieldClass} mt-2`}
           name={newName}
-          placeholder="שם סוג השומה החדש"
+          placeholder={newPlaceholder}
           maxLength={60}
           required
         />

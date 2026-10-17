@@ -5,7 +5,7 @@ import {
   AddRecord,
   DataUnavailable,
   Field,
-  SelectField,
+  SelectWithNewField,
 } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
 import WeekCalendar from "@/components/WeekCalendar";
@@ -18,9 +18,8 @@ import {
   weekStartOf,
 } from "@/lib/calendar";
 import { getFeedToken } from "@/lib/db/calendar-feed";
-import { loadDashboardData, requireOwnerId } from "@/lib/db/queries";
+import { loadDashboardData, loadEventTypes, requireOwnerId } from "@/lib/db/queries";
 import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
-import { eventTypes } from "@/lib/types";
 
 async function getOrigin() {
   const h = await headers();
@@ -71,6 +70,7 @@ export default async function CalendarPage({
     timeZone: "UTC",
   }).format(new Date(`${addDays(weekStart, 2)}T00:00:00Z`));
 
+  const eventTypes = await loadEventTypes(ownerId);
   const feedToken = await getFeedToken(ownerId);
   const origin = await getOrigin();
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
@@ -82,7 +82,15 @@ export default async function CalendarPage({
       <Field label="נושא" name="title" required placeholder="ביקור בנכס - רחוב, עיר" />
       <Field label="מועד" name="start" type="datetime-local" required />
       <Field label="מיקום" name="location" placeholder="עיר / מקוון / טלפוני" />
-      <SelectField label="סוג" name="type" options={eventTypes} defaultValue="פגישת לקוח" />
+      <SelectWithNewField
+        label="סוג"
+        name="type"
+        newName="newType"
+        options={eventTypes}
+        defaultValue="פגישת לקוח"
+        newOptionLabel="➕ סוג חדש..."
+        newPlaceholder="שם סוג האירוע החדש"
+      />
       <label className="block">
         <span className="mb-1.5 block text-xs font-medium text-muted">תיק קשור (אופציונלי)</span>
         <select

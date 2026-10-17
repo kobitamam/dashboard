@@ -125,6 +125,12 @@ export type CaseTypeDoc = Owned & {
   name: string;
 };
 
+// Calendar event types the office added on top of the built-in eventTypes list.
+export type EventTypeDoc = Owned & {
+  _id?: ObjectId;
+  name: string;
+};
+
 export type AttendanceDoc = Owned & {
   _id?: ObjectId;
   // The individual account, as opposed to ownerId (the shared organization) -
@@ -142,6 +148,7 @@ export const eventsRepo = new Repository<EventDoc>("events");
 export const quotesRepo = new Repository<QuoteDoc>("quotes");
 export const attendanceRepo = new Repository<AttendanceDoc>("attendance");
 export const caseTypesRepo = new Repository<CaseTypeDoc>("caseTypes");
+export const eventTypesRepo = new Repository<EventTypeDoc>("eventTypes");
 
 // Server Components hand these to Client Components, so nothing may cross the
 // boundary as an ObjectId or Date.

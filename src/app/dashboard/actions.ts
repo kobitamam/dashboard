@@ -7,11 +7,18 @@ import {
   caseTypesRepo,
   clientsRepo,
   eventsRepo,
+  eventTypesRepo,
   invoicesRepo,
   quotesRepo,
 } from "@/lib/db/entities";
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
-import { currentRole, loadCaseTypes, requirePartnerId, requireOwnerId } from "@/lib/db/queries";
+import {
+  currentRole,
+  loadCaseTypes,
+  loadEventTypes,
+  requirePartnerId,
+  requireOwnerId,
+} from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
 import { formatParcel } from "@/lib/format";
 import {
@@ -38,12 +45,10 @@ import {
   COMPLETED_STAGE,
   caseStatuses,
   clientStatuses,
-  eventTypes,
   invoiceStatuses,
   NEW_CASE_TYPE,
   type CaseStatus,
   type ClientStatus,
-  type EventType,
   type InvoiceStatus,
   type UploadTarget,
 } from "@/lib/types";
@@ -117,6 +122,21 @@ async function assignees(ownerId: string, form: FormData) {
     return members.some((m) => m.id === id && m.role === role) ? id : "";
   };
   return { partnerId: pick("partnerId", "partner"), employeeId: pick("employeeId", "employee") };
+}
+
+// The event's type: one of the known ones, or a new one the user typed (added for everybody).
+async function resolveEventType(ownerId: string, form: FormData): Promise<string> {
+  const fallback = "פגישת לקוח";
+  const available = await loadEventTypes(ownerId);
+  const chosen = text(form, "type");
+
+  if (chosen === NEW_CASE_TYPE) {
+    const name = text(form, "newType").slice(0, 60);
+    if (!name) return fallback;
+    if (!available.includes(name)) await eventTypesRepo.insert(ownerId, { name });
+    return name;
+  }
+  return available.includes(chosen) ? chosen : fallback;
 }
 
 // Today's calendar date in Israel, as midnight UTC, so the stored date (which
@@ -325,7 +345,7 @@ export async function createEvent(form: FormData) {
     title,
     start,
     location: text(form, "location"),
-    type: oneOf<EventType>(form, "type", eventTypes, "פגישת לקוח"),
+    type: await resolveEventType(ownerId, form),
     ...(linkedCase ? { caseId: linkedCaseId } : {}),
   });
   // Mirror it to the Outlook calendar right away (a failure is shown on the calendar page).

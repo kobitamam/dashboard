@@ -2,6 +2,7 @@ import { deleteEvent } from "@/app/dashboard/actions";
 import { DeleteButton } from "@/components/form";
 import type { CalendarItem } from "@/lib/calendar";
 import { dayNames } from "@/lib/calendar";
+import { MEDIATOR_REQUEST_DEADLINE } from "@/lib/types";
 
 const HOUR_PX = 56;
 const MIN_EVENT_MINUTES = 30;
@@ -17,7 +18,22 @@ const kindStyles: Record<string, string> = {
   "שיחת טלפון": "bg-brand-cyan-light text-brand-blue border-brand-cyan/40",
   דדליין: "bg-warning/15 text-warning border-warning/40",
 };
-const styleFor = (kind: string) => kindStyles[kind] ?? kindStyles["פגישת לקוח"];
+kindStyles[MEDIATOR_REQUEST_DEADLINE] = kindStyles["דדליין"];
+
+// A type the office added gets a stable colour of its own, picked from its name.
+const customStyles = [
+  "bg-brand-cyan-light text-brand-blue border-brand-cyan/40",
+  "bg-success/15 text-success border-success/40",
+  "bg-danger/10 text-danger border-danger/30",
+  "bg-warning/15 text-warning border-warning/40",
+  "bg-brand-blue/10 text-brand-blue border-brand-blue/30",
+];
+const styleFor = (kind: string) => {
+  if (kindStyles[kind]) return kindStyles[kind];
+  let hash = 0;
+  for (const ch of kind) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return customStyles[hash % customStyles.length];
+};
 
 type Placed = { item: CalendarItem; start: number; end: number; lane: number; lanes: number };
 

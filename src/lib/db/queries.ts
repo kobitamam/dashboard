@@ -5,6 +5,7 @@ import {
   caseTypesRepo,
   clientsRepo,
   eventsRepo,
+  eventTypesRepo,
   invoicesRepo,
   quotesRepo,
   toCase,
@@ -13,7 +14,7 @@ import {
   toInvoice,
   toQuote,
 } from "@/lib/db/entities";
-import { caseTypes, type CalendarEvent, type Case, type CaseType, type Client, type Invoice, type Quote } from "@/lib/types";
+import { caseTypes, eventTypes, type CalendarEvent, type Case, type CaseType, type Client, type Invoice, type Quote } from "@/lib/types";
 
 export type DashboardData = {
   clients: Client[];
@@ -85,6 +86,17 @@ export async function loadCaseTypes(ownerId: string): Promise<string[]> {
   } catch (err) {
     console.error("Failed to load custom case types:", err);
     return [...builtIn, "אחר"];
+  }
+}
+
+/** The built-in calendar event types plus any the office added. */
+export async function loadEventTypes(ownerId: string): Promise<string[]> {
+  try {
+    const custom = (await eventTypesRepo.list(ownerId, { createdAt: 1 })).map((t) => t.name);
+    return [...eventTypes, ...[...new Set(custom)].filter((n) => !eventTypes.includes(n))];
+  } catch (err) {
+    console.error("Failed to load custom event types:", err);
+    return [...eventTypes];
   }
 }
 
