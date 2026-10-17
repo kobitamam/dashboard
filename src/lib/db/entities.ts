@@ -24,6 +24,7 @@ export type AttachmentDoc = {
   size: number;
   contentType: string;
   uploadedAt: Date;
+  webUrl?: string;
 };
 
 export type FeePaymentDoc = {
@@ -82,8 +83,8 @@ export type QuoteDoc = Owned &
     amount: number;
     feePercent?: number | null;
     wordFileUrl?: string;
+    wordFileId?: string;
     status: QuoteStatus;
-    draftFile?: AttachmentDoc;
     signedFile?: AttachmentDoc;
     linkedCaseId?: string;
   };
@@ -154,6 +155,7 @@ function toAttachment(doc: AttachmentDoc): Attachment {
     size: doc.size,
     contentType: doc.contentType,
     uploadedAt: doc.uploadedAt.toISOString(),
+    webUrl: doc.webUrl ?? null,
   };
 }
 
@@ -216,7 +218,6 @@ export function toQuote(doc: WithId<QuoteDoc>): Quote {
     feePercent: doc.feePercent ?? null,
     wordFileUrl: doc.wordFileUrl ?? null,
     status: doc.status,
-    draftFile: doc.draftFile ? toAttachment(doc.draftFile) : null,
     signedFile: doc.signedFile ? toAttachment(doc.signedFile) : null,
     linkedCaseId: doc.linkedCaseId ?? null,
   };

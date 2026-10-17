@@ -1,11 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import type { Attachment } from "@/lib/types";
-
-const MAX_BYTES = 25 * 1024 * 1024;
+import { uploadFileToOneDrive } from "@/lib/onedrive-upload-client";
+import type { Attachment, UploadTarget } from "@/lib/types";
 
 function formatSize(bytes: number) {
+  if (bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -14,28 +15,22 @@ function formatSize(bytes: number) {
 export default function CaseAttachments({
   caseId,
   attachments,
-  requestUploadUrl,
-  confirmUpload,
-  requestDownloadUrl,
-  deleteAttachment,
-  uploadsEnabled = true,
+  hasFolder,
+  startUpload,
+  removeAttachment,
 }: {
   caseId: string;
   attachments: Attachment[];
-  uploadsEnabled?: boolean;
-  requestUploadUrl: (
-    caseId: string,
+  hasFolder: boolean;
+  startUpload: (
+    target: UploadTarget,
     fileName: string,
     contentType: string,
     size: number,
-  ) => Promise<{ url: string; key: string }>;
-  confirmUpload: (
-    caseId: string,
-    attachment: { key: string; fileName: string; contentType: string },
-  ) => Promise<void>;
-  requestDownloadUrl: (caseId: string, key: string) => Promise<string>;
-  deleteAttachment: (caseId: string, key: string) => Promise<void>;
+  ) => Promise<{ ok: true; token: string } | { ok: false; error: string }>;
+  removeAttachment: (caseId: string, key: string) => Promise<void>;
 }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -43,32 +38,10 @@ export default function CaseAttachments({
 
   async function handleFile(file: File) {
     setError(null);
-    if (file.size > MAX_BYTES) {
-      setError(`הקובץ חורג מ-${MAX_BYTES / 1024 / 1024}MB`);
-      return;
-    }
-
     setUploading(true);
     try {
-      const { url, key } = await requestUploadUrl(
-        caseId,
-        file.name,
-        file.type,
-        file.size,
-      );
-
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
-      if (!res.ok) throw new Error("ההעלאה לאחסון נכשלה");
-
-      await confirmUpload(caseId, {
-        key,
-        fileName: file.name,
-        contentType: file.type,
-      });
+      await uploadFileToOneDrive(file, { kind: "case", caseId }, startUpload);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ההעלאה נכשלה, נסה שוב");
     } finally {
@@ -77,24 +50,14 @@ export default function CaseAttachments({
     }
   }
 
-  async function handleDownload(key: string) {
-    setError(null);
-    try {
-      const url = await requestDownloadUrl(caseId, key);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "לא ניתן להוריד את הקובץ");
-    }
-  }
-
-  function handleDelete(key: string) {
-    if (!confirm("למחוק את הקובץ?")) return;
+  function handleRemove(key: string) {
+    if (!confirm("להסיר את הקובץ מהרשימה? הוא יישאר בתיקיית התיק ב-OneDrive.")) return;
     setError(null);
     startTransition(async () => {
       try {
-        await deleteAttachment(caseId, key);
+        await removeAttachment(caseId, key);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "המחיקה נכשלה");
+        setError(err instanceof Error ? err.message : "ההסרה נכשלה");
       }
     });
   }
@@ -105,7 +68,7 @@ export default function CaseAttachments({
         <span className="text-[11px] font-semibold text-muted">
           קבצים ({attachments.length})
         </span>
-        {uploadsEnabled ? (
+        {hasFolder ? (
           <label className="cursor-pointer text-[11px] font-bold text-brand-blue hover:underline">
             {uploading ? "מעלה..." : "+ הוספת קובץ"}
             <input
@@ -120,7 +83,7 @@ export default function CaseAttachments({
             />
           </label>
         ) : (
-          <span className="text-[11px] text-warning">אחסון קבצים לא מוגדר</span>
+          <span className="text-[11px] text-warning">אין תיקיית OneDrive לתיק</span>
         )}
       </div>
 
@@ -133,21 +96,28 @@ export default function CaseAttachments({
               key={a.key}
               className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5 text-[11px]"
             >
-              <button
-                type="button"
-                onClick={() => handleDownload(a.key)}
-                className="min-w-0 flex-1 truncate text-right font-medium text-foreground hover:text-brand-blue"
-                title={a.fileName}
-              >
-                📎 {a.fileName}
-              </button>
+              {a.webUrl ? (
+                <a
+                  href={a.webUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 flex-1 truncate text-right font-medium text-foreground hover:text-brand-blue"
+                  title={a.fileName}
+                >
+                  📎 {a.fileName}
+                </a>
+              ) : (
+                <span className="min-w-0 flex-1 truncate text-right" title={a.fileName}>
+                  📎 {a.fileName}
+                </span>
+              )}
               <span className="shrink-0 text-muted">{formatSize(a.size)}</span>
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => handleDelete(a.key)}
+                onClick={() => handleRemove(a.key)}
                 className="shrink-0 text-danger hover:opacity-70 disabled:opacity-40"
-                aria-label="מחיקה"
+                aria-label="הסרה מהרשימה"
               >
                 ✕
               </button>

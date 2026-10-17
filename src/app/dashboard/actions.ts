@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { nextNumber } from "@/lib/case-number";
 import {
@@ -15,15 +14,16 @@ import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from 
 import { currentRole, loadCaseTypes, requirePartnerId, requireOwnerId } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
 import { formatParcel } from "@/lib/format";
-import { createCaseFolder, sanitizeFolderName, uploadAppFolderFile } from "@/lib/onedrive";
-import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
 import {
-  createDownloadUrl,
-  createUploadUrl,
-  deleteObject,
-  getObjectSize,
-  MAX_ATTACHMENT_BYTES,
-} from "@/lib/r2";
+  createCaseFolder,
+  createUploadSession,
+  moveItemToFolder,
+  sanitizeFolderName,
+  uploadSmallFile,
+  type UploadParent,
+} from "@/lib/onedrive";
+import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
+import { createUploadToken } from "@/lib/upload-token";
 import {
   caseStatuses,
   clientStatuses,
@@ -34,6 +34,7 @@ import {
   type ClientStatus,
   type EventType,
   type InvoiceStatus,
+  type UploadTarget,
 } from "@/lib/types";
 
 function text(form: FormData, key: string) {
@@ -252,81 +253,73 @@ export async function disconnectOneDrive() {
   refresh();
 }
 
-function sanitizeFileName(name: string) {
-  const trimmed = name.trim().slice(-120);
-  // Keep only characters that are safe both as an S3 key segment and on
-  // every downstream OS filesystem when the file is eventually downloaded.
-  return trimmed.replace(/[^\p{L}\p{N}\s.\-_()]/gu, "_") || "קובץ";
-}
+const QUOTES_FOLDER = "הצעות מחיר";
+const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
-export async function requestCaseUploadUrl(
-  caseId: string,
+/**
+ * Opens a OneDrive upload for a file the browser is about to send in chunks to
+ * /api/onedrive/upload. Case files land in the case's own folder; a signed
+ * quote goes to the quotes folder (or straight to the case folder once the
+ * quote has become a job). Returns errors as data because production masks a
+ * thrown server-action error.
+ */
+export async function startOneDriveUpload(
+  target: UploadTarget,
   fileName: string,
   contentType: string,
   size: number,
-) {
-  const ownerId = await requireOwnerId();
-  const caseDoc = await casesRepo.get(ownerId, caseId);
-  if (!caseDoc) throw new Error("התיק לא נמצא");
-
-  if (size > MAX_ATTACHMENT_BYTES) {
-    throw new Error(`הקובץ חורג מהגודל המותר (${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB)`);
+): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  // The signed quote belongs to the partners-only quotes tab.
+  const ownerId = target.kind === "quote" ? await requirePartnerId() : await requireOwnerId();
+  if (!Number.isInteger(size) || size <= 0) return { ok: false, error: "הקובץ ריק" };
+  if (size > MAX_UPLOAD_BYTES) {
+    return { ok: false, error: `הקובץ חורג מהגודל המותר (${MAX_UPLOAD_BYTES / 1024 / 1024}MB)` };
   }
 
-  const key = `owners/${ownerId}/cases/${caseId}/${randomUUID()}-${sanitizeFileName(fileName)}`;
-  const url = await createUploadUrl(key, contentType || "application/octet-stream");
-  return { url, key };
-}
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
 
-export async function confirmCaseUpload(
-  caseId: string,
-  attachment: { key: string; fileName: string; contentType: string },
-) {
-  const ownerId = await requireOwnerId();
-  const caseDoc = await casesRepo.get(ownerId, caseId);
-  if (!caseDoc) throw new Error("התיק לא נמצא");
+    let parent: UploadParent;
+    if (target.kind === "case") {
+      const caseDoc = await casesRepo.get(ownerId, target.caseId);
+      if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
+      if (!caseDoc.oneDriveFolderId) return { ok: false, error: "לתיק הזה אין תיקיית OneDrive" };
+      parent = { folderId: caseDoc.oneDriveFolderId };
+    } else {
+      const quote = await quotesRepo.get(ownerId, target.quoteId);
+      if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
+      const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
+      parent = linked?.oneDriveFolderId
+        ? { folderId: linked.oneDriveFolderId }
+        : { appFolderName: QUOTES_FOLDER };
+    }
 
-  // Trust R2's own record of what was actually written, not what the
-  // browser claimed before upload - a bypass of the client-side check
-  // would otherwise let an oversized file slip through unnoticed.
-  const actualSize = await getObjectSize(attachment.key);
-  if (actualSize === null) throw new Error("הקובץ לא נמצא באחסון");
-  if (actualSize > MAX_ATTACHMENT_BYTES) {
-    await deleteObject(attachment.key);
-    throw new Error("הקובץ חורג מהגודל המותר");
+    const uploadUrl = await createUploadSession(accessToken, parent, fileName);
+    return {
+      ok: true,
+      token: createUploadToken({
+        uploadUrl,
+        ownerId,
+        target,
+        size,
+        contentType: contentType || "application/octet-stream",
+      }),
+    };
+  } catch (err) {
+    console.error("Failed to start OneDrive upload:", err);
+    return { ok: false, error: "פתיחת ההעלאה ל-OneDrive נכשלה, נסה שוב" };
   }
-
-  await casesRepo.push(ownerId, caseId, "attachments", {
-    key: attachment.key,
-    fileName: sanitizeFileName(attachment.fileName),
-    size: actualSize,
-    contentType: attachment.contentType || "application/octet-stream",
-    uploadedAt: new Date(),
-  });
-  refresh();
 }
 
-export async function requestCaseDownloadUrl(caseId: string, key: string) {
+/** Drops the file from the case's list. The file itself stays in its OneDrive folder. */
+export async function removeCaseAttachment(caseId: string, key: string) {
   const ownerId = await requireOwnerId();
-  const caseDoc = await casesRepo.get(ownerId, caseId);
-  const attachment = caseDoc?.attachments?.find((a) => a.key === key);
-  if (!attachment) throw new Error("הקובץ לא נמצא");
-
-  return createDownloadUrl(key, attachment.fileName);
-}
-
-export async function deleteCaseAttachment(caseId: string, key: string) {
-  const ownerId = await requireOwnerId();
-  const caseDoc = await casesRepo.get(ownerId, caseId);
-  if (!caseDoc?.attachments?.some((a) => a.key === key)) return;
-
-  await deleteObject(key);
   await casesRepo.pull(ownerId, caseId, "attachments", { key });
   refresh();
 }
 
-// Every quote action is partners-only: requirePartnerId rejects an employee
-// session even if it calls the action directly, bypassing the hidden page.
 export async function createQuote(form: FormData) {
   const ownerId = await requirePartnerId();
   const clientName = text(form, "clientName");
@@ -349,9 +342,7 @@ export async function createQuote(form: FormData) {
 
 export async function deleteQuote(id: string) {
   const ownerId = await requirePartnerId();
-  const quote = await quotesRepo.get(ownerId, id);
-  if (quote?.draftFile) await deleteObject(quote.draftFile.key).catch(() => {});
-  if (quote?.signedFile) await deleteObject(quote.signedFile.key).catch(() => {});
+  // Files already saved to OneDrive stay there - only the quote record goes.
   await quotesRepo.remove(ownerId, id);
   refresh();
 }
@@ -361,9 +352,6 @@ export async function rejectQuote(id: string) {
   await quotesRepo.update(ownerId, id, { status: "נדחתה" });
   refresh();
 }
-
-const QUOTES_FOLDER = "הצעות מחיר";
-const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /**
  * Fills the office's Word template with the quote's details, saves it into the
@@ -397,14 +385,18 @@ export async function createQuoteDocument(
         (quote.amount > 0 ? `${quote.amount.toLocaleString("he-IL")} ₪ + מע״מ` : ""),
     });
 
-    const file = await uploadAppFolderFile(
+    const linked = quote.linkedCaseId ? await casesRepo.get(ownerId, quote.linkedCaseId) : null;
+    const parent: UploadParent = linked?.oneDriveFolderId
+      ? { folderId: linked.oneDriveFolderId }
+      : { appFolderName: QUOTES_FOLDER };
+    const file = await uploadSmallFile(
       accessToken,
-      QUOTES_FOLDER,
+      parent,
       `${sanitizeFolderName(`${quote.quoteNumber} - ${quote.clientName}`)}.docx`,
       bytes,
       DOCX_TYPE,
     );
-    await quotesRepo.update(ownerId, quoteId, { wordFileUrl: file.webUrl });
+    await quotesRepo.update(ownerId, quoteId, { wordFileUrl: file.webUrl, wordFileId: file.id });
     refresh();
     return { ok: true, url: file.webUrl };
   } catch (err) {
@@ -413,66 +405,44 @@ export async function createQuoteDocument(
   }
 }
 
-type QuoteFileSlot = "draftFile" | "signedFile";
+/**
+ * Once a quote becomes a job, its Word letter and the signed copy move into
+ * the job's own OneDrive folder and are listed on the case, so everything for
+ * the job sits in one place. Best-effort: the approval itself must not fail
+ * because OneDrive did.
+ */
+async function moveQuoteFilesIntoCase(ownerId: string, quoteId: string, caseId: string) {
+  try {
+    const quote = await quotesRepo.get(ownerId, quoteId);
+    const caseDoc = await casesRepo.get(ownerId, caseId);
+    const folderId = caseDoc?.oneDriveFolderId;
+    if (!quote || !folderId) return;
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return;
 
-export async function requestQuoteUploadUrl(
-  quoteId: string,
-  slot: QuoteFileSlot,
-  fileName: string,
-  contentType: string,
-  size: number,
-) {
-  const ownerId = await requirePartnerId();
-  const quote = await quotesRepo.get(ownerId, quoteId);
-  if (!quote) throw new Error("ההצעה לא נמצאה");
-  if (size > MAX_ATTACHMENT_BYTES) {
-    throw new Error(`הקובץ חורג מהגודל המותר (${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB)`);
+    const patch: { wordFileUrl?: string; signedFile?: NonNullable<typeof quote.signedFile> } = {};
+
+    if (quote.wordFileId) {
+      const moved = await moveItemToFolder(accessToken, quote.wordFileId, folderId);
+      patch.wordFileUrl = moved.webUrl;
+      await casesRepo.push(ownerId, caseId, "attachments", {
+        key: quote.wordFileId,
+        fileName: `${quote.quoteNumber}.docx`,
+        size: 0,
+        contentType: DOCX_TYPE,
+        uploadedAt: new Date(),
+        webUrl: moved.webUrl,
+      });
+    }
+    if (quote.signedFile) {
+      const moved = await moveItemToFolder(accessToken, quote.signedFile.key, folderId);
+      patch.signedFile = { ...quote.signedFile, webUrl: moved.webUrl };
+      await casesRepo.push(ownerId, caseId, "attachments", { ...patch.signedFile });
+    }
+    if (patch.wordFileUrl || patch.signedFile) await quotesRepo.update(ownerId, quoteId, patch);
+  } catch (err) {
+    console.error("Failed to move quote files into the case folder:", err);
   }
-
-  const key = `owners/${ownerId}/quotes/${quoteId}/${slot}/${randomUUID()}-${sanitizeFileName(fileName)}`;
-  const url = await createUploadUrl(key, contentType || "application/octet-stream");
-  return { url, key };
-}
-
-export async function confirmQuoteUpload(
-  quoteId: string,
-  slot: QuoteFileSlot,
-  file: { key: string; fileName: string; contentType: string },
-) {
-  const ownerId = await requirePartnerId();
-  const quote = await quotesRepo.get(ownerId, quoteId);
-  if (!quote) throw new Error("ההצעה לא נמצאה");
-
-  const actualSize = await getObjectSize(file.key);
-  if (actualSize === null) throw new Error("הקובץ לא נמצא באחסון");
-  if (actualSize > MAX_ATTACHMENT_BYTES) {
-    await deleteObject(file.key);
-    throw new Error("הקובץ חורג מהגודל המותר");
-  }
-
-  const previous = quote[slot];
-  const stored = {
-    key: file.key,
-    fileName: sanitizeFileName(file.fileName),
-    size: actualSize,
-    contentType: file.contentType || "application/octet-stream",
-    uploadedAt: new Date(),
-  };
-  await quotesRepo.update(
-    ownerId,
-    quoteId,
-    slot === "draftFile" ? { draftFile: stored } : { signedFile: stored },
-  );
-  if (previous) await deleteObject(previous.key).catch(() => {});
-  refresh();
-}
-
-export async function requestQuoteDownloadUrl(quoteId: string, slot: QuoteFileSlot) {
-  const ownerId = await requirePartnerId();
-  const quote = await quotesRepo.get(ownerId, quoteId);
-  const file = quote?.[slot];
-  if (!file) throw new Error("הקובץ לא נמצא");
-  return createDownloadUrl(file.key, file.fileName);
 }
 
 /**
@@ -503,6 +473,7 @@ export async function approveQuote(quoteId: string) {
   caseForm.set("notes", quote.notes ?? "");
   caseForm.set("feeNote", quote.feeNote ?? "");
   const caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
+  if (caseId) await moveQuoteFilesIntoCase(ownerId, quoteId, caseId);
 
   await quotesRepo.update(ownerId, quoteId, {
     status: "אושרה",

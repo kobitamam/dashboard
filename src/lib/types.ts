@@ -48,12 +48,17 @@ export type Client = {
 };
 
 export type Attachment = {
-  key: string;
+  key: string; // the OneDrive item id
   fileName: string;
   size: number;
   contentType: string;
   uploadedAt: string;
+  webUrl: string | null;
 };
+
+// Where an in-app upload lands: a case's OneDrive folder, or - for the signed
+// quote - the quote's file (moved into the case folder when it's approved).
+export type UploadTarget = { kind: "case"; caseId: string } | { kind: "quote"; quoteId: string };
 
 export type FeePayment = {
   amount: number;
@@ -108,7 +113,6 @@ export type Quote = PropertyDetails & {
   feePercent: number | null; // אחוז שכ״ט מהפחתה
   wordFileUrl: string | null; // the quote letter (Word) created in OneDrive
   status: QuoteStatus;
-  draftFile: Attachment | null;
   signedFile: Attachment | null;
   linkedCaseId: string | null;
 };

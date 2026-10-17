@@ -1,13 +1,11 @@
 import Link from "next/link";
 import {
   approveQuote,
-  confirmQuoteUpload,
   createQuote,
   createQuoteDocument,
   deleteQuote,
   rejectQuote,
-  requestQuoteDownloadUrl,
-  requestQuoteUploadUrl,
+  startOneDriveUpload,
 } from "@/app/dashboard/actions";
 import {
   AddRecord,
@@ -25,7 +23,6 @@ import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatMoney, formatParcel } from "@/lib/format";
 import { isOneDriveConfigured } from "@/lib/onedrive";
-import { isR2Configured } from "@/lib/r2";
 import type { QuoteStatus } from "@/lib/types";
 
 const columns: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
@@ -49,7 +46,6 @@ export default async function QuotesPage({
   const { type: typeFilter } = await searchParams;
   const ownerId = await requireOwnerId();
   const types = await loadCaseTypes(ownerId);
-  const uploadsEnabled = isR2Configured();
   const oneDriveConnected = isOneDriveConfigured() && (await isConnected(ownerId));
   const allQuotes = result.data.quotes;
   const quotes = typeFilter ? allQuotes.filter((q) => q.type === typeFilter) : allQuotes;
@@ -167,13 +163,10 @@ export default async function QuotesPage({
                       {q.status !== "נדחתה" && (
                         <QuoteFileSlot
                           quoteId={q.id}
-                          slot="signedFile"
                           label="הצעה חתומה"
                           file={q.signedFile}
-                          requestUploadUrl={requestQuoteUploadUrl}
-                          confirmUpload={confirmQuoteUpload}
-                          requestDownloadUrl={requestQuoteDownloadUrl}
-                          uploadsEnabled={uploadsEnabled}
+                          oneDriveConnected={oneDriveConnected}
+                          startUpload={startOneDriveUpload}
                         />
                       )}
                     </div>

@@ -190,36 +190,100 @@ export async function createCaseFolder(accessToken: string, name: string): Promi
 }
 
 /**
- * Uploads a small file (under ~4MB, Graph's simple-upload limit) to a path
- * inside the app folder. Missing parent folders are created by Graph itself,
- * and an existing file of the same name is replaced.
+ * Uploads a small file (under ~4MB, Graph's simple-upload limit) into a
+ * folder. An existing file of the same name is replaced.
  */
-export async function uploadAppFolderFile(
+export async function uploadSmallFile(
   accessToken: string,
-  folderName: string,
+  parent: UploadParent,
   fileName: string,
   bytes: Uint8Array,
   contentType: string,
-): Promise<OneDriveFolder> {
-  const path = [folderName, fileName]
-    .map((segment) => encodeURIComponent(sanitizeFolderName(segment)))
-    .join("/");
+): Promise<OneDriveItem> {
   const res = await fetch(
-    `${GRAPH_ROOT}/me/drive/special/approot:/${path}:/content?@microsoft.graph.conflictBehavior=replace`,
+    `${GRAPH_ROOT}${parentPath(parent)}/${encodeURIComponent(sanitizeFolderName(fileName))}:/content?@microsoft.graph.conflictBehavior=replace`,
     {
       method: "PUT",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": contentType },
       body: bytes as unknown as BodyInit,
     },
   );
-
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`העלאת קובץ ל-OneDrive נכשלה: ${res.status} ${body}`);
+    throw new Error(`העלאת קובץ ל-OneDrive נכשלה: ${res.status} ${await res.text()}`);
   }
+  const json = await res.json();
+  return { id: json.id, webUrl: json.webUrl, name: json.name, size: json.size };
+}
+
+export type OneDriveItem = { id: string; webUrl: string; name: string; size: number };
+
+/** Where an upload goes: inside a folder by id, or a named folder under the app folder. */
+export type UploadParent = { folderId: string } | { appFolderName: string };
+
+function parentPath(parent: UploadParent) {
+  return "folderId" in parent
+    ? `/me/drive/items/${parent.folderId}:`
+    : `/me/drive/special/approot:/${encodeURIComponent(sanitizeFolderName(parent.appFolderName))}`;
+}
+
+/**
+ * Starts a resumable upload. The returned URL is pre-authenticated, so it
+ * must stay on the server - the browser only ever talks to our own route.
+ */
+export async function createUploadSession(
+  accessToken: string,
+  parent: UploadParent,
+  fileName: string,
+): Promise<string> {
+  const res = await fetch(
+    `${GRAPH_ROOT}${parentPath(parent)}/${encodeURIComponent(sanitizeFolderName(fileName))}:/createUploadSession`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      // Never overwrite a file the user already has under that name.
+      body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "rename" } }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`פתיחת העלאה ל-OneDrive נכשלה: ${res.status} ${await res.text()}`);
+  }
+  return (await res.json()).uploadUrl;
+}
+
+/** Sends one chunk; the last one returns the finished item. */
+export async function uploadChunk(
+  uploadUrl: string,
+  bytes: Uint8Array,
+  start: number,
+  end: number,
+  total: number,
+): Promise<{ done: false } | { done: true; item: OneDriveItem }> {
+  const res = await fetch(uploadUrl, {
+    method: "PUT",
+    // No Authorization header: the upload URL carries its own credentials.
+    headers: { "Content-Range": `bytes ${start}-${end}/${total}` },
+    body: bytes as unknown as BodyInit,
+  });
+  if (res.status === 202) return { done: false };
+  if (!res.ok) throw new Error(`העלאת קטע נכשלה: ${res.status} ${await res.text()}`);
 
   const json = await res.json();
-  return { id: json.id, webUrl: json.webUrl };
+  return { done: true, item: { id: json.id, webUrl: json.webUrl, name: json.name, size: json.size } };
+}
+
+/** Moves a file we created into another folder of the app folder. */
+export async function moveItemToFolder(
+  accessToken: string,
+  itemId: string,
+  folderId: string,
+): Promise<{ webUrl: string }> {
+  const res = await fetch(`${GRAPH_ROOT}/me/drive/items/${itemId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ parentReference: { id: folderId } }),
+  });
+  if (!res.ok) throw new Error(`העברת קובץ ב-OneDrive נכשלה: ${res.status} ${await res.text()}`);
+  return { webUrl: (await res.json()).webUrl };
 }
 
 /** Creates a standalone folder (not tied to a case) directly in the app folder. */

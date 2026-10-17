@@ -1,71 +1,40 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import type { Attachment } from "@/lib/types";
+import { uploadFileToOneDrive } from "@/lib/onedrive-upload-client";
+import type { Attachment, UploadTarget } from "@/lib/types";
 
-const MAX_BYTES = 25 * 1024 * 1024;
-
+/** The signed quote: one file, saved to OneDrive (and moved to the case folder on approval). */
 export default function QuoteFileSlot({
   quoteId,
-  slot,
   label,
   file,
-  requestUploadUrl,
-  confirmUpload,
-  requestDownloadUrl,
-  uploadsEnabled = true,
+  oneDriveConnected,
+  startUpload,
 }: {
   quoteId: string;
-  slot: "draftFile" | "signedFile";
   label: string;
   file: Attachment | null;
-  uploadsEnabled?: boolean;
-  requestUploadUrl: (
-    quoteId: string,
-    slot: "draftFile" | "signedFile",
+  oneDriveConnected: boolean;
+  startUpload: (
+    target: UploadTarget,
     fileName: string,
     contentType: string,
     size: number,
-  ) => Promise<{ url: string; key: string }>;
-  confirmUpload: (
-    quoteId: string,
-    slot: "draftFile" | "signedFile",
-    file: { key: string; fileName: string; contentType: string },
-  ) => Promise<void>;
-  requestDownloadUrl: (quoteId: string, slot: "draftFile" | "signedFile") => Promise<string>;
+  ) => Promise<{ ok: true; token: string } | { ok: false; error: string }>;
 }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   async function handleFile(selected: File) {
     setError(null);
-    if (selected.size > MAX_BYTES) {
-      setError(`הקובץ חורג מ-${MAX_BYTES / 1024 / 1024}MB`);
-      return;
-    }
-
     setUploading(true);
     try {
-      const { url, key } = await requestUploadUrl(
-        quoteId,
-        slot,
-        selected.name,
-        selected.type,
-        selected.size,
-      );
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: { "Content-Type": selected.type || "application/octet-stream" },
-        body: selected,
-      });
-      if (!res.ok) throw new Error("ההעלאה לאחסון נכשלה");
-
-      await confirmUpload(quoteId, slot, {
-        key,
-        fileName: selected.name,
-        contentType: selected.type,
-      });
+      await uploadFileToOneDrive(selected, { kind: "quote", quoteId }, startUpload);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ההעלאה נכשלה, נסה שוב");
     } finally {
@@ -74,32 +43,25 @@ export default function QuoteFileSlot({
     }
   }
 
-  async function handleDownload() {
-    setError(null);
-    try {
-      const url = await requestDownloadUrl(quoteId, slot);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "לא ניתן להוריד את הקובץ");
-    }
-  }
-
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg bg-background px-2.5 py-1.5 text-[11px]">
       <span className="shrink-0 font-semibold text-muted">{label}</span>
-      {file ? (
-        <button
-          type="button"
-          onClick={handleDownload}
+      {file?.webUrl ? (
+        <a
+          href={file.webUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           className="min-w-0 flex-1 truncate text-right font-medium text-brand-blue hover:underline"
           title={file.fileName}
         >
           📎 {file.fileName}
-        </button>
+        </a>
       ) : (
-        <span className="flex-1 text-right text-muted">לא הועלה קובץ</span>
+        <span className={`flex-1 text-right ${error ? "text-danger" : "text-muted"}`}>
+          {error ?? "לא הועלה קובץ"}
+        </span>
       )}
-      {uploadsEnabled ? (
+      {oneDriveConnected ? (
         <label className="shrink-0 cursor-pointer font-bold text-brand-blue hover:underline">
           {uploading ? "מעלה..." : file ? "החלפה" : "+ העלאה"}
           <input
@@ -114,9 +76,8 @@ export default function QuoteFileSlot({
           />
         </label>
       ) : (
-        <span className="shrink-0 text-warning">אחסון קבצים לא מוגדר</span>
+        <span className="shrink-0 text-warning">OneDrive לא מחובר</span>
       )}
-      {error && <span className="shrink-0 text-danger">{error}</span>}
     </div>
   );
 }
