@@ -1,18 +1,25 @@
 import { headers } from "next/headers";
-import { createEvent, deleteEvent, disconnectOneDrive } from "@/app/dashboard/actions";
+import Link from "next/link";
+import { createEvent, deleteEvent, disconnectOneDrive, rotateCalendarFeed } from "@/app/dashboard/actions";
 import {
   AddRecord,
   DataUnavailable,
   DeleteButton,
-  EmptyState,
   Field,
   SelectField,
 } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
 import { isConnected } from "@/lib/db/onedrive-connection";
-import { caseDeadlines } from "@/lib/deadlines";
-import { loadDashboardData, requireOwnerId } from "@/lib/db/queries";
-import { daysUntil, formatDate, formatTime } from "@/lib/format";
+import {
+  addDays,
+  buildCalendarItems,
+  dayNames,
+  todayInIsraelDay,
+  weekStartOf,
+} from "@/lib/calendar";
+import { getFeedToken } from "@/lib/db/calendar-feed";
+import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
+import { formatDate } from "@/lib/format";
 import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
 import { eventTypes } from "@/lib/types";
 
@@ -26,57 +33,33 @@ async function getOrigin() {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ onedrive?: string; onedrive_error?: string }>;
+  searchParams: Promise<{ onedrive?: string; onedrive_error?: string; week?: string }>;
 }) {
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
   const { events, cases } = result.data;
-  const caseById = new Map(cases.map((c) => [c.id, c]));
 
   // Meetings/hearings are stored; case deadlines are derived from the cases, so
   // the calendar can never drift out of sync with them.
-  type Item = {
-    id: string;
-    start: string;
-    allDay: boolean;
-    title: string;
-    detail: string;
-    eventId?: string;
-  };
-  const items: Item[] = [
-    ...events.map((e) => {
-      const linked = e.caseId ? caseById.get(e.caseId) : undefined;
-      return {
-        id: `event-${e.id}`,
-        start: e.start,
-        allDay: false,
-        title: e.title,
-        detail: [e.type, linked ? `תיק ${linked.caseNumber} · ${linked.clientName}` : "", e.location]
-          .filter(Boolean)
-          .join(" · "),
-        eventId: e.id,
-      };
-    }),
-    ...cases
-      .filter((c) => c.status !== "הושלם")
-      .flatMap((c) =>
-        caseDeadlines(c).map((d) => ({
-          id: `deadline-${c.id}-${d.key}`,
-          start: d.date,
-          allDay: true,
-          title: `דדליין: ${d.label}`,
-          detail: `תיק ${c.caseNumber} · ${c.clientName}`,
-        })),
-      ),
-  ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-  const upcoming = items.filter((i) => (daysUntil(i.start) ?? 0) >= 0);
+  const items = buildCalendarItems(events, cases);
 
   const params = await searchParams;
   const ownerId = await requireOwnerId();
+  const isPartner = (await currentRole()) === "partner";
+
+  // The working week, Sunday to Thursday.
+  const weekStart = weekStartOf(params.week);
+  const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
+  const weekend = [addDays(weekStart, 5), addDays(weekStart, 6)];
+  const today = todayInIsraelDay();
+  const weekItems = (day: string) => items.filter((i) => i.day === day);
+  const weekendItems = items.filter((i) => weekend.includes(i.day));
+
+  const feedToken = isPartner ? await getFeedToken(ownerId) : null;
+  const origin = await getOrigin();
+  const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
   const connected = isOneDriveConfigured() && (await isConnected(ownerId));
-  const authorizeUrl = isOneDriveConfigured()
-    ? getAuthorizeUrl(ownerId, await getOrigin())
-    : null;
+  const authorizeUrl = isOneDriveConfigured() ? getAuthorizeUrl(ownerId, origin) : null;
 
   const form = (
     <AddRecord label="+ פגישה חדשה" action={createEvent}>
@@ -107,7 +90,7 @@ export default async function CalendarPage({
       <PageHeader
         title="יומן ופגישות"
         subtitle="הפגישות, הדיונים, הביקורים בנכסים ודדליינים של התיקים"
-        action={items.length > 0 ? form : undefined}
+        action={form}
       />
 
       {params.onedrive === "connected" && (
@@ -121,60 +104,58 @@ export default async function CalendarPage({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {items.length === 0 ? (
-            <EmptyState
-              title="היומן ריק"
-              hint="הוסף פגישה או ביקור בנכס. פגישות שמתקיימות היום יופיעו אוטומטית בדשבורד ובהתראות."
-              action={form}
-            />
-          ) : (
-            <Card className="p-5">
-              <h2 className="mb-4 text-lg font-bold">
-                אירועים קרובים
-                <span className="mr-2 text-sm font-normal text-muted">
-                  ({upcoming.length})
-                </span>
-              </h2>
-              <div className="space-y-3">
-                {items.map((e) => {
-                  const days = daysUntil(e.start);
-                  const past = days !== null && days < 0;
-                  return (
-                    <div
-                      key={e.id}
-                      className={`flex items-center gap-3 rounded-xl border border-border p-3 ${past ? "opacity-50" : ""}`}
-                    >
-                      <div
-                        className={`flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-lg ${e.allDay ? "bg-warning/10 text-warning" : "bg-brand-cyan-light text-brand-blue"}`}
-                      >
-                        <span className="text-sm font-bold">
-                          {e.allDay ? "דדליין" : formatTime(e.start)}
-                        </span>
-                        <span className="text-[11px]">{formatDate(e.start)}</span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{e.title}</p>
-                        <p className="text-xs text-muted">
-                          {e.detail}
-                          {days === 0 ? " · היום" : ""}
-                        </p>
-                      </div>
-                      {e.eventId && (
-                        <DeleteButton
-                          action={deleteEvent.bind(null, e.eventId)}
-                          confirmText="למחוק את הפגישה?"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
+      <Card className="p-4 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold">
+            {formatDate(days[0])} – {formatDate(days[4])}
+          </h2>
+          <div className="flex items-center gap-1.5 text-sm font-semibold">
+            <Link
+              href={`/dashboard/calendar?week=${addDays(weekStart, -7)}`}
+              className="rounded-lg border border-border px-3 py-1.5 hover:bg-background"
+            >
+              → שבוע קודם
+            </Link>
+            <Link
+              href="/dashboard/calendar"
+              className="rounded-lg border border-border px-3 py-1.5 hover:bg-background"
+            >
+              היום
+            </Link>
+            <Link
+              href={`/dashboard/calendar?week=${addDays(weekStart, 7)}`}
+              className="rounded-lg border border-border px-3 py-1.5 hover:bg-background"
+            >
+              שבוע הבא ←
+            </Link>
+          </div>
         </div>
 
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          {days.map((day, i) => (
+            <DayColumn
+              key={day}
+              label={`יום ${dayNames[i]}`}
+              day={day}
+              isToday={day === today}
+              items={weekItems(day)}
+            />
+          ))}
+        </div>
+
+        {weekendItems.length > 0 && (
+          <div className="mt-4 rounded-xl border border-dashed border-border p-3">
+            <p className="mb-2 text-xs font-semibold text-muted">בסוף השבוע (שישי-שבת)</p>
+            <div className="space-y-2">
+              {weekendItems.map((item) => (
+                <EventCard key={item.id} item={item} showDay />
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="h-fit p-5">
           <h2 className="text-lg font-bold">OneDrive</h2>
 
@@ -222,7 +203,111 @@ export default async function CalendarPage({
             </>
           )}
         </Card>
+
+        {isPartner && (
+          <Card className="h-fit p-5">
+            <h2 className="text-lg font-bold">סנכרון עם יומן Apple</h2>
+            <p className="mt-3 text-sm text-muted">
+              האירועים והדדליינים של כל התיקים מופיעים ביומן שלך באייפון או במק, ומתעדכנים
+              לבד (בדרך כלל תוך שעה). הסנכרון הוא בכיוון אחד: מהמערכת אל היומן של Apple.
+              אירוע שתוסיף ישירות ביומן של Apple לא יופיע במערכת.
+            </p>
+            {feedPath ? (
+              <>
+                <a
+                  href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
+                  className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                >
+                  הוסף ליומן Apple
+                </a>
+                <p className="mt-3 text-xs text-muted">
+                  בטלפון או במק, הלחיצה על הכפתור פותחת את היומן ושואלת אם להירשם. אפשר גם
+                  להוסיף ידנית כיומן מנוי (Subscribed Calendar) עם הכתובת:
+                </p>
+                <p dir="ltr" className="mt-1 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
+                  {origin}
+                  {feedPath}
+                </p>
+                <p className="mt-3 text-xs text-warning">
+                  הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אם הוא הגיע למי
+                  שלא צריך, החלף אותו (הקישור הישן יפסיק לעבוד).
+                </p>
+                <form action={rotateCalendarFeed} className="mt-3">
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
+                  >
+                    החלף קישור
+                  </button>
+                </form>
+              </>
+            ) : (
+              <form action={rotateCalendarFeed} className="mt-3">
+                <button
+                  type="submit"
+                  className="rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                >
+                  צור קישור לסנכרון
+                </button>
+              </form>
+            )}
+          </Card>
+        )}
       </div>
+    </div>
+  );
+}
+
+type Item = ReturnType<typeof buildCalendarItems>[number];
+
+function DayColumn({
+  label,
+  day,
+  isToday,
+  items,
+}: {
+  label: string;
+  day: string;
+  isToday: boolean;
+  items: Item[];
+}) {
+  return (
+    <div className={`rounded-xl border p-2.5 ${isToday ? "border-brand-cyan bg-brand-cyan-light/30" : "border-border"}`}>
+      <div className="mb-2 flex items-baseline justify-between">
+        <span className={`text-sm font-bold ${isToday ? "text-brand-blue" : "text-foreground"}`}>{label}</span>
+        <span className="text-xs text-muted">{formatDate(day)}</span>
+      </div>
+      <div className="space-y-2">
+        {items.length === 0 ? (
+          <p className="py-2 text-center text-[11px] text-muted/70">—</p>
+        ) : (
+          items.map((item) => <EventCard key={item.id} item={item} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EventCard({ item, showDay }: { item: Item; showDay?: boolean }) {
+  const deadline = item.time === null;
+  return (
+    <div
+      className={`rounded-lg p-2 text-xs ${deadline ? "bg-warning/10" : "bg-brand-cyan-light"}`}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <span className={`font-bold ${deadline ? "text-warning" : "text-brand-blue"}`}>
+          {showDay && `${formatDate(item.day)} · `}
+          {deadline ? "דדליין" : item.time}
+        </span>
+        {item.eventId && (
+          <DeleteButton
+            action={deleteEvent.bind(null, item.eventId)}
+            confirmText="למחוק את הפגישה?"
+          />
+        )}
+      </div>
+      <p className="mt-0.5 font-semibold text-foreground">{item.title}</p>
+      {item.detail && <p className="mt-0.5 text-muted">{item.detail}</p>}
     </div>
   );
 }

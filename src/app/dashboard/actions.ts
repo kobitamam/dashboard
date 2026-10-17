@@ -25,6 +25,7 @@ import {
   type UploadParent,
 } from "@/lib/onedrive";
 import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
+import { rotateFeedToken } from "@/lib/db/calendar-feed";
 import { initialFee } from "@/lib/fees";
 import { createUploadToken } from "@/lib/upload-token";
 import {
@@ -317,6 +318,13 @@ export async function createEvent(form: FormData) {
 export async function deleteEvent(id: string) {
   const ownerId = await requireOwnerId();
   await eventsRepo.remove(ownerId, id);
+  refresh();
+}
+
+/** Creates the Apple Calendar subscription link, or replaces it (the old link stops working). */
+export async function rotateCalendarFeed() {
+  const ownerId = await requirePartnerId();
+  await rotateFeedToken(ownerId);
   refresh();
 }
 
