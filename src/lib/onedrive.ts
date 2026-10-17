@@ -305,20 +305,39 @@ type ItemLocation = {
   parentReference?: { driveId?: string; path?: string };
 };
 
-export async function getAppFolderFile(
+/**
+ * Finds a file in an app-folder folder by listing it, preferring the exact
+ * name and otherwise any .docx starting with `prefix`. When nothing matches
+ * the error names what the folder does contain, so a mismatch can be seen.
+ */
+export async function findAppFolderFile(
   accessToken: string,
   folderName: string,
   fileName: string,
+  prefix: string,
 ): Promise<ItemLocation> {
   const res = await fetch(
-    `${GRAPH_ROOT}${appPath(folderName, fileName)}?select=name,webUrl,parentReference`,
+    `${GRAPH_ROOT}${appPath(folderName)}:/children?select=name,webUrl,parentReference&$top=200`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!res.ok) {
     const code = (await res.json().catch(() => null))?.error?.code;
-    throw new Error(`קריאת פרטי קובץ מ-OneDrive נכשלה: ${res.status}${code ? ` ${code}` : ""}`);
+    throw new Error(
+      `פתיחת התיקייה "${folderName}" ב-OneDrive נכשלה: ${res.status}${code ? ` ${code}` : ""}`,
+    );
   }
-  return res.json();
+
+  const items: ItemLocation[] = (await res.json()).value ?? [];
+  const found =
+    items.find((i) => i.name === fileName) ??
+    items.find((i) => i.name.startsWith(prefix) && i.name.toLowerCase().endsWith(".docx"));
+  if (!found) {
+    const names = items.slice(0, 6).map((i) => i.name);
+    throw new Error(
+      `הקובץ "${fileName}" לא נמצא בתיקייה "${folderName}" (יש שם: ${names.join(", ") || "אין קבצים"})`,
+    );
+  }
+  return found;
 }
 
 /**

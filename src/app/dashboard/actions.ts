@@ -17,7 +17,7 @@ import { formatParcel } from "@/lib/format";
 import {
   createCaseFolder,
   createUploadSession,
-  getAppFolderFile,
+  findAppFolderFile,
   moveFileBetweenFolders,
   sanitizeFolderName,
   uploadSmallFile,
@@ -422,7 +422,12 @@ export async function getQuoteWordUri(
     let lastError: unknown;
     for (const folder of folders) {
       try {
-        const item = await getAppFolderFile(accessToken, folder, quoteWordFileName(quote));
+        const item = await findAppFolderFile(
+          accessToken,
+          folder,
+          quoteWordFileName(quote),
+          sanitizeFolderName(quote.quoteNumber),
+        );
         return { ok: true, uri: wordDesktopUri(item) };
       } catch (err) {
         lastError = err;
