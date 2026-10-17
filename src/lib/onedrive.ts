@@ -232,15 +232,51 @@ export async function createCaseFolder(accessToken: string, name: string): Promi
  * Asking again for the same link returns the existing one.
  */
 export async function createDocumentsShareLink(accessToken: string, caseFolderName: string): Promise<string> {
-  const res = await fetch(`${GRAPH_ROOT}${appPath(caseFolderName, CASE_DOCUMENTS_FOLDER)}:/createLink`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ type: "edit", scope: "anonymous" }),
-  });
-  if (!res.ok) throw await graphError(res, "יצירת קישור שיתוף לתיקיית המסמכים נכשלה");
-  const url = (await res.json())?.link?.webUrl;
-  if (typeof url !== "string" || !url) throw new Error("יצירת קישור השיתוף נכשלה: לא התקבל קישור");
-  return url;
+  const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  const folderPath = appPath(caseFolderName, CASE_DOCUMENTS_FOLDER);
+
+  // Which way Graph accepts this call for an app-folder token is not known, so the
+  // variants are tried in turn and, if none works, each one's answer is reported.
+  const attempts: { label: string; url: () => Promise<string | null>; body: object }[] = [
+    { label: "נתיב+anonymous", url: async () => `${folderPath}:/createLink`, body: { type: "edit", scope: "anonymous" } },
+    { label: "נתיב", url: async () => `${folderPath}:/createLink`, body: { type: "edit" } },
+    {
+      label: "מזהה+anonymous",
+      url: async () => {
+        const res = await fetch(`${GRAPH_ROOT}${folderPath}?select=id`, { headers });
+        const id = res.ok ? (await res.json())?.id : null;
+        return id ? `/me/drive/items/${encodeURIComponent(id)}/createLink` : null;
+      },
+      body: { type: "edit", scope: "anonymous" },
+    },
+  ];
+
+  const failures: string[] = [];
+  for (const attempt of attempts) {
+    try {
+      const path = await attempt.url();
+      if (!path) {
+        failures.push(`${attempt.label}: לא נמצא מזהה`);
+        continue;
+      }
+      const res = await fetch(`${GRAPH_ROOT}${path}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(attempt.body),
+      });
+      if (res.ok) {
+        const url = (await res.json())?.link?.webUrl;
+        if (typeof url === "string" && url) return url;
+        failures.push(`${attempt.label}: לא התקבל קישור`);
+        continue;
+      }
+      const error = (await res.json().catch(() => null))?.error;
+      failures.push(`${attempt.label}: ${res.status} ${error?.code ?? ""}`.trim());
+    } catch (err) {
+      failures.push(`${attempt.label}: ${err instanceof Error ? err.message.slice(0, 60) : "שגיאה"}`);
+    }
+  }
+  throw new Error(`יצירת קישור שיתוף לתיקיית המסמכים נכשלה (${failures.join(" | ")})`);
 }
 
 /**
