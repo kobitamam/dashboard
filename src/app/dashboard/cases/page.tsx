@@ -195,7 +195,7 @@ export default async function CasesPage({
                       .slice(0, 2)
                       .map((e) => (
                         <p key={e.id} className="mt-1 text-xs font-medium text-brand-blue">
-                          {e.type}: {formatDate(e.start)} {formatTime(e.start)}
+                          {e.type}: {formatDate(e.start)} {e.allDay ? "(כל היום)" : formatTime(e.start)}
                         </p>
                       ))}
                     {caseDeadlines(c)

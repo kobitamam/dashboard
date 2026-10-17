@@ -212,7 +212,7 @@ export default async function Dashboard() {
                   className="flex items-center gap-3 rounded-xl border border-border p-3"
                 >
                   <div className="flex h-11 w-14 shrink-0 items-center justify-center rounded-lg bg-brand-cyan-light text-brand-blue">
-                    <span className="text-sm font-bold">{formatTime(e.start)}</span>
+                    <span className="text-sm font-bold">{e.allDay ? "כל היום" : formatTime(e.start)}</span>
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">{e.title}</p>

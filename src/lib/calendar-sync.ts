@@ -124,6 +124,8 @@ async function runSync(ownerId: string, token: string, knownCalendarId?: string)
 
   // ---- meetings and hearings ----
   for (const doc of localEvents) {
+    // Whole-day entries are not mirrored to Outlook.
+    if (doc.allDay) continue;
     const id = doc._id.toString();
     const detail = doc.caseId ? caseLabel.get(doc.caseId) : undefined;
     const localHash = hash(doc.title, localString(doc.start), doc.location ?? "");

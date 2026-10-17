@@ -274,3 +274,41 @@ export function EmptyState({
     </div>
   );
 }
+
+/** When something happens: a date and time, or - with "יום שלם" - just a date. */
+export function WhenField({ label, name }: { label: string; name: string }) {
+  const [allDay, setAllDay] = useState(false);
+  const [value, setValue] = useState("");
+
+  function toggle(checked: boolean) {
+    setAllDay(checked);
+    // A date-and-time value is not valid for a date input and vice versa.
+    setValue((current) => (checked ? current.slice(0, 10) : current ? `${current.slice(0, 10)}T09:00` : ""));
+  }
+
+  return (
+    <div>
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+        <input
+          className={fieldClass}
+          name={name}
+          type={allDay ? "date" : "datetime-local"}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          required
+        />
+      </label>
+      <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
+        <input
+          type="checkbox"
+          name="allDay"
+          checked={allDay}
+          onChange={(e) => toggle(e.target.checked)}
+          className="h-4 w-4 accent-[var(--brand-blue)]"
+        />
+        יום שלם
+      </label>
+    </div>
+  );
+}

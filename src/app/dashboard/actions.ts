@@ -341,9 +341,12 @@ export async function createEvent(form: FormData) {
   const linkedCaseId = text(form, "caseId");
   const linkedCase = linkedCaseId ? await casesRepo.get(ownerId, linkedCaseId) : null;
 
+  const allDay = form.get("allDay") === "on";
+
   await eventsRepo.insert(ownerId, {
     title,
     start,
+    ...(allDay ? { allDay: true } : {}),
     location: text(form, "location"),
     type: await resolveEventType(ownerId, form),
     ...(linkedCase ? { caseId: linkedCaseId } : {}),

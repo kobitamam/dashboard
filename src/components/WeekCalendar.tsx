@@ -129,8 +129,19 @@ export default function WeekCalendar({
                     title={`${i.title} · ${i.detail}`}
                     className={`rounded-md border px-1.5 py-1 text-[11px] leading-snug ${styleFor(i.kind)}`}
                   >
-                    <p className="font-semibold">{i.title}</p>
-                    <p className="opacity-80">{i.detail}</p>
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="font-semibold">{i.title}</p>
+                      {i.eventId && (
+                        <div className="-mt-1 -ml-1.5 shrink-0">
+                          <DeleteButton
+                            action={deleteEvent.bind(null, i.eventId)}
+                            confirmText="למחוק את האירוע?"
+                            label="✕"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {i.detail && <p className="opacity-80">{i.detail}</p>}
                   </div>
                 ))}
             </div>

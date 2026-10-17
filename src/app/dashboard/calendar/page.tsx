@@ -6,6 +6,7 @@ import {
   DataUnavailable,
   Field,
   SelectWithNewField,
+  WhenField,
 } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
 import WeekCalendar from "@/components/WeekCalendar";
@@ -80,7 +81,7 @@ export default async function CalendarPage({
   const form = (
     <AddRecord label="+ פגישה חדשה" action={createEvent}>
       <Field label="נושא" name="title" required placeholder="ביקור בנכס - רחוב, עיר" />
-      <Field label="מועד" name="start" type="datetime-local" required />
+      <WhenField label="מועד" name="start" />
       <Field label="מיקום" name="location" placeholder="עיר / מקוון / טלפוני" />
       <SelectWithNewField
         label="סוג"

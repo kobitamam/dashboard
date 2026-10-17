@@ -114,6 +114,7 @@ export type EventDoc = Owned & {
   location: string;
   type: EventType;
   caseId?: string;
+  allDay?: boolean;
   // Set while the event is mirrored in the Outlook calendar (see lib/calendar-sync.ts).
   outlookId?: string;
   syncHash?: string;
@@ -268,6 +269,7 @@ export function toEvent(doc: WithId<EventDoc>): CalendarEvent {
     location: doc.location,
     type: doc.type,
     caseId: doc.caseId ?? null,
+    allDay: doc.allDay ?? false,
   };
 }
 

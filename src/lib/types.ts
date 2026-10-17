@@ -181,6 +181,7 @@ export type CalendarEvent = {
   location: string;
   type: EventType;
   caseId: string | null; // the case a hearing/meeting belongs to, if any
+  allDay: boolean; // a whole-day entry (no time of day)
 };
 
 export type Alert = {
