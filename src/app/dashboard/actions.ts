@@ -30,6 +30,7 @@ import {
   BETTERMENT_LEVY,
   bettermentProgress,
   bettermentStageNames,
+  COMPLETED_STAGE,
   caseStatuses,
   clientStatuses,
   eventTypes,
@@ -229,15 +230,20 @@ export async function updateCaseProgress(id: string, form: FormData) {
   if (!caseDoc) return;
 
   const isBettermentLevy = caseDoc.type === BETTERMENT_LEVY;
-  const stage = oneOf(
-    form,
-    "bettermentStage",
-    bettermentStageNames,
-    caseDoc.bettermentStage ?? bettermentStageNames[0],
-  );
+  const storedStage = caseDoc.bettermentStage ?? bettermentStageNames[0];
+  let stage = oneOf(form, "bettermentStage", bettermentStageNames, storedStage);
+  let status = oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך");
+
+  // A betterment-levy case is finished when either its stage or its status says
+  // so (whichever one the user just changed), and a finished case goes to billing.
+  if (isBettermentLevy) {
+    const done = COMPLETED_STAGE;
+    if (stage === done && storedStage !== done) status = "הושלם";
+    else if (status === "הושלם" && caseDoc.status !== "הושלם") stage = done;
+  }
 
   await casesRepo.update(ownerId, id, {
-    status: oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך"),
+    status,
     dueDate: date(form, "dueDate"),
     ...(isBettermentLevy
       ? {

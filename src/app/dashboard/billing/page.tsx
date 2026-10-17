@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createInvoice, deleteInvoice, markInvoicePaid } from "@/app/dashboard/actions";
 import {
   AddRecord,
@@ -9,6 +10,7 @@ import {
 } from "@/components/form";
 import { Card, PageHeader, StatCard, StatusBadge } from "@/components/ui";
 import { currentRole, loadDashboardData } from "@/lib/db/queries";
+import { feeTotals } from "@/lib/fees";
 import { daysUntil, formatDate, formatMoney } from "@/lib/format";
 import { invoiceStatuses } from "@/lib/types";
 
@@ -24,7 +26,14 @@ export default async function BillingPage() {
 
   const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable />;
-  const { invoices } = result.data;
+  const { invoices, cases } = result.data;
+
+  // A finished case moves to billing: the ones still owed money come first.
+  const completed = cases
+    .filter((c) => c.status === "הושלם")
+    .map((c) => ({ case: c, ...feeTotals(c.fee) }))
+    .sort((a, b) => Number(b.balance > 0) - Number(a.balance > 0) || b.balance - a.balance);
+  const awaitingCollection = completed.reduce((sum, c) => sum + Math.max(0, c.balance), 0);
 
   const sum = (predicate: (status: string) => boolean) =>
     invoices.filter((i) => predicate(i.status)).reduce((total, i) => total + i.amount, 0);
@@ -56,6 +65,70 @@ export default async function BillingPage() {
         subtitle="מעקב חשבוניות ותשלומים מול לקוחות"
         action={invoices.length > 0 ? form : undefined}
       />
+
+      <Card className="mb-6 overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+          <h2 className="text-lg font-bold">
+            תיקים שהושלמו - לגבייה
+            <span className="mr-2 text-sm font-normal text-muted">({completed.length})</span>
+          </h2>
+          {completed.length > 0 && (
+            <span className="text-sm text-muted">
+              יתרה לגבייה:{" "}
+              <span className="font-bold text-foreground">{formatMoney(awaitingCollection)}</span>
+            </span>
+          )}
+        </div>
+        {completed.length === 0 ? (
+          <p className="px-4 py-6 text-center text-sm text-muted">
+            תיק שיסומן כ&quot;הושלם&quot; יופיע כאן אוטומטית.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-right text-sm">
+              <thead>
+                <tr className="border-b border-border bg-background text-xs text-muted">
+                  <th className="px-4 py-3 font-medium">תיק</th>
+                  <th className="px-4 py-3 font-medium">לקוח</th>
+                  <th className="px-4 py-3 font-medium">שכר טרחה</th>
+                  <th className="px-4 py-3 font-medium">שולם</th>
+                  <th className="px-4 py-3 font-medium">יתרה</th>
+                  <th className="px-4 py-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {completed.map(({ case: c, total, paid: paidSoFar, balance }) => (
+                  <tr key={c.id} className="border-b border-border last:border-0 hover:bg-background/60">
+                    <td className="px-4 py-3 font-mono text-xs text-muted">{c.caseNumber}</td>
+                    <td className="px-4 py-3 font-semibold text-foreground">{c.clientName}</td>
+                    <td className="px-4 py-3 text-foreground">
+                      {c.fee ? formatMoney(total) : <span className="text-warning">לא הוגדר</span>}
+                    </td>
+                    <td className="px-4 py-3 text-muted">{formatMoney(paidSoFar)}</td>
+                    <td className="px-4 py-3">
+                      {!c.fee ? (
+                        <span className="text-muted">—</span>
+                      ) : balance > 0 ? (
+                        <span className="font-semibold text-danger">{formatMoney(balance)}</span>
+                      ) : (
+                        <span className="font-semibold text-success">שולם במלואו</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-left">
+                      <Link
+                        href={`/dashboard/fees/${c.id}`}
+                        className="text-xs font-semibold text-brand-blue hover:underline"
+                      >
+                        💰 שכר טרחה ותשלומים
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {invoices.length === 0 ? (
         <EmptyState

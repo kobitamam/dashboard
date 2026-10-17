@@ -50,6 +50,8 @@ export const bettermentStages = [
   { name: "הושלם", progress: 100 },
 ] as const;
 
+export const COMPLETED_STAGE = "הושלם";
+
 export const bettermentStageNames: string[] = bettermentStages.map((s) => s.name);
 
 export function bettermentProgress(stage: string) {
