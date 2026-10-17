@@ -142,7 +142,11 @@ async function attachOneDriveFolder(
   try {
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
-    const folder = await createCaseFolder(accessToken, [caseNumber, address].filter(Boolean).join(" - "));
+    const folder = await createCaseFolder(
+      accessToken,
+      [caseNumber, address].filter(Boolean).join(" - "),
+      caseNumber,
+    );
     await casesRepo.update(ownerId, caseId, {
       oneDriveFolderId: folder.id,
       oneDriveFolderName: folder.name,
