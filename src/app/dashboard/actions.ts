@@ -321,9 +321,12 @@ export async function deleteEvent(id: string) {
   refresh();
 }
 
-/** Creates the Apple Calendar subscription link, or replaces it (the old link stops working). */
+/**
+ * Creates the Apple Calendar subscription link, or replaces it (the old link stops
+ * working). The calendar is shared by the whole office, so employees may use it too.
+ */
 export async function rotateCalendarFeed() {
-  const ownerId = await requirePartnerId();
+  const ownerId = await requireOwnerId();
   await rotateFeedToken(ownerId);
   refresh();
 }

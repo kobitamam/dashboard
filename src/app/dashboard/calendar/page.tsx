@@ -18,7 +18,7 @@ import {
   weekStartOf,
 } from "@/lib/calendar";
 import { getFeedToken } from "@/lib/db/calendar-feed";
-import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
+import { loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate } from "@/lib/format";
 import { getAuthorizeUrl, isOneDriveConfigured } from "@/lib/onedrive";
 import { eventTypes } from "@/lib/types";
@@ -45,7 +45,6 @@ export default async function CalendarPage({
 
   const params = await searchParams;
   const ownerId = await requireOwnerId();
-  const isPartner = (await currentRole()) === "partner";
 
   // The working week, Sunday to Thursday.
   const weekStart = weekStartOf(params.week);
@@ -55,7 +54,7 @@ export default async function CalendarPage({
   const weekItems = (day: string) => items.filter((i) => i.day === day);
   const weekendItems = items.filter((i) => weekend.includes(i.day));
 
-  const feedToken = isPartner ? await getFeedToken(ownerId) : null;
+  const feedToken = await getFeedToken(ownerId);
   const origin = await getOrigin();
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
   const connected = isOneDriveConfigured() && (await isConnected(ownerId));
@@ -204,55 +203,53 @@ export default async function CalendarPage({
           )}
         </Card>
 
-        {isPartner && (
-          <Card className="h-fit p-5">
-            <h2 className="text-lg font-bold">סנכרון עם יומן Apple</h2>
-            <p className="mt-3 text-sm text-muted">
-              האירועים והדדליינים של כל התיקים מופיעים ביומן שלך באייפון או במק, ומתעדכנים
-              לבד (בדרך כלל תוך שעה). הסנכרון הוא בכיוון אחד: מהמערכת אל היומן של Apple.
-              אירוע שתוסיף ישירות ביומן של Apple לא יופיע במערכת.
-            </p>
-            {feedPath ? (
-              <>
-                <a
-                  href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
-                  className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-                >
-                  הוסף ליומן Apple
-                </a>
-                <p className="mt-3 text-xs text-muted">
-                  בטלפון או במק, הלחיצה על הכפתור פותחת את היומן ושואלת אם להירשם. אפשר גם
-                  להוסיף ידנית כיומן מנוי (Subscribed Calendar) עם הכתובת:
-                </p>
-                <p dir="ltr" className="mt-1 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
-                  {origin}
-                  {feedPath}
-                </p>
-                <p className="mt-3 text-xs text-warning">
-                  הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אם הוא הגיע למי
-                  שלא צריך, החלף אותו (הקישור הישן יפסיק לעבוד).
-                </p>
-                <form action={rotateCalendarFeed} className="mt-3">
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
-                  >
-                    החלף קישור
-                  </button>
-                </form>
-              </>
-            ) : (
+        <Card className="h-fit p-5">
+          <h2 className="text-lg font-bold">סנכרון עם יומן Apple</h2>
+          <p className="mt-3 text-sm text-muted">
+            האירועים והדדליינים של כל התיקים מופיעים ביומן שלך באייפון או במק, ומתעדכנים
+            לבד (בדרך כלל תוך שעה). הסנכרון הוא בכיוון אחד: מהמערכת אל היומן של Apple.
+            אירוע שתוסיף ישירות ביומן של Apple לא יופיע במערכת.
+          </p>
+          {feedPath ? (
+            <>
+              <a
+                href={`webcal://${origin.replace(/^https?:\/\//, "")}${feedPath}`}
+                className="mt-3 inline-block rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
+                הוסף ליומן Apple
+              </a>
+              <p className="mt-3 text-xs text-muted">
+                בטלפון או במק, הלחיצה על הכפתור פותחת את היומן ושואלת אם להירשם. אפשר גם
+                להוסיף ידנית כיומן מנוי (Subscribed Calendar) עם הכתובת:
+              </p>
+              <p dir="ltr" className="mt-1 break-all rounded-lg bg-background px-3 py-2 text-left text-[11px] text-muted">
+                {origin}
+                {feedPath}
+              </p>
+              <p className="mt-3 text-xs text-warning">
+                הקישור הוא הסיסמה ליומן: מי שיש לו אותו רואה את הנתונים. אם הוא הגיע למי
+                שלא צריך, החלף אותו (הקישור הישן יפסיק לעבוד).
+              </p>
               <form action={rotateCalendarFeed} className="mt-3">
                 <button
                   type="submit"
-                  className="rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-background"
                 >
-                  צור קישור לסנכרון
+                  החלף קישור
                 </button>
               </form>
-            )}
-          </Card>
-        )}
+            </>
+          ) : (
+            <form action={rotateCalendarFeed} className="mt-3">
+              <button
+                type="submit"
+                className="rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
+                צור קישור לסנכרון
+              </button>
+            </form>
+          )}
+        </Card>
       </div>
     </div>
   );
