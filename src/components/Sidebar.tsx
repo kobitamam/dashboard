@@ -10,6 +10,7 @@ const navItems = [
   { href: "/dashboard/attendance", label: "שעון נוכחות", icon: ClockIcon },
   { href: "/dashboard/alerts", label: "התראות חכמות", icon: BellIcon },
   { href: "/dashboard/calendar", label: "יומן", icon: CalendarIcon },
+  { href: "/dashboard/days", label: "מחשבון ימים", icon: CalculatorIcon },
   { href: "/dashboard/onedrive", label: "OneDrive", icon: CloudIcon },
 ];
 
@@ -279,6 +280,15 @@ function CloudIcon({ className }: { className?: string }) {
         strokeWidth="1.8"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function CalculatorIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.5 7.5h7M8.5 12h1M12 12h1M15.5 12h0M8.5 16h1M12 16h1M15.5 16h0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
