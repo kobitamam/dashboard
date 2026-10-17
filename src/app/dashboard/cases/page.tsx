@@ -1,12 +1,9 @@
 import {
   createCase,
   deleteCase,
-  removeCaseAttachment,
   retryCaseOneDriveFolder,
-  startOneDriveUpload,
   updateCaseProgress,
 } from "@/app/dashboard/actions";
-import CaseAttachments from "@/components/CaseAttachments";
 import CaseFolderRetry from "@/components/CaseFolderRetry";
 import {
   AddRecord,
@@ -196,14 +193,6 @@ export default async function CasesPage({
                         עדכון
                       </button>
                     </form>
-
-                    <CaseAttachments
-                      caseId={c.id}
-                      attachments={c.attachments}
-                      hasFolder={!!c.oneDriveFolderName}
-                      startUpload={startOneDriveUpload}
-                      removeAttachment={removeCaseAttachment}
-                    />
 
                     <div className="mt-2 flex justify-end">
                       <DeleteButton

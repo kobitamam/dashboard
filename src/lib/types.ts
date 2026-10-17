@@ -56,9 +56,8 @@ export type Attachment = {
   webUrl: string | null;
 };
 
-// Where an in-app upload lands: a case's OneDrive folder, or - for the signed
-// quote - the quote's file (moved into the case folder when it's approved).
-export type UploadTarget = { kind: "case"; caseId: string } | { kind: "quote"; quoteId: string };
+// Where an in-app upload lands: the signed quote, kept in the partners-only quotes folder.
+export type UploadTarget = { kind: "quote"; quoteId: string };
 
 export type FeePayment = {
   amount: number;
@@ -96,7 +95,6 @@ export type Case = PropertyDetails & {
   status: CaseStatus;
   dueDate: string | null;
   progress: number;
-  attachments: Attachment[];
   oneDriveFolderUrl: string | null;
   oneDriveFolderName: string | null; // folder name under the app folder, used to address its files
   fromQuoteId: string | null;

@@ -282,11 +282,10 @@ const QUOTES_FOLDER = "הצעות מחיר";
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /**
- * Opens a OneDrive upload for a file the browser is about to send in chunks to
- * /api/onedrive/upload. Case files land in the case's own folder; a signed
- * quote goes to the quotes folder (or straight to the case folder once the
- * quote has become a job). Returns errors as data because production masks a
- * thrown server-action error.
+ * Opens a OneDrive upload for the signed quote: the browser sends the file in
+ * chunks to /api/onedrive/upload and it lands in the partners-only quotes
+ * folder. Returns errors as data because production masks a thrown
+ * server-action error.
  */
 export async function startOneDriveUpload(
   target: UploadTarget,
@@ -295,25 +294,17 @@ export async function startOneDriveUpload(
   size: number,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
   // The signed quote belongs to the partners-only quotes tab.
-  const ownerId = target.kind === "quote" ? await requirePartnerId() : await requireOwnerId();
+  const ownerId = await requirePartnerId();
   if (!Number.isInteger(size) || size <= 0) return { ok: false, error: "הקובץ ריק" };
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו ביומן" };
 
-    let parent: UploadParent;
-    if (target.kind === "case") {
-      const caseDoc = await casesRepo.get(ownerId, target.caseId);
-      if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
-      if (!caseDoc.oneDriveFolderName) return { ok: false, error: "לתיק הזה אין תיקיית OneDrive" };
-      parent = { appFolderName: caseDoc.oneDriveFolderName, subFolder: CASE_DOCUMENTS_FOLDER };
-    } else {
-      const quote = await quotesRepo.get(ownerId, target.quoteId);
-      if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
-      // Quote files stay in the partners-only quotes folder, never in the case folder.
-      parent = { appFolderName: QUOTES_FOLDER };
-    }
+    const quote = await quotesRepo.get(ownerId, target.quoteId);
+    if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
+    // Quote files stay in the partners-only quotes folder, never in the case folder.
+    const parent: UploadParent = { appFolderName: QUOTES_FOLDER };
 
     const uploadUrl = await createUploadSession(accessToken, parent, fileName);
     return {
@@ -330,13 +321,6 @@ export async function startOneDriveUpload(
     console.error("Failed to start OneDrive upload:", err);
     return { ok: false, error: "פתיחת ההעלאה ל-OneDrive נכשלה, נסה שוב" };
   }
-}
-
-/** Drops the file from the case's list. The file itself stays in its OneDrive folder. */
-export async function removeCaseAttachment(caseId: string, key: string) {
-  const ownerId = await requireOwnerId();
-  await casesRepo.pull(ownerId, caseId, "attachments", { key });
-  refresh();
 }
 
 export async function createQuote(form: FormData) {

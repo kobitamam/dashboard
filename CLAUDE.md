@@ -39,6 +39,8 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
 `TA-Estate Dashboard/<TA-100-26>/מסמכים/` (`CASE_DOCUMENTS_FOLDER`) holds the case's documents, which employees may use.
+The case card does NOT list or upload case files: it only links to the case's OneDrive folder (`oneDriveFolderUrl`);
+employees add and read documents directly in OneDrive. The in-app upload exists only for the signed quote.
 Two files that an earlier version moved into a case folder are tolerated by the Word lookup only.
 
 ## Working here

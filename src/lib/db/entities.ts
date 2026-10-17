@@ -65,6 +65,7 @@ export type CaseDoc = Owned &
     status: CaseStatus;
     dueDate: Date | null;
     progress: number;
+    // Legacy: files once uploaded through the app. Case files now live only in OneDrive.
     attachments?: AttachmentDoc[];
     oneDriveFolderId?: string;
     oneDriveFolderName?: string;
@@ -199,7 +200,6 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     status: doc.status,
     dueDate: day(doc.dueDate),
     progress: doc.progress,
-    attachments: (doc.attachments ?? []).map(toAttachment),
     oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
     oneDriveFolderName: doc.oneDriveFolderName ?? null,
     fromQuoteId: doc.fromQuoteId ?? null,
