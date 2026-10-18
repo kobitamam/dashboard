@@ -18,6 +18,8 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
    and `DELETE .../permissions/{id}` addressed by path (`approot:/a/b:/permissions`) return `400 invalidRequest - Invalid request`, while
    `/me/drive/items/{id}/...` works. Get the id with the path lookup (`getAppFolder()`) first. When a path-based Graph call 400s,
    try the id form before anything else, and WRITE THE RESULT HERE so the next session doesn't repeat the experiment.
+   Even by id, `DELETE .../permissions/{id}` on a sharing link answers `400 Failed to delete the permission` for this token (personal
+   OneDrive), so a public link can only be removed by hand in OneDrive ("ניהול גישה"); `removeCaseShareLink` then finds none left.
 2. **Create folders by uploading a marker file to the path, not with POST `.../children`.**
    `POST /me/drive/special/approot/children` returns `400 invalidRequest` for any name. A path-based
    `PUT .../approot:/מסמכי תיקים/<case>/.keep:/content` makes Graph create every missing parent; the marker is

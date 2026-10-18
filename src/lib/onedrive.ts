@@ -251,7 +251,14 @@ export async function removeFolderShareLinks(accessToken: string, caseFolderName
 
   for (const link of links) {
     const res = await fetch(`${base}/${encodeURIComponent(link.id)}`, { method: "DELETE", headers });
-    if (!res.ok && res.status !== 404) throw await graphError(res, "ביטול קישור השיתוף נכשל");
+    // OneDrive refuses (400) to delete a sharing link for this token (verified live), so the link has
+    // to be removed by hand in OneDrive; pressing the button again afterwards finds none left.
+    if (!res.ok && res.status !== 404) {
+      const error = await graphError(res, "OneDrive לא מאפשר לבטל את הקישור מכאן");
+      throw new Error(
+        `${error.message}. כדי לבטל: ב-OneDrive קליק ימני על התיקייה ← "ניהול גישה" ← הסר את הקישור, ואז לחץ כאן שוב על "בטל קישור".`,
+      );
+    }
   }
   return links.length;
 }
