@@ -237,24 +237,20 @@ export async function createCaseFolder(accessToken: string, name: string): Promi
  */
 export async function removeFolderShareLinks(accessToken: string, caseFolderName: string): Promise<number> {
   const headers = { Authorization: `Bearer ${accessToken}` };
-  const folderPath = appPath(CASES_ROOT_FOLDER, caseFolderName);
 
-  const list = await fetch(`${GRAPH_ROOT}${folderPath}:/permissions`, { headers });
+  // Sharing calls are rejected (400) when the folder is addressed by path, but accepted by the
+  // folder's id (the path lookup that gives the id is the one that works for this token).
+  const folder = await getAppFolder(accessToken, CASES_ROOT_FOLDER, caseFolderName);
+  if (!folder) return 0;
+  const base = `${GRAPH_ROOT}/me/drive/items/${encodeURIComponent(folder.id)}/permissions`;
+
+  const list = await fetch(base, { headers });
   if (!list.ok) throw await graphError(list, "קריאת השיתופים של התיקייה נכשלה");
   const permissions: { id: string; link?: unknown }[] = (await list.json()).value ?? [];
   const links = permissions.filter((p) => p.link);
 
-  const folder = links.length ? await getAppFolder(accessToken, CASES_ROOT_FOLDER, caseFolderName) : null;
   for (const link of links) {
-    const id = encodeURIComponent(link.id);
-    // Path form first; if Graph refuses it for this token, the folder's id form.
-    let res = await fetch(`${GRAPH_ROOT}${folderPath}:/permissions/${id}`, { method: "DELETE", headers });
-    if (!res.ok && res.status !== 404 && folder) {
-      res = await fetch(`${GRAPH_ROOT}/me/drive/items/${encodeURIComponent(folder.id)}/permissions/${id}`, {
-        method: "DELETE",
-        headers,
-      });
-    }
+    const res = await fetch(`${base}/${encodeURIComponent(link.id)}`, { method: "DELETE", headers });
     if (!res.ok && res.status !== 404) throw await graphError(res, "ביטול קישור השיתוף נכשל");
   }
   return links.length;
