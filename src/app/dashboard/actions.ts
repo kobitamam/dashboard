@@ -284,6 +284,10 @@ export async function removeCaseShareLink(
     return { ok: true };
   } catch (err) {
     console.error("Failed to remove the share link:", err);
+    // The stored marker is only a note of a link created earlier (and was found not to exist
+    // in OneDrive's "קישורים" tab in a real case), so it is cleared either way.
+    await casesRepo.update(ownerId, caseId, { oneDriveShareUrl: "" }).catch(() => undefined);
+    refresh();
     return { ok: false, error: err instanceof Error ? err.message : "ביטול הקישור נכשל" };
   }
 }
