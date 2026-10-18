@@ -22,7 +22,7 @@ import { seedDemoData } from "@/lib/db/seed";
 import { formatParcel } from "@/lib/format";
 import {
   createCaseFolder,
-  createDocumentsShareLink,
+  removeFolderShareLinks,
   createUploadSession,
   getAppFolderFile,
   sanitizeFolderName,
@@ -259,10 +259,6 @@ async function attachOneDriveFolder(
       oneDriveFolderName: folder.name,
       oneDriveFolderUrl: folder.webUrl,
     });
-    // The documents link for employees is best-effort too; "צור קישור" on the card retries it.
-    await createDocumentsShareLink(accessToken, folder.name)
-      .then((url) => casesRepo.update(ownerId, caseId, { oneDriveShareUrl: url }))
-      .catch((err) => console.error("Failed to create the documents share link:", err));
     return { ok: true };
   } catch (err) {
     console.error("Failed to create OneDrive folder for case:", err);
@@ -271,25 +267,24 @@ async function attachOneDriveFolder(
   }
 }
 
-/** Creates (or fetches again) the link that opens only the case's documents folder. */
-export async function createCaseShareLink(
+/** Cancels the public sharing link of a case folder, so its OneDrive link opens in Finder again. */
+export async function removeCaseShareLink(
   caseId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   const caseDoc = await casesRepo.get(ownerId, caseId);
-  if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
-  if (!caseDoc.oneDriveFolderName) return { ok: false, error: "לתיק הזה אין עדיין תיקיית OneDrive" };
+  if (!caseDoc?.oneDriveFolderName) return { ok: false, error: "לתיק הזה אין תיקיית OneDrive" };
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
-    const url = await createDocumentsShareLink(accessToken, caseDoc.oneDriveFolderName);
-    await casesRepo.update(ownerId, caseId, { oneDriveShareUrl: url });
+    await removeFolderShareLinks(accessToken, caseDoc.oneDriveFolderName);
+    await casesRepo.update(ownerId, caseId, { oneDriveShareUrl: "" });
     refresh();
     return { ok: true };
   } catch (err) {
-    console.error("Failed to create the documents share link:", err);
-    return { ok: false, error: err instanceof Error ? err.message : "יצירת הקישור נכשלה" };
+    console.error("Failed to remove the share link:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "ביטול הקישור נכשל" };
   }
 }
 

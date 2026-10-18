@@ -40,17 +40,19 @@ The OneDrive connection (connect/disconnect) lives in its own tab, `/dashboard/o
 (employees too, so a partner never has to connect it for them); the OAuth callback still returns through `/api/onedrive/callback`
 (the registered redirect).
 
-10. **Employees never get the owner's folder link.** The plain `webUrl` (`oneDriveFolderUrl`) opens the office's own OneDrive and asks for
-   the owner's Microsoft sign-in (or, on a machine already signed in as the owner, exposes the whole drive). Employees get
-   `oneDriveShareUrl` instead: an anonymous *edit* share link (`createDocumentsShareLink`, Graph `createLink`, verified to work live
-   by the user) to that one case folder, created with the folder and re-creatable from the card ("צור קישור", `createCaseShareLink`).
+10. **No public share links on case folders.** An earlier version created an anonymous edit link per case (`createLink`) for
+   employees; it worked, but a shared folder stopped opening in Finder from its web link (verified by the user), and anonymous links
+   are a needless exposure. Employees instead get the `מסמכי תיקים` folder shared once with their Microsoft accounts and use their
+   synced copy; their case card shows the folder name, never the owner's `webUrl` (it asks for the owner's sign-in). Partners can
+   cancel a leftover link from the card ("בטל קישור", `removeCaseShareLink`). A web link can never open a local folder by itself:
+   it opens in Finder only when the OneDrive app intercepts the folder's `webUrl`.
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
 `TA-Estate Dashboard/מסמכי תיקים/<TA-100-26>/` (`CASES_ROOT_FOLDER`) holds each case's documents. The office shares
 `מסמכי תיקים` ONCE with the employees' own Microsoft accounts (all of whom have one), so every present and future case appears
 for them as a regular synced folder; nothing in `הצעות מחיר` is inside it. The case card does NOT list or upload case files: it
-links to the case's folder (`oneDriveFolderUrl`, partners) and to the per-case share link (everyone). The in-app upload exists only
+links partners to the case's folder (`oneDriveFolderUrl`). The in-app upload exists only
 for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case that used it was a test case.)
 
 ## Calendar

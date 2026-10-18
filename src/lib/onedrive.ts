@@ -230,56 +230,34 @@ export async function createCaseFolder(accessToken: string, name: string): Promi
 }
 
 /**
- * A link that opens ONLY one case's documents folder, for people who are not signed in to
- * the office's OneDrive: anyone holding the link can view and edit that one folder and
- * nothing above it. Asking again for the same link returns the existing one.
+ * Deletes the public sharing links of a case folder (an earlier version created one per case).
+ * A shared folder is no longer opened in Finder from its web link, so the links are removed;
+ * employees reach the documents through the shared "מסמכי תיקים" folder instead.
+ * Returns how many links were removed.
  */
-export async function createDocumentsShareLink(accessToken: string, caseFolderName: string): Promise<string> {
-  const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+export async function removeFolderShareLinks(accessToken: string, caseFolderName: string): Promise<number> {
+  const headers = { Authorization: `Bearer ${accessToken}` };
   const folderPath = appPath(CASES_ROOT_FOLDER, caseFolderName);
 
-  // Which way Graph accepts this call for an app-folder token is not known, so the
-  // variants are tried in turn and, if none works, each one's answer is reported.
-  const attempts: { label: string; url: () => Promise<string | null>; body: object }[] = [
-    { label: "נתיב+anonymous", url: async () => `${folderPath}:/createLink`, body: { type: "edit", scope: "anonymous" } },
-    { label: "נתיב", url: async () => `${folderPath}:/createLink`, body: { type: "edit" } },
-    {
-      label: "מזהה+anonymous",
-      url: async () => {
-        const res = await fetch(`${GRAPH_ROOT}${folderPath}?select=id`, { headers });
-        const id = res.ok ? (await res.json())?.id : null;
-        return id ? `/me/drive/items/${encodeURIComponent(id)}/createLink` : null;
-      },
-      body: { type: "edit", scope: "anonymous" },
-    },
-  ];
+  const list = await fetch(`${GRAPH_ROOT}${folderPath}:/permissions`, { headers });
+  if (!list.ok) throw await graphError(list, "קריאת השיתופים של התיקייה נכשלה");
+  const permissions: { id: string; link?: unknown }[] = (await list.json()).value ?? [];
+  const links = permissions.filter((p) => p.link);
 
-  const failures: string[] = [];
-  for (const attempt of attempts) {
-    try {
-      const path = await attempt.url();
-      if (!path) {
-        failures.push(`${attempt.label}: לא נמצא מזהה`);
-        continue;
-      }
-      const res = await fetch(`${GRAPH_ROOT}${path}`, {
-        method: "POST",
+  const folder = links.length ? await getAppFolder(accessToken, CASES_ROOT_FOLDER, caseFolderName) : null;
+  for (const link of links) {
+    const id = encodeURIComponent(link.id);
+    // Path form first; if Graph refuses it for this token, the folder's id form.
+    let res = await fetch(`${GRAPH_ROOT}${folderPath}:/permissions/${id}`, { method: "DELETE", headers });
+    if (!res.ok && res.status !== 404 && folder) {
+      res = await fetch(`${GRAPH_ROOT}/me/drive/items/${encodeURIComponent(folder.id)}/permissions/${id}`, {
+        method: "DELETE",
         headers,
-        body: JSON.stringify(attempt.body),
       });
-      if (res.ok) {
-        const url = (await res.json())?.link?.webUrl;
-        if (typeof url === "string" && url) return url;
-        failures.push(`${attempt.label}: לא התקבל קישור`);
-        continue;
-      }
-      const error = (await res.json().catch(() => null))?.error;
-      failures.push(`${attempt.label}: ${res.status} ${error?.code ?? ""}`.trim());
-    } catch (err) {
-      failures.push(`${attempt.label}: ${err instanceof Error ? err.message.slice(0, 60) : "שגיאה"}`);
     }
+    if (!res.ok && res.status !== 404) throw await graphError(res, "ביטול קישור השיתוף נכשל");
   }
-  throw new Error(`יצירת קישור שיתוף לתיקיית המסמכים נכשלה (${failures.join(" | ")})`);
+  return links.length;
 }
 
 /**
