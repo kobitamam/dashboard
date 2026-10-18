@@ -140,7 +140,7 @@ export async function listTeam(organizationId: string): Promise<TeamMember[]> {
     id: String(d._id),
     name: d.name,
     email: d.email,
-    role: d.role,
+    role: d.role ?? "partner",
     createdAt: d.createdAt,
     isFounder: String(d._id) === organizationId,
   }));
@@ -159,7 +159,7 @@ export async function listOrganizationMembers(organizationId: string): Promise<O
     .find({ $or: [{ organizationId }, ...rootFilter] })
     .sort({ createdAt: 1 })
     .toArray();
-  return docs.map((d) => ({ id: String(d._id), name: d.name, role: d.role }));
+  return docs.map((d) => ({ id: String(d._id), name: d.name, role: d.role ?? "partner" }));
 }
 
 /**
