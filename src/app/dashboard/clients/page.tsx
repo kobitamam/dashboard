@@ -28,7 +28,7 @@ export default async function ClientsPage({
   );
 
   const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable />;
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const isPartner = (await currentRole()) === "partner";
   const { clients: allClients, cases } = result.data;
   const clients = search ? allClients.filter((c) => matchesQuery(clientHaystack(c), search)) : allClients;

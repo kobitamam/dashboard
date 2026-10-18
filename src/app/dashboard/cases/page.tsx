@@ -40,7 +40,7 @@ export default async function CasesPage({
   searchParams: Promise<{ type?: string; scope?: string; search?: string }>;
 }) {
   const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable />;
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { type: typeFilter, scope, search } = await searchParams;
   const isPartner = (await currentRole()) === "partner";
   const ownerId = await requireOwnerId();

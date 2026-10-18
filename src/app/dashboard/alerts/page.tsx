@@ -11,7 +11,7 @@ const categoryIcon: Record<string, string> = {
 
 export default async function AlertsPage() {
   const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable />;
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { cases, events } = result.data;
   const alerts = deriveAlerts({ cases, events });
 

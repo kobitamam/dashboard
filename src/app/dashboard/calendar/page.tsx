@@ -43,7 +43,7 @@ export default async function CalendarPage({
   }>;
 }) {
   const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable />;
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { events, cases } = result.data;
 
   // Meetings/hearings are stored; case deadlines are derived from the cases, so

@@ -243,7 +243,7 @@ export function ConfirmButton({
   );
 }
 
-export function DataUnavailable() {
+export function DataUnavailable({ reason }: { reason?: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-danger/40 bg-surface p-10 text-center">
       <p className="text-base font-semibold text-foreground">אין חיבור למסד הנתונים</p>
@@ -253,6 +253,11 @@ export function DataUnavailable() {
         - בדרך כלל חסר <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">MONGODB_URI</code>{" "}
         או שכתובת ה-IP של השרת לא מאושרת ב-MongoDB Atlas.
       </p>
+      {reason && (
+        <p dir="ltr" className="mx-auto mt-3 max-w-lg break-words rounded-lg bg-background px-3 py-2 text-left font-mono text-[11px] text-muted">
+          {reason}
+        </p>
+      )}
     </div>
   );
 }

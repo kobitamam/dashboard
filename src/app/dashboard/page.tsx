@@ -15,7 +15,7 @@ export default async function Dashboard() {
   const isPartner = session?.user?.role === "partner";
 
   const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable />;
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { clients, cases, events } = result.data;
   const alerts = deriveAlerts({ cases, events });
   const isEmpty =

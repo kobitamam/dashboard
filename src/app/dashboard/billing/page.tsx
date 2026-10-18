@@ -16,7 +16,7 @@ export default async function BillingPage() {
   }
 
   const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable />;
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { cases } = result.data;
 
   // Each case is billed in two stages: the first when it is opened, the second

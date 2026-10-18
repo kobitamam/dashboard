@@ -43,7 +43,7 @@ export default async function QuotesPage({
   }
 
   const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable />;
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { type: typeFilter } = await searchParams;
   const ownerId = await requireOwnerId();
   const types = await loadCaseTypes(ownerId);

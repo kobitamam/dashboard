@@ -23,7 +23,7 @@ export type DashboardData = {
 
 export type LoadResult =
   | { ok: true; data: DashboardData }
-  | { ok: false };
+  | { ok: false; reason: string };
 
 /**
  * Returns the organization id every record is scoped by - shared by a
@@ -97,6 +97,18 @@ export async function loadEventTypes(ownerId: string): Promise<string[]> {
   }
 }
 
+// A short, secret-free description of why the data could not be loaded, shown on the
+// error screen because the server logs are not readable from the development side.
+function describeFailure(err: unknown) {
+  const name = err instanceof Error ? err.name : "Error";
+  const message = (err instanceof Error ? err.message : String(err))
+    .replace(/mongodb(\+srv)?:\/\/\S+/gi, "[mongodb]")
+    .replace(/\/\/[^@\s]+@/g, "//***:***@")
+    .replace(/\s+/g, " ")
+    .slice(0, 160);
+  return `${name}: ${message}`;
+}
+
 /**
  * A Server Component that throws on the initial request bypasses error.tsx and
  * renders a bare 500, so an unreachable database is reported as data instead of
@@ -131,6 +143,6 @@ export async function loadDashboardData(): Promise<LoadResult> {
     };
   } catch (err) {
     console.error("Failed to load dashboard data:", err);
-    return { ok: false };
+    return { ok: false, reason: describeFailure(err) };
   }
 }
