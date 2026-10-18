@@ -87,12 +87,14 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   A partner is the root of their organization; employees share the partner's data. `requirePartnerId()` gates actions.
 - **Partners only**: quotes (הצעות מחיר), billing (גבייה), fee tracking (שכר טרחה), team management, demo data.
   Employees must never receive that data (it is not even loaded for their session).
-- Fees are collected in two stages (`src/lib/fees.ts`): stage 1 (`baseAmount`) when the case is opened, stage 2 when it is
-  completed - `finalAmount` (second half of an ordinary fee) and/or `successPercentage` x `successAmount` (betterment levy:
-  advance first, then a percentage of the reduction). Payments cover stage 1 first. The billing tab lists what is due now.
-  Approving a quote seeds the case's fee from the quote (`initialFee`). There are NO invoices any more (removed at the user's request):
-  the billing tab, dashboard cards, alerts and the clients tab's "סה"כ חויב" all derive from the cases' fees. Employees' cases are
-  loaded with `fee: null` / `feeNote: ""` (`loadDashboardData`).
+- A quote's fee (`src/lib/fees.ts`, `FeeStructureFields`): amount before VAT and including VAT (`src/lib/vat.ts`, 18%), a number of
+  payments and the percent of the fee of each; `feePercent` (share of the reduction) exists only for a betterment levy. Approving a
+  quote copies it to the case as `fee.installments` (amounts include VAT). Installments fall due by stage (`feeStageOf`): the first when
+  the case is opened, the last when it is completed (plus the share of the reduction), any in between once the draft is sent
+  (status "נשלחה טיוטה" or a betterment stage past "טרם נשלחה טיוטה"). Receipts (`fee.payments`) cover installments in order. Fees saved
+  before installments existed use `baseAmount`/`finalAmount`. The billing tab lists each case's installments and what is due now.
+  There are NO invoices any more (removed at the user's request): the billing tab, dashboard cards, alerts and the clients tab's
+  "סה"כ חויב" all derive from the cases' fees. Employees' cases are loaded with `fee: null` / `feeNote: ""` (`loadDashboardData`).
 - Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`); when the
   organization has no cases (or no quotes) left, that counter starts over at 100, so test data can be deleted and numbering begins clean.
 - A partner can add more partners and employees from the team tab (`createMember`); an added partner has the same full access and

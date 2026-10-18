@@ -4,7 +4,7 @@ import { loadDemoData } from "@/app/dashboard/actions";
 import { DataUnavailable, SubmitButton } from "@/components/form";
 import { Card, PageHeader, ProgressBar, StatCard, StatusBadge } from "@/components/ui";
 import { deriveAlerts } from "@/lib/alerts";
-import { feeTotals } from "@/lib/fees";
+import { feeStageOf, feeTotals } from "@/lib/fees";
 import { caseDeadlines } from "@/lib/deadlines";
 import { loadDashboardData } from "@/lib/db/queries";
 import { daysUntil, formatDate, formatMoney, formatTime, isSameDay } from "@/lib/format";
@@ -23,7 +23,7 @@ export default async function Dashboard() {
 
   // What can be collected right now, from the fees of the cases (partners only: an
   // employee's cases carry no fee data).
-  const billing = cases.map((c) => feeTotals(c.fee, c.status === "הושלם"));
+  const billing = cases.map((c) => feeTotals(c.fee, feeStageOf(c)));
   const owedNow = billing.reduce((sum, b) => sum + b.balanceDue, 0);
   const casesToCollect = billing.filter((b) => b.balanceDue > 0).length;
   const activeClients = clients.filter((c) => c.status === "פעיל").length;

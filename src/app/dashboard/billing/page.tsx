@@ -2,7 +2,7 @@ import Link from "next/link";
 import { DataUnavailable } from "@/components/form";
 import { Card, PageHeader, StatCard } from "@/components/ui";
 import { currentRole, loadDashboardData } from "@/lib/db/queries";
-import { feeTotals } from "@/lib/fees";
+import { feeStageOf, feeTotals } from "@/lib/fees";
 import { formatMoney } from "@/lib/format";
 
 export default async function BillingPage() {
@@ -19,14 +19,14 @@ export default async function BillingPage() {
   if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { cases } = result.data;
 
-  // Each case is billed in two stages: the first when it is opened, the second
-  // when it is completed (or, for a betterment levy, when its stage reaches
-  // "הושלם"). Cases with something to collect (or no fee set yet) are listed,
-  // the ones to collect now first. Payments are recorded on the case's fee page.
+  // Each case's fee is collected in the installments set in its quote: the first when the case
+  // is opened, the last when it is completed (or, for a betterment levy, when its stage reaches
+  // "הושלם"), any in between once the draft is sent. Cases with something to collect (or no fee
+  // set yet) are listed, the ones to collect now first. Payments are recorded on the fee page.
   const rows = cases.map((c) => ({
     case: c,
     completed: c.status === "הושלם",
-    ...feeTotals(c.fee, c.status === "הושלם"),
+    ...feeTotals(c.fee, feeStageOf(c)),
   }));
   const billing = rows
     .filter((r) => r.balanceDue > 0 || !r.case.fee || r.completed)
@@ -42,7 +42,7 @@ export default async function BillingPage() {
     <div>
       <PageHeader
         title="גבייה"
-        subtitle="שכר הטרחה של התיקים, שלב א׳ בפתיחת תיק ושלב ב׳ בהשלמתו"
+        subtitle="תשלומי שכר הטרחה של התיקים, לפי התשלומים שנקבעו בהצעת המחיר"
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -59,7 +59,7 @@ export default async function BillingPage() {
               <span className="mr-2 text-sm font-normal text-muted">({billing.length})</span>
             </h2>
             <p className="text-xs text-muted">
-              שלב א׳ - כשנפתח תיק · שלב ב׳ - כשהתיק הושלם
+              תשלום ראשון - כשנפתח תיק · אחרון - כשהתיק הושלם · באמצע - כשנשלחה טיוטה
             </p>
           </div>
           {billing.length > 0 && (
@@ -80,8 +80,7 @@ export default async function BillingPage() {
                 <tr className="border-b border-border bg-background text-xs text-muted">
                   <th className="px-4 py-3 font-medium">תיק</th>
                   <th className="px-4 py-3 font-medium">לקוח</th>
-                  <th className="px-4 py-3 font-medium">שלב א׳</th>
-                  <th className="px-4 py-3 font-medium">שלב ב׳</th>
+                  <th className="px-4 py-3 font-medium">תשלומים (כולל מע״מ)</th>
                   <th className="px-4 py-3 font-medium">שולם</th>
                   <th className="px-4 py-3 font-medium">לגבייה כעת</th>
                   <th className="px-4 py-3 font-medium"></th>
@@ -92,15 +91,28 @@ export default async function BillingPage() {
                   <tr key={r.case.id} className="border-b border-border last:border-0 hover:bg-background/60">
                     <td className="px-4 py-3 font-mono text-xs text-muted">{r.case.caseNumber}</td>
                     <td className="px-4 py-3 font-semibold text-foreground">{r.case.clientName}</td>
-                    <td className="px-4 py-3 text-foreground">
-                      {r.case.fee ? formatMoney(r.first) : <span className="text-warning">לא הוגדר</span>}
-                    </td>
-                    <td className="px-4 py-3 text-muted">
-                      {!r.case.fee
-                        ? "—"
-                        : r.completed
-                          ? formatMoney(r.second)
-                          : `${formatMoney(r.second)} · בהשלמת התיק`}
+                    <td className="px-4 py-3">
+                      {!r.case.fee ? (
+                        <span className="text-warning">לא הוגדר</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {r.rows.map((row) => (
+                            <span
+                              key={row.label}
+                              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                row.covered
+                                  ? "bg-success/10 text-success"
+                                  : row.due
+                                    ? "bg-danger/10 text-danger"
+                                    : "bg-background text-muted"
+                              }`}
+                              title={row.covered ? "שולם" : row.due ? "לגבייה כעת" : "עדיין לא הגיע מועד הגבייה"}
+                            >
+                              {row.label}: {formatMoney(row.amount)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted">{formatMoney(r.paid)}</td>
                     <td className="px-4 py-3">
@@ -109,9 +121,6 @@ export default async function BillingPage() {
                       ) : r.balanceDue > 0 ? (
                         <span className="font-semibold text-danger">
                           {formatMoney(r.balanceDue)}
-                          <span className="mr-1 text-xs font-normal text-muted">
-                            ({r.stageDue === "first" ? "שלב א׳" : "שלב ב׳"})
-                          </span>
                         </span>
                       ) : (
                         <span className="font-semibold text-success">שולם</span>

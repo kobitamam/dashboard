@@ -34,7 +34,8 @@ import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
 import { deleteOutlookTwin, syncCalendar } from "@/lib/calendar-sync";
 import { removeCalendarConnection } from "@/lib/db/calendar-connection";
 import { rotateFeedToken } from "@/lib/db/calendar-feed";
-import { initialFee } from "@/lib/fees";
+import { buildInstallments, feeFromQuote, normalizePercents, quoteFeeText } from "@/lib/fees";
+import { addVat, removeVat } from "@/lib/vat";
 import { ensureClients } from "@/lib/db/clients-sync";
 import { getDb } from "@/lib/mongodb";
 import { listOrganizationMembers } from "@/lib/users";
@@ -502,22 +503,52 @@ export async function startOneDriveUpload(
   }
 }
 
+// The fee fields shared by the quote form and the case's fee page (see FeeStructureFields):
+// the amount before and after VAT (either one is enough), and the share of each payment.
+function parseFeeForm(form: FormData) {
+  let exVat = Math.max(0, number(form, "amountExVat"));
+  let inclVat = Math.max(0, number(form, "amountInclVat"));
+  if (exVat <= 0 && inclVat > 0) exVat = removeVat(inclVat);
+  else if (inclVat <= 0 && exVat > 0) inclVat = addVat(exVat);
+
+  const typed = form.getAll("installmentPercent").map((v) => Number(v));
+  const percents = normalizePercents(typed, number(form, "installmentCount", typed.length || 1));
+  const feePercent = text(form, "feePercent")
+    ? Math.min(100, Math.max(0, number(form, "feePercent")))
+    : null;
+  return { exVat, inclVat, percents, feePercent };
+}
+
 export async function createQuote(form: FormData) {
   const ownerId = await requirePartnerId();
   const clientName = text(form, "clientName");
   if (!clientName) return;
 
   const quoteNumber = await nextNumber(ownerId, "Q", new Date());
+  const type = await resolveCaseType(ownerId, form, true);
+  const fee = parseFeeForm(form);
+  // The reduction percent exists only for a betterment levy.
+  const feePercent = type === BETTERMENT_LEVY ? fee.feePercent : null;
   await quotesRepo.insert(ownerId, {
     quoteNumber,
     date: todayInIsrael(),
     clientName,
     address: text(form, "address"),
-    type: await resolveCaseType(ownerId, form, true),
-    amount: Math.max(0, number(form, "amount")),
-    feePercent: text(form, "feePercent") ? Math.min(100, Math.max(0, number(form, "feePercent"))) : null,
+    type,
+    amount: fee.exVat,
+    amountInclVat: fee.inclVat,
+    installments: fee.percents,
+    feePercent,
     status: "ממתין לאישור",
     ...propertyDetails(form),
+    // The fee as written in the letter and shown on the case card, built from the fields above.
+    feeNote: quoteFeeText({
+      amount: fee.exVat,
+      amountInclVat: fee.inclVat,
+      installments: fee.percents,
+      feePercent,
+      isBettermentLevy: type === BETTERMENT_LEVY,
+    }),
   });
   refresh();
 }
@@ -568,7 +599,13 @@ export async function createQuoteDocument(
       work: quote.description || quote.type,
       fee:
         quote.feeNote ||
-        (quote.amount > 0 ? `${quote.amount.toLocaleString("he-IL")} ₪ + מע״מ` : ""),
+        quoteFeeText({
+          amount: quote.amount,
+          amountInclVat: quote.amountInclVat ?? addVat(quote.amount),
+          installments: quote.installments?.length ? quote.installments : [50, 50],
+          feePercent: quote.feePercent ?? null,
+          isBettermentLevy: quote.type === BETTERMENT_LEVY,
+        }),
     });
 
     const parent: UploadParent = { appFolderName: QUOTES_FOLDER };
@@ -651,9 +688,15 @@ export async function approveQuote(quoteId: string) {
 
   // The first fee stage becomes due as soon as the case is opened, so the case
   // starts with its fee structure (editable on the fee page).
-  if (caseId && quote.amount > 0) {
+  const isBettermentLevy = quote.type === BETTERMENT_LEVY;
+  if (caseId && (quote.amount > 0 || (isBettermentLevy && quote.feePercent))) {
     await casesRepo.update(ownerId, caseId, {
-      fee: initialFee(quote.type === BETTERMENT_LEVY, quote.amount, quote.feePercent ?? null),
+      fee: feeFromQuote({
+        amountInclVat: quote.amountInclVat ?? addVat(quote.amount),
+        installments: quote.installments?.length ? quote.installments : [50, 50],
+        feePercent: quote.feePercent ?? null,
+        isBettermentLevy,
+      }),
     });
   }
 
@@ -671,33 +714,22 @@ export async function setCaseFee(caseId: string, form: FormData) {
   const caseDoc = await casesRepo.get(ownerId, caseId);
   if (!caseDoc) return;
   const payments = caseDoc.fee?.payments ?? [];
+  const isBettermentLevy = caseDoc.type === BETTERMENT_LEVY;
 
-  if (caseDoc.type === BETTERMENT_LEVY) {
-    // Stage 1: an advance. Stage 2: a percentage of the reduction.
-    await casesRepo.update(ownerId, caseId, {
-      fee: {
-        baseAmount: Math.max(0, number(form, "baseAmount")),
-        finalAmount: 0,
-        successPercentage: Math.min(100, Math.max(0, number(form, "successPercentage"))),
-        successAmount: Math.max(0, number(form, "successAmount")),
-        payments,
-      },
-    });
-  } else {
-    // Stage 1: a share of the total when the case is opened (usually half). Stage 2: the rest.
-    const total = Math.max(0, number(form, "totalFee"));
-    const firstPercent = Math.min(100, Math.max(0, number(form, "firstPercent", 50)));
-    const first = Math.round((total * firstPercent) / 100);
-    await casesRepo.update(ownerId, caseId, {
-      fee: {
-        baseAmount: first,
-        finalAmount: total - first,
-        successPercentage: 0,
-        successAmount: 0,
-        payments,
-      },
-    });
-  }
+  const { inclVat, percents, feePercent } = parseFeeForm(form);
+  const installments = buildInstallments(inclVat, percents);
+
+  await casesRepo.update(ownerId, caseId, {
+    fee: {
+      installments,
+      baseAmount: installments[0]?.amount ?? 0,
+      finalAmount: installments.length > 1 ? (installments[installments.length - 1]?.amount ?? 0) : 0,
+      // A share of the reduction exists only for a betterment levy.
+      successPercentage: isBettermentLevy ? (feePercent ?? 0) : 0,
+      successAmount: isBettermentLevy ? Math.max(0, number(form, "successAmount")) : 0,
+      payments,
+    },
+  });
   refresh();
 }
 

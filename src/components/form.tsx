@@ -80,6 +80,7 @@ export function SelectWithNewField({
   defaultValue,
   newOptionLabel = "➕ סוג חדש...",
   newPlaceholder = "שם סוג השומה החדש",
+  onValueChange,
 }: {
   label: string;
   name: string;
@@ -88,6 +89,7 @@ export function SelectWithNewField({
   defaultValue?: string;
   newOptionLabel?: string;
   newPlaceholder?: string;
+  onValueChange?: (value: string) => void;
 }) {
   const [value, setValue] = useState(defaultValue ?? options[0]);
 
@@ -99,7 +101,10 @@ export function SelectWithNewField({
           className={fieldClass}
           name={name}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            onValueChange?.(e.target.value);
+          }}
         >
           {options.map((option) => (
             <option key={option} value={option}>

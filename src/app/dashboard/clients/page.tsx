@@ -11,7 +11,7 @@ import {
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { syncClientsFromCases, clientKey } from "@/lib/db/clients-sync";
 import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
-import { feeTotals } from "@/lib/fees";
+import { feeStageOf, feeTotals } from "@/lib/fees";
 import { clientHaystack, matchesQuery } from "@/lib/search";
 import { formatMoney } from "@/lib/format";
 import { clientStatuses } from "@/lib/types";
@@ -40,7 +40,7 @@ export default async function ClientsPage({
   const billedTo = (name: string) =>
     cases
       .filter((c) => clientKey(c.clientName) === clientKey(name))
-      .reduce((sum, c) => sum + feeTotals(c.fee, c.status === "הושלם").dueNow, 0);
+      .reduce((sum, c) => sum + feeTotals(c.fee, feeStageOf(c)).dueNow, 0);
 
   const activeCount = allClients.filter((c) => c.status === "פעיל").length;
 

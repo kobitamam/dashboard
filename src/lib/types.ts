@@ -95,7 +95,14 @@ export type FeePayment = {
 // opened, stage 2 when it is completed. Stage 2 is a fixed amount (finalAmount,
 // the second half of an ordinary fee) and/or a percentage of the reduction
 // achieved (betterment levy).
+// One payment of the fixed fee: its share of the fee (percent) and the amount, VAT included.
+export type Installment = { percent: number; amount: number };
+
 export type Fee = {
+  // When present, the fixed fee is paid in these installments: the first when the case is
+  // opened, the last when it is completed, any in between once the draft is sent. The
+  // legacy two-stage fields below are used only by fees saved before installments existed.
+  installments?: Installment[];
   baseAmount: number;
   finalAmount: number;
   successPercentage: number;
@@ -147,8 +154,10 @@ export type Quote = PropertyDetails & {
   clientName: string;
   address: string;
   type: string;
-  amount: number;
-  feePercent: number | null; // אחוז שכ״ט מהפחתה
+  amount: number; // the fee before VAT
+  amountInclVat: number; // the fee including VAT
+  installments: number[]; // the share of the fee (percent) of each payment, adding up to 100
+  feePercent: number | null; // אחוז שכ״ט מהפחתה (betterment levy only)
   wordFileUrl: string | null; // the quote letter (Word) created in OneDrive
   status: QuoteStatus;
   signedFile: Attachment | null;

@@ -1,5 +1,6 @@
 import type { ObjectId, WithId } from "mongodb";
 import { Repository, type Owned } from "@/lib/db/repository";
+import { addVat } from "@/lib/vat";
 import type {
   Attachment,
   AttendanceEntry,
@@ -32,6 +33,7 @@ export type FeePaymentDoc = {
 };
 
 export type FeeDoc = {
+  installments?: { percent: number; amount: number }[];
   baseAmount: number;
   finalAmount?: number;
   successPercentage: number;
@@ -88,6 +90,8 @@ export type QuoteDoc = Owned &
     address: string;
     type: string;
     amount: number;
+    amountInclVat?: number;
+    installments?: number[];
     feePercent?: number | null;
     wordFileUrl?: string;
     wordFileId?: string;
@@ -174,6 +178,7 @@ function toFeePayment(doc: FeePaymentDoc): FeePayment {
 function toFee(doc: FeeDoc | null | undefined): Fee | null {
   if (!doc) return null;
   return {
+    ...(doc.installments?.length ? { installments: doc.installments } : {}),
     baseAmount: doc.baseAmount,
     finalAmount: doc.finalAmount ?? 0,
     successPercentage: doc.successPercentage,
@@ -230,6 +235,10 @@ export function toQuote(doc: WithId<QuoteDoc>): Quote {
     address: doc.address,
     type: doc.type,
     amount: doc.amount,
+    // Quotes saved before the VAT/installments fields: the old amount was the fee before VAT,
+    // paid half at the start and half at the end.
+    amountInclVat: doc.amountInclVat ?? addVat(doc.amount),
+    installments: doc.installments?.length ? doc.installments : [50, 50],
     feePercent: doc.feePercent ?? null,
     wordFileUrl: doc.wordFileUrl ?? null,
     status: doc.status,

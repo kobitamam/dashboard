@@ -15,8 +15,8 @@ import {
   DeleteButton,
   EmptyState,
   Field,
-  SelectWithNewField,
 } from "@/components/form";
+import { QuoteTypeAndFee } from "@/components/FeeStructureFields";
 import QuoteFileSlot from "@/components/QuoteFileSlot";
 import QuoteWordButton from "@/components/QuoteWordButton";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
@@ -24,7 +24,7 @@ import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatMoney, formatParcel } from "@/lib/format";
 import { isOneDriveConfigured } from "@/lib/onedrive";
-import type { QuoteStatus } from "@/lib/types";
+import { BETTERMENT_LEVY, type QuoteStatus } from "@/lib/types";
 
 const columns: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
 
@@ -59,13 +59,10 @@ export default async function QuotesPage({
       <Field label="רחוב" name="address" placeholder="רחוב ומספר" />
       <Field label="עיר" name="city" />
       <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
-      <SelectWithNewField label="סוג שומה" name="type" newName="newType" options={types} defaultValue={types[0]} />
       <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
       <Field label="מייל" name="clientEmail" type="email" />
       <Field label="טלפון" name="clientPhone" />
-      <Field label="סכום ההצעה (₪)" name="amount" type="number" min={0} required />
-      <Field label="שכ״ט" name="feeNote" placeholder="לדוגמה: 10,000 ₪ + מע״מ" />
-      <Field label="אחוז שכ״ט מהפחתה (%)" name="feePercent" type="number" min={0} max={100} step="any" />
+      <QuoteTypeAndFee types={types} defaultType={types[0]} />
       <Field label="הערות" name="notes" />
     </AddRecord>
   );
@@ -143,11 +140,18 @@ export default async function QuotesPage({
                     )}
                     {q.description && <p className="mt-1 text-xs font-medium text-brand-blue">{q.description}</p>}
                     {q.type && <p className="mt-0.5 text-xs text-muted">{q.type}</p>}
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">{formatMoney(q.amount)}</span>
-                      {q.feeNote && <span className="text-xs text-muted">שכ״ט: {q.feeNote}</span>}
+                    <div className="mt-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {formatMoney(q.amount)}{" "}
+                        <span className="text-xs font-normal text-muted">לפני מע״מ</span>
+                      </p>
+                      <p className="text-xs text-muted">
+                        {formatMoney(q.amountInclVat)} כולל מע״מ
+                        {q.installments.length > 1 &&
+                          ` · ${q.installments.length} תשלומים: ${q.installments.map((p) => `${p}%`).join(" / ")}`}
+                      </p>
                     </div>
-                    {q.feePercent !== null && (
+                    {q.feePercent !== null && q.type === BETTERMENT_LEVY && (
                       <p className="mt-0.5 text-xs text-muted">
                         אחוז שכ״ט מהפחתה: {q.feePercent}%
                       </p>
