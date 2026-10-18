@@ -53,6 +53,11 @@ The OneDrive connection (connect/disconnect) lives in its own tab, `/dashboard/o
    cancel a leftover link from the card ("בטל קישור", `removeCaseShareLink`). A web link can never open a local folder by itself:
    it opens in Finder only when the OneDrive app intercepts the folder's `webUrl`.
 
+11. **Opening a case folder on the computer** (`OpenFolderLink`, one-time setup per computer, explained in the OneDrive tab): Mac
+   (the partners) runs the user's own `OpenCase` Shortcut through `shortcuts://run-shortcut`; Windows (the employees) uses the
+   `opencase://<case>` address registered by the `.reg` file served at `/api/windows-setup` (UTF-16, current user, runs a hidden
+   PowerShell that opens `%OneDriveConsumer%\מסמכי תיקים\<case>`; only `[A-Za-z0-9-]` case numbers are accepted). Neither was tested live.
+
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
 `TA-Estate Dashboard/מסמכי תיקים/<TA-100-26>/` (`CASES_ROOT_FOLDER`) holds each case's documents. The office shares

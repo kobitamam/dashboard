@@ -8,6 +8,7 @@ import {
   updateCaseProgress,
 } from "@/app/dashboard/actions";
 import CaseFolderRetry from "@/components/CaseFolderRetry";
+import OpenFolderLink from "@/components/OpenFolderLink";
 import TypeManager from "@/components/TypeManager";
 import {
   AddRecord,
@@ -251,23 +252,8 @@ export default async function CasesPage({
                         ) : (
                           <CaseFolderRetry caseId={c.id} retry={retryCaseOneDriveFolder} />
                         )
-                      ) : (
-                        // Employees open the folder from their own synced copy of "מסמכי תיקים"; the
-                        // owner's web link would only ask for the owner's sign-in.
-                        c.oneDriveFolderName && (
-                          <span className="text-muted">📁 מסמכי תיקים / {c.oneDriveFolderName}</span>
-                        )
-                      )}
-                      {isPartner && c.oneDriveFolderName && (
-                        // Runs the "OpenCase" shortcut on the Mac, which reveals the case folder in Finder.
-                        <a
-                          href={`shortcuts://run-shortcut?name=OpenCase&input=text&text=${encodeURIComponent(c.oneDriveFolderName)}`}
-                          className="font-medium text-brand-blue hover:underline"
-                          title="פותח את תיקיית התיק ב-Finder (דורש את קיצור הדרך OpenCase ב-Mac)"
-                        >
-                          🖥️ פתח ב-Finder
-                        </a>
-                      )}
+                      ) : null}
+                      {c.oneDriveFolderName && <OpenFolderLink folderName={c.oneDriveFolderName} />}
                       {isPartner && c.oneDriveShareUrl && (
                         <CaseFolderRetry
                           caseId={c.id}
