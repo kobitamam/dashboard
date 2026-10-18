@@ -117,10 +117,13 @@ export default async function OneDrivePage({
             אלה בדיוק.
           </li>
           <li>
-            הוסף פעולה &quot;קבל קובץ&quot; (Get File): בחר בה את התיקייה <b>מסמכי תיקים</b> שבמחשב שלך, ובשדה
-            הנתיב שים את &quot;קלט הקיצור&quot; (Shortcut Input).
+            הוסף פעולה &quot;הפעלת תסריט מעטפת&quot; (בהעדפות של קיצורי דרך ← מתקדם, יש לאפשר הפעלת תסריטים). בתיבת
+            הסקריפט כתוב שורה אחת, עם הנתיב של התיקייה <b>מסמכי תיקים</b> במחשב שלך במקום ... :
+            <code dir="ltr" className="mt-1 block rounded bg-background px-2 py-1 text-left text-[11px]">
+              {'n="$1"; [ -z "$n" ] && n="$(pbpaste)"; open ".../מסמכי תיקים/$n"'}
+            </code>
           </li>
-          <li>הוסף אחריה פעולה שפותחת את הקובץ ב-Finder (&quot;פתח קובץ&quot; או &quot;הצג ב-Finder&quot;).</li>
+          <li>בשדה &quot;העברת קלט&quot; בחר &quot;כארגומנטים&quot;.</li>
           <li>
             בפעם הראשונה הדפדפן ישאל אם לפתוח את &quot;קיצורי דרך&quot;. אשר, ואפשר לסמן &quot;תמיד&quot;.
           </li>

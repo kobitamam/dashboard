@@ -34,9 +34,23 @@ export default function OpenFolderLink({ folderName }: { folderName: string }) {
       ? `shortcuts://run-shortcut?name=OpenCase&input=text&text=${encodeURIComponent(folderName)}`
       : `opencase://${encodeURIComponent(folderName)}`;
 
+  // On a Mac the case number also goes through the clipboard (the "OpenCase" shortcut reads it with
+  // pbpaste): the number sent inside the shortcuts:// address did not always reach the shortcut.
+  async function open(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (platform !== "mac") return;
+    event.preventDefault();
+    try {
+      await navigator.clipboard.writeText(folderName);
+    } catch {
+      // Without clipboard access the number still goes in the address.
+    }
+    window.location.href = href;
+  }
+
   return (
     <a
       href={href}
+      onClick={open}
       className="font-medium text-brand-blue hover:underline"
       title="פותח את תיקיית התיק במחשב הזה (דורש התקנה חד-פעמית, ראה בלשונית OneDrive)"
     >
