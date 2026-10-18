@@ -14,6 +14,10 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
 1. **Address everything by PATH, never by item id.** `GET /me/drive/items/{id}` returns `404 itemNotFound`
    for this token even for files we created. Use `/me/drive/special/approot:/<folder>/<file>` (see `appPath()`).
    An id is only acceptable inside a request body (e.g. `parentReference.id` when moving).
+1b. **Exception - sharing calls go by the folder's ID, not by path** (verified live, twice): `POST .../createLink`, `GET .../permissions`
+   and `DELETE .../permissions/{id}` addressed by path (`approot:/a/b:/permissions`) return `400 invalidRequest - Invalid request`, while
+   `/me/drive/items/{id}/...` works. Get the id with the path lookup (`getAppFolder()`) first. When a path-based Graph call 400s,
+   try the id form before anything else, and WRITE THE RESULT HERE so the next session doesn't repeat the experiment.
 2. **Create folders by uploading a marker file to the path, not with POST `.../children`.**
    `POST /me/drive/special/approot/children` returns `400 invalidRequest` for any name. A path-based
    `PUT .../approot:/מסמכי תיקים/<case>/.keep:/content` makes Graph create every missing parent; the marker is
