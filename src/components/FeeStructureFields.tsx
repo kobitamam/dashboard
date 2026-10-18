@@ -65,7 +65,9 @@ export default function FeeStructureFields({
   return (
     <>
       <label className="block">
-        <span className="mb-1.5 block text-xs font-medium text-muted">שכ״ט לפני מע״מ (₪)</span>
+        <span className="mb-1.5 block text-xs font-medium text-muted">
+          {betterment ? "שכ״ט קבוע לפני מע״מ (₪)" : "שכ״ט לפני מע״מ (₪)"}
+        </span>
         <input
           className={fieldClass}
           name="amountExVat"
@@ -80,7 +82,9 @@ export default function FeeStructureFields({
         />
       </label>
       <label className="block">
-        <span className="mb-1.5 block text-xs font-medium text-muted">שכ״ט כולל מע״מ (₪)</span>
+        <span className="mb-1.5 block text-xs font-medium text-muted">
+          {betterment ? "שכ״ט קבוע כולל מע״מ (₪)" : "שכ״ט כולל מע״מ (₪)"}
+        </span>
         <input
           className={fieldClass}
           name="amountInclVat"
@@ -112,7 +116,7 @@ export default function FeeStructureFields({
 
       <div className="sm:col-span-2 lg:col-span-3">
         <span className="mb-1.5 block text-xs font-medium text-muted">
-          אחוז משכ״ט עבור כל תשלום{" "}
+          {betterment ? "אחוז מהשכ״ט הקבוע עבור כל תשלום" : "אחוז משכ״ט עבור כל תשלום"}{" "}
           <span className={sumOk ? "text-muted" : "font-semibold text-danger"}>
             (סה״כ {Number(sum.toFixed(2))}%{sumOk ? "" : " - צריך להיות 100%"})
           </span>
@@ -143,7 +147,9 @@ export default function FeeStructureFields({
 
       {betterment && (
         <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-muted">אחוז שכ״ט מהפחתה (%)</span>
+          <span className="mb-1.5 block text-xs font-medium text-muted">
+            אחוז שכ״ט מהפחתה (%) - תשלום נוסף, נגבה אחרון
+          </span>
           <input
             className={fieldClass}
             name="feePercent"
