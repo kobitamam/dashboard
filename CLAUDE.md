@@ -56,7 +56,11 @@ The OneDrive connection (connect/disconnect) lives in its own tab, `/dashboard/o
 11. **Opening a case folder on the computer** (`OpenFolderLink`, one-time setup per computer, explained in the OneDrive tab): Mac
    (the partners) runs the user's own `OpenCase` Shortcut through `shortcuts://run-shortcut`; Windows (the employees) uses the
    `opencase://<case>` address registered by the `.reg` file served at `/api/windows-setup` (UTF-16, current user, runs a hidden
-   PowerShell that opens `%OneDriveConsumer%\מסמכי תיקים\<case>`; only `[A-Za-z0-9-]` case numbers are accepted). Neither was tested live.
+   PowerShell that opens `%OneDriveConsumer%\מסמכי תיקים\<case>`; only `[A-Za-z0-9-]` case numbers are accepted). The Mac route is VERIFIED live: Shortcuts did not pass the
+   `text=` input to the shell script (`$1` was empty and the general `מסמכי תיקים` opened), so the button also copies the case
+   number to the clipboard and the script falls back to it (`n="$1"; [ -z "$n" ] && n="$(pbpaste)"; open ".../מסמכי תיקים/$n"`).
+   The Windows route is not tested yet. The "קיים קישור שיתוף ציבורי" line is only a stale DB note (no code creates links any more);
+   "בטל קישור" clears it even when OneDrive refuses the delete.
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
