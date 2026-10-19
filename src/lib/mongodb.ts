@@ -47,7 +47,34 @@ export function databaseName(uri = process.env.MONGODB_URI ?? ""): string {
   return path ? decodeURIComponent(path) : DEFAULT_DB_NAME;
 }
 
+// Every list is read by ownerId (the organization), and users by email / organization.
+// Created once per server instance, in the background; creating an existing index is a no-op.
+const INDEXES: [collection: string, keys: Record<string, 1>][] = [
+  ["clients", { ownerId: 1 }],
+  ["cases", { ownerId: 1 }],
+  ["events", { ownerId: 1 }],
+  ["quotes", { ownerId: 1 }],
+  ["attendance", { ownerId: 1 }],
+  ["caseTypes", { ownerId: 1 }],
+  ["eventTypes", { ownerId: 1 }],
+  ["users", { email: 1 }],
+  ["users", { organizationId: 1 }],
+];
+
+let indexesRequested = false;
+
+function ensureIndexes(db: Db) {
+  if (indexesRequested) return;
+  indexesRequested = true;
+  Promise.all(INDEXES.map(([name, keys]) => db.collection(name).createIndex(keys))).catch((err) => {
+    indexesRequested = false;
+    console.error("Failed to create database indexes:", err);
+  });
+}
+
 export async function getDb(): Promise<Db> {
   const client = await getClient();
-  return client.db(databaseName());
+  const db = client.db(databaseName());
+  ensureIndexes(db);
+  return db;
 }

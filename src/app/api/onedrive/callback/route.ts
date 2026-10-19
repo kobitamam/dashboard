@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { saveCalendarConnection } from "@/lib/db/calendar-connection";
 import { saveConnection } from "@/lib/db/onedrive-connection";
+import { getSessionUser } from "@/lib/db/queries";
 import { CALENDAR_STATE_PREFIX, exchangeCalendarCode } from "@/lib/ms-calendar";
 import { exchangeCodeForTokens, verifyState } from "@/lib/onedrive";
 
@@ -49,9 +49,14 @@ export async function GET(request: Request) {
   // Defense in depth: also require a live session that matches the state.
   // The state carries the organization id (requireOwnerId's scope), not the
   // individual account id, since the connection is shared by the whole office.
-  const session = await auth();
-  if (!session?.user?.id || session.user.organizationId !== stateOwnerId) {
+  const user = await getSessionUser();
+  if (!user || user.organizationId !== stateOwnerId) {
     return redirectTo(url.origin, "error", "יש להתחבר למערכת לפני החיבור", param);
+  }
+  // The connection is the office's own OneDrive, shared by everyone: only a partner may
+  // (re)connect it, otherwise an employee's sign-in would replace the office's account.
+  if (user.role !== "partner") {
+    return redirectTo(url.origin, "error", "רק שותף יכול לחבר את OneDrive של המשרד", param);
   }
 
   if (isCalendar) {

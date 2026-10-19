@@ -140,6 +140,30 @@ export function SubmitButton({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Disabled while its form's action runs, so a second click can't send it twice.
+function PendingButton({
+  className,
+  label,
+  children,
+}: {
+  className: string;
+  label?: string;
+  children: React.ReactNode;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      aria-label={label}
+      title={label}
+      className={`${className} disabled:cursor-wait disabled:opacity-50`}
+    >
+      {children}
+    </button>
+  );
+}
+
 /** A "new record" button that reveals an inline form and hides it after submit. */
 export function AddRecord({
   label,
@@ -203,14 +227,9 @@ export function DeleteButton({
         if (!confirm(confirmText)) e.preventDefault();
       }}
     >
-      <button
-        type="submit"
-        aria-label="מחיקה"
-        title="מחיקה"
-        className="rounded-lg px-2 py-1 text-xs font-semibold text-danger hover:bg-danger/10"
-      >
+      <PendingButton className="rounded-lg px-2 py-1 text-xs font-semibold text-danger hover:bg-danger/10" label="מחיקה">
         {label}
-      </button>
+      </PendingButton>
     </form>
   );
 }
@@ -241,9 +260,7 @@ export function ConfirmButton({
         if (confirmText && !confirm(confirmText)) e.preventDefault();
       }}
     >
-      <button type="submit" className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${toneClass}`}>
-        {children}
-      </button>
+      <PendingButton className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${toneClass}`}>{children}</PendingButton>
     </form>
   );
 }

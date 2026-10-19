@@ -71,7 +71,7 @@ export default function Sidebar({
                 />
                 {item.label}
               </span>
-              {item.href === "/alerts" && alertCount > 0 && (
+              {item.href === "/dashboard/alerts" && alertCount > 0 && (
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
                     active

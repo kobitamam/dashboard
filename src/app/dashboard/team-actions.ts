@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { currentUserId, requirePartnerId } from "@/lib/db/queries";
-import { createMember, removeMember, type Role } from "@/lib/users";
+import { createMember, DuplicateEmailError, removeMember, type Role } from "@/lib/users";
 
 function refresh() {
   revalidatePath("/dashboard/team");
@@ -13,24 +13,33 @@ export async function inviteMember(form: {
   email: string;
   password: string;
   role: Role;
-}) {
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   const organizationId = await requirePartnerId();
   const name = form.name.trim();
   const email = form.email.trim();
   const password = form.password;
   const role: Role = form.role === "partner" ? "partner" : "employee";
 
-  if (!name || !email) throw new Error("יש למלא שם ואימייל");
-  if (password.length < 6) throw new Error("הסיסמה חייבת להיות באורך של 6 תווים לפחות");
+  // Returned as data: production hides the message of a thrown server-action error.
+  if (!name || !email) return { ok: false, error: "יש למלא שם ואימייל" };
+  if (password.length < 6) return { ok: false, error: "הסיסמה חייבת להיות באורך של 6 תווים לפחות" };
 
-  await createMember({ organizationId, name, email, password, role });
+  try {
+    await createMember({ organizationId, name, email, password, role });
+  } catch (err) {
+    if (err instanceof DuplicateEmailError) return { ok: false, error: err.message };
+    console.error("Failed to add a team member:", err);
+    return { ok: false, error: "ההוספה נכשלה, נסה שוב" };
+  }
   refresh();
+  return { ok: true };
 }
 
 export async function removeMemberAction(userId: string) {
   const organizationId = await requirePartnerId();
   const selfId = await currentUserId();
-  if (userId === selfId) throw new Error("לא ניתן להסיר את החשבון שלך");
+  // One's own account can't be removed (the page doesn't offer it either).
+  if (userId === selfId) return;
 
   await removeMember(organizationId, userId);
   refresh();

@@ -141,7 +141,6 @@ export type Case = PropertyDetails & {
   employeeId: string | null; // the employee handling the case
   progress: number;
   oneDriveFolderUrl: string | null;
-  oneDriveShareUrl: string | null; // opens only the case's documents folder, for employees
   oneDriveFolderName: string | null; // folder name under the app folder, used to address its files
   fromQuoteId: string | null;
   fee: Fee | null;

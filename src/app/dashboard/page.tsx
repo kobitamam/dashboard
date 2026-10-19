@@ -1,20 +1,18 @@
 import Link from "next/link";
-import { auth } from "@/auth";
 import { loadDemoData } from "@/app/dashboard/actions";
 import { DataUnavailable, SubmitButton } from "@/components/form";
 import { Card, PageHeader, ProgressBar, StatCard, StatusBadge } from "@/components/ui";
 import { deriveAlerts } from "@/lib/alerts";
 import { feeStageOf, feeTotals } from "@/lib/fees";
 import { caseDeadlines } from "@/lib/deadlines";
-import { loadDashboardData } from "@/lib/db/queries";
+import { getSessionUser, loadDashboardData } from "@/lib/db/queries";
 import { daysUntil, formatDate, formatMoney, formatTime, isSameDay } from "@/lib/format";
 
 export default async function Dashboard() {
-  const session = await auth();
-  const firstName = (session?.user?.name || "שלך").split(" ")[0];
-  const isPartner = session?.user?.role === "partner";
+  const [user, result] = await Promise.all([getSessionUser(), loadDashboardData()]);
+  const firstName = (user?.name || "שלך").split(" ")[0];
+  const isPartner = user?.role === "partner";
 
-  const result = await loadDashboardData();
   if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { clients, cases, events } = result.data;
   const alerts = deriveAlerts({ cases, events });

@@ -42,6 +42,18 @@ export async function findUserByEmail(email: string) {
   return db.collection<UserDoc>("users").findOne({ email: normalizeEmail(email) });
 }
 
+/** The stored account behind a session (null once it has been removed). */
+export async function findAccountById(id: string) {
+  if (!ObjectId.isValid(id)) return null;
+  const db = await getDb();
+  return db
+    .collection<UserDoc>("users")
+    .findOne(
+      { _id: new ObjectId(id) },
+      { projection: { name: 1, email: 1, role: 1, organizationId: 1 } },
+    );
+}
+
 export async function createUser({
   name,
   email,
@@ -126,17 +138,21 @@ export type TeamMember = {
   isFounder: boolean;
 };
 
-/** Everyone with access to the organization's data, partners first. */
-export async function listTeam(organizationId: string): Promise<TeamMember[]> {
+// Everyone in the organization, oldest first. Accounts created before organizationId
+// existed are their own organization's root, so the root is matched by its _id too.
+async function organizationDocs(organizationId: string) {
   const db = await getDb();
-  const users = db.collection<UserDoc>("users");
-  // Accounts created before organizationId existed are their own organization's root.
   const rootFilter = ObjectId.isValid(organizationId) ? [{ _id: new ObjectId(organizationId) }] : [];
-  const docs = await users
+  return db
+    .collection<UserDoc>("users")
     .find({ $or: [{ organizationId }, ...rootFilter] })
     .sort({ createdAt: 1 })
     .toArray();
-  const members = docs.map((d) => ({
+}
+
+/** Everyone with access to the organization's data, partners first. */
+export async function listTeam(organizationId: string): Promise<TeamMember[]> {
+  const members = (await organizationDocs(organizationId)).map((d) => ({
     id: String(d._id),
     name: d.name,
     email: d.email,
@@ -151,15 +167,11 @@ export type OrganizationMember = { id: string; name: string; role: Role };
 
 /** Everyone who works in the organization (the partner(s) and the employees), for pickers. */
 export async function listOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
-  const db = await getDb();
-  const users = db.collection<UserDoc>("users");
-  // Accounts created before organizationId existed are their own organization's root.
-  const rootFilter = ObjectId.isValid(organizationId) ? [{ _id: new ObjectId(organizationId) }] : [];
-  const docs = await users
-    .find({ $or: [{ organizationId }, ...rootFilter] })
-    .sort({ createdAt: 1 })
-    .toArray();
-  return docs.map((d) => ({ id: String(d._id), name: d.name, role: d.role ?? "partner" }));
+  return (await organizationDocs(organizationId)).map((d) => ({
+    id: String(d._id),
+    name: d.name,
+    role: d.role ?? "partner",
+  }));
 }
 
 /**

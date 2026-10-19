@@ -23,7 +23,7 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
 2. **Create folders by uploading a marker file to the path, not with POST `.../children`.**
    `POST /me/drive/special/approot/children` returns `400 invalidRequest` for any name. A path-based
    `PUT .../approot:/מסמכי תיקים/<case>/.keep:/content` makes Graph create every missing parent; the marker is
-   then deleted (`ensureFolders()`). Re-running is safe (existing folders are reused).
+   then deleted (`createFolders()` + `removeMarker()`). Re-running is safe (existing folders are reused).
 3. **Small files (<4MB)**: `PUT <path>:/content?@microsoft.graph.conflictBehavior=replace` (`uploadSmallFile`).
    **Large files**: `createUploadSession` (path-based) and send chunks through our own route
    `/api/onedrive/upload` (Vercel caps request bodies at ~4.5MB; chunks are 9x320KiB, Graph requires multiples
@@ -42,15 +42,17 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
 9. The quote letter is generated from the office's own Word template (`src/lib/quote-template.ts`, base64,
    `{{PLACEHOLDERS}}`; fill logic in `src/lib/quote-document.ts`) and saved to `הצעות מחיר/` and STAYS there.
 
-The OneDrive connection (connect/disconnect) lives in its own tab, `/dashboard/onedrive`, open to every member of the organization
-(employees too, so a partner never has to connect it for them); the OAuth callback still returns through `/api/onedrive/callback`
-(the registered redirect).
+The OneDrive connection lives in its own tab, `/dashboard/onedrive`. It is ONE connection per organization (the office's own OneDrive),
+so only a partner can connect/disconnect it (page, `disconnectOneDrive`, and the callback all check the role): an employee connecting
+would silently replace the office's account with their own. Everyone sees its status and the open-folder setup. The authorize URL
+sends `prompt=select_account`. The OAuth callback returns through `/api/onedrive/callback` (the registered redirect).
 
 10. **No public share links on case folders.** An earlier version created an anonymous edit link per case (`createLink`) for
    employees; it worked, but a shared folder stopped opening in Finder from its web link (verified by the user), and anonymous links
    are a needless exposure. Employees instead get the `מסמכי תיקים` folder shared once with their Microsoft accounts and use their
-   synced copy; their case card shows the folder name, never the owner's `webUrl` (it asks for the owner's sign-in). Partners can
-   cancel a leftover link from the card ("בטל קישור", `removeCaseShareLink`). A web link can never open a local folder by itself:
+   synced copy; their case card shows the folder name, never the owner's `webUrl` (it asks for the owner's sign-in). The leftover
+   `oneDriveShareUrl` notes in the DB are ignored (the user confirmed in OneDrive that no links exist; the cancel button was removed).
+   A web link can never open a local folder by itself:
    it opens in Finder only when the OneDrive app intercepts the folder's `webUrl`.
 
 11. **Opening a case folder on the computer** (`OpenFolderLink`, one-time setup per computer, explained in the OneDrive tab): Mac
@@ -58,9 +60,11 @@ The OneDrive connection (connect/disconnect) lives in its own tab, `/dashboard/o
    `opencase://<case>` address registered by the `.reg` file served at `/api/windows-setup` (UTF-16, current user, runs a hidden
    PowerShell that opens `%OneDriveConsumer%\מסמכי תיקים\<case>`; only `[A-Za-z0-9-]` case numbers are accepted). The Mac route is VERIFIED live: Shortcuts did not pass the
    `text=` input to the shell script (`$1` was empty and the general `מסמכי תיקים` opened), so the button also copies the case
-   number to the clipboard and the script falls back to it (`n="$1"; [ -z "$n" ] && n="$(pbpaste)"; open ".../מסמכי תיקים/$n"`).
-   The Windows route is not tested yet. The "קיים קישור שיתוף ציבורי" line is only a stale DB note (no code creates links any more);
-   "בטל קישור" clears it even when OneDrive refuses the delete.
+   number to the clipboard and the script falls back to it. The script shown in the OneDrive tab (`MAC_SCRIPT`) accepts only
+   `[A-Za-z0-9-]` (a page could otherwise run the shortcut with `../..` and open any path) and searches
+   `~/Library/CloudStorage/*/{Apps/TA-Estate Dashboard,TA-Estate Dashboard,}/מסמכי תיקים`, so the same text works for the owner, for
+   Raz (shared `TA-Estate Dashboard`) and for an employee on a Mac; it avoids globs that zsh would abort on. The user's own Mac still
+   runs the older one-line script (works, but without the check). The Windows route is not tested yet.
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
@@ -87,6 +91,16 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   (`deleteOutlookTwin`), otherwise the next sync would re-import it. Not tested live: it needs the Microsoft account to have an Outlook
   mailbox (Graph otherwise answers MailboxNotEnabledForRESTAPI) and `Calendars.ReadWrite` consent.
 - A one-way read-only .ics feed (`/api/calendar/<token>.ics`) also exists as a simpler alternative (`calendarFeeds`).
+
+## Speed and sessions
+
+- Functions run in Vercel `iad1` (Washington). `/api/health` reports `server_region`, `database_region` (Atlas `hello` tags) and
+  `database_round_trip_ms`; if Atlas is far from `iad1`, set the function region next to it (`vercel.json` `"regions"`).
+- `getSessionUser()` and `loadDashboardData()` are wrapped in React `cache()`, so the layout and the page share one load per request.
+  Pages run their remaining reads with `Promise.all`. `getDb()` creates the `ownerId`/`email`/`organizationId` indexes once per instance.
+- `getSessionUser()` re-reads the account from `users` (memoized 60s per instance): a removed member is signed out and a role change
+  applies within a minute, although the JWT itself lives for weeks. If the DB is unreachable it falls back to the token.
+- `src/app/dashboard/loading.tsx` gives instant feedback on navigation. The Rubik font is self-hosted via `next/font`.
 
 ## Working here
 

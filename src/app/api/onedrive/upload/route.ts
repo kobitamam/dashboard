@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getSessionUser } from "@/lib/db/queries";
 import { recordUpload } from "@/lib/db/uploads";
 import { uploadChunk } from "@/lib/onedrive";
 import { readUploadToken } from "@/lib/upload-token";
@@ -15,11 +15,13 @@ function fail(error: string, status: number) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return fail("יש להתחבר למערכת", 401);
+  const user = await getSessionUser();
+  if (!user) return fail("יש להתחבר למערכת", 401);
+  // Uploads are only the signed quotes, which are partners-only.
+  if (user.role !== "partner") return fail("פעולה זו מוגבלת לשותפים בלבד", 403);
 
   const payload = readUploadToken(request.headers.get("x-upload-token") ?? "");
-  if (!payload || payload.ownerId !== session.user.organizationId) {
+  if (!payload || payload.ownerId !== user.organizationId) {
     return fail("בקשת ההעלאה פגה או אינה תקינה, נסה שוב", 403);
   }
 

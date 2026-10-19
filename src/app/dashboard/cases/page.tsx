@@ -2,7 +2,6 @@ import {
   createCase,
   deleteCaseType,
   deleteCase,
-  removeCaseShareLink,
   renameCaseType,
   retryCaseOneDriveFolder,
   updateCaseProgress,
@@ -40,17 +39,20 @@ export default async function CasesPage({
 }: {
   searchParams: Promise<{ type?: string; scope?: string; search?: string }>;
 }) {
-  const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable reason={result.reason} />;
-  const { type: typeFilter, scope, search } = await searchParams;
-  const isPartner = (await currentRole()) === "partner";
   const ownerId = await requireOwnerId();
-  const types = await loadCaseTypes(ownerId);
-  const members = await listOrganizationMembers(ownerId);
+  const [result, { type: typeFilter, scope, search }, role, userId, types, members] = await Promise.all([
+    loadDashboardData(),
+    searchParams,
+    currentRole(),
+    currentUserId(),
+    loadCaseTypes(ownerId),
+    listOrganizationMembers(ownerId),
+  ]);
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
+  const isPartner = role === "partner";
   const nameOf = new Map(members.map((m) => [m.id, m.name]));
   const allCases = result.data.cases;
   // "My cases" is only a filter - everyone can switch back to see all the cases.
-  const userId = await currentUserId();
   const isMine = (c: (typeof allCases)[number]) => c.partnerId === userId || c.employeeId === userId;
   const mineOnly = scope === "mine";
   const mineCount = allCases.filter(isMine).length;
@@ -254,14 +256,6 @@ export default async function CasesPage({
                         )
                       ) : null}
                       {c.oneDriveFolderName && <OpenFolderLink folderName={c.oneDriveFolderName} />}
-                      {isPartner && c.oneDriveShareUrl && (
-                        <CaseFolderRetry
-                          caseId={c.id}
-                          retry={removeCaseShareLink}
-                          prompt="🔗 קיים קישור שיתוף ציבורי"
-                          action="בטל קישור"
-                        />
-                      )}
                       {isPartner && (
                         <Link href={`/dashboard/fees/${c.id}`} className="font-medium text-brand-blue hover:underline">
                           💰 שכר טרחה

@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import AppShell from "@/components/AppShell";
 import { deriveAlerts } from "@/lib/alerts";
-import { loadDashboardData } from "@/lib/db/queries";
+import { getSessionUser, loadDashboardData } from "@/lib/db/queries";
 import { buildSearchIndex } from "@/lib/search";
 
 export default async function DashboardLayout({
@@ -10,14 +9,11 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
 
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  const userName = session.user.name || session.user.email || "משתמש";
-  const isPartner = session.user.role === "partner";
+  const userName = user.name;
+  const isPartner = user.role === "partner";
 
   // The shell must render even when the database is unreachable, so the page
   // inside can explain the problem instead of the dashboard going blank.

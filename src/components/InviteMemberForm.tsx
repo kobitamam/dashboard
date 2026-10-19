@@ -11,7 +11,7 @@ export default function InviteMemberForm({
     email: string;
     password: string;
     role: "partner" | "employee";
-  }) => Promise<void>;
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -39,7 +39,11 @@ export default function InviteMemberForm({
     setError(null);
     setLoading(true);
     try {
-      await inviteMember({ name, email, password, role });
+      const result = await inviteMember({ name, email, password, role });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       setName("");
       setEmail("");
       setPassword("");

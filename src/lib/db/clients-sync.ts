@@ -39,13 +39,19 @@ export async function ensureClients(ownerId: string, contacts: Contact[]) {
  * for each of them. It runs once per organization, so a client the user deletes later
  * does not come back.
  */
+const synced = new Set<string>();
+
 export async function syncClientsFromCases(ownerId: string) {
+  // Remembered per server instance too, so the clients page doesn't ask the database every time.
+  if (synced.has(ownerId)) return 0;
   const db = await getDb();
   try {
     await db.collection<{ _id: string }>("migrations").insertOne({ _id: `clients-from-cases:${ownerId}` });
   } catch {
+    synced.add(ownerId);
     return 0; // already done (duplicate key)
   }
+  synced.add(ownerId);
 
   const cases = await casesRepo.list(ownerId, { createdAt: 1 });
   return ensureClients(

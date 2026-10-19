@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { databaseName, getDb } from "@/lib/mongodb";
 import { isOneDriveConfigured } from "@/lib/onedrive";
-import { isR2Configured } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +19,6 @@ export async function GET() {
     mongoUriConfigured,
     authSecretConfigured,
     database: mongoUriConfigured ? databaseName() : null,
-    // Optional: attachments are disabled, not broken, without R2 configured.
-    r2Configured: isR2Configured(),
     // Optional: OneDrive connect button is hidden, not broken, without this.
     oneDriveConfigured: isOneDriveConfigured(),
   };
@@ -33,6 +30,14 @@ export async function GET() {
       const db = await getDb();
       await db.command({ ping: 1 });
       checks.database_connection = "ok";
+      // Where the server and the database run, and the time of one round trip between them:
+      // every page makes several, so a server far from the database makes the whole app slow.
+      const started = Date.now();
+      const hello = await db.command({ hello: 1 });
+      checks.database_round_trip_ms = Date.now() - started;
+      checks.database_region = hello.tags?.region ?? null;
+      checks.database_provider = hello.tags?.provider ?? null;
+      checks.server_region = process.env.VERCEL_REGION ?? null;
     } catch (err) {
       checks.database_connection = "failed";
       checks.database_error = redact(

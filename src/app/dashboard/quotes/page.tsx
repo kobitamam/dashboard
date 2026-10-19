@@ -42,12 +42,14 @@ export default async function QuotesPage({
     );
   }
 
-  const result = await loadDashboardData();
-  if (!result.ok) return <DataUnavailable reason={result.reason} />;
-  const { type: typeFilter } = await searchParams;
   const ownerId = await requireOwnerId();
-  const types = await loadCaseTypes(ownerId);
-  const oneDriveConnected = isOneDriveConfigured() && (await isConnected(ownerId));
+  const [result, { type: typeFilter }, types, oneDriveConnected] = await Promise.all([
+    loadDashboardData(),
+    searchParams,
+    loadCaseTypes(ownerId),
+    isOneDriveConfigured() ? isConnected(ownerId) : false,
+  ]);
+  if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const allQuotes = result.data.quotes;
   const quotes = typeFilter ? allQuotes.filter((q) => q.type === typeFilter) : allQuotes;
 
@@ -190,13 +192,19 @@ export default async function QuotesPage({
                       <div className="flex gap-1.5">
                         {status === "ממתין לאישור" && (
                           <>
-                            <ConfirmButton
-                              action={approveQuote.bind(null, q.id)}
-                              confirmText="לאשר את ההצעה ולפתוח תיק? (יש להעלות קודם את ההצעה החתומה)"
-                              tone="success"
-                            >
-                              אישור ופתיחת תיק
-                            </ConfirmButton>
+                            {q.signedFile ? (
+                              <ConfirmButton
+                                action={approveQuote.bind(null, q.id)}
+                                confirmText="לאשר את ההצעה ולפתוח תיק?"
+                                tone="success"
+                              >
+                                אישור ופתיחת תיק
+                              </ConfirmButton>
+                            ) : (
+                              <span className="self-center text-[11px] text-muted">
+                                לאישור - העלה את ההצעה החתומה
+                              </span>
+                            )}
                             <ConfirmButton
                               action={rejectQuote.bind(null, q.id)}
                               confirmText="לסמן את ההצעה כנדחתה?"

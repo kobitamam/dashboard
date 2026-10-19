@@ -22,7 +22,6 @@ import { seedDemoData } from "@/lib/db/seed";
 import { formatParcel } from "@/lib/format";
 import {
   createCaseFolder,
-  removeFolderShareLinks,
   createUploadSession,
   getAppFolderFile,
   sanitizeFolderName,
@@ -267,31 +266,6 @@ async function attachOneDriveFolder(
   }
 }
 
-/** Cancels the public sharing link of a case folder, so its OneDrive link opens in Finder again. */
-export async function removeCaseShareLink(
-  caseId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const ownerId = await requirePartnerId();
-  const caseDoc = await casesRepo.get(ownerId, caseId);
-  if (!caseDoc?.oneDriveFolderName) return { ok: false, error: "לתיק הזה אין תיקיית OneDrive" };
-
-  try {
-    const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
-    await removeFolderShareLinks(accessToken, caseDoc.oneDriveFolderName);
-    await casesRepo.update(ownerId, caseId, { oneDriveShareUrl: "" });
-    refresh();
-    return { ok: true };
-  } catch (err) {
-    console.error("Failed to remove the share link:", err);
-    // The stored marker is only a note of a link created earlier (and was found not to exist
-    // in OneDrive's "קישורים" tab in a real case), so it is cleared either way.
-    await casesRepo.update(ownerId, caseId, { oneDriveShareUrl: "" }).catch(() => undefined);
-    refresh();
-    return { ok: false, error: err instanceof Error ? err.message : "ביטול הקישור נכשל" };
-  }
-}
-
 /** Retries a case's missing OneDrive folder. */
 export async function retryCaseOneDriveFolder(
   caseId: string,
@@ -315,12 +289,14 @@ async function createCaseInternal(
   if (!clientName) return undefined;
 
   const address = text(form, "address");
-  const caseNumber = await nextNumber(ownerId, "TA", new Date());
   // Fee data is partners-only, so an employee can't set it even by posting
   // the field directly.
   const isPartner = (await currentRole()) === "partner";
-
-  const type = await resolveCaseType(ownerId, form, isPartner);
+  const [caseNumber, type, handlers] = await Promise.all([
+    nextNumber(ownerId, "TA", new Date()),
+    resolveCaseType(ownerId, form, isPartner),
+    assignees(ownerId, form),
+  ]);
   const isBettermentLevy = type === BETTERMENT_LEVY;
   const stage = oneOf(form, "bettermentStage", bettermentStageNames, bettermentStageNames[0]);
 
@@ -342,7 +318,7 @@ async function createCaseInternal(
       ? bettermentProgress(stage)
       : Math.min(100, Math.max(0, number(form, "progress"))),
     ...(isBettermentLevy ? { bettermentStage: stage } : {}),
-    ...(await assignees(ownerId, form)),
+    ...handlers,
     ...propertyDetails(form),
     ...(isPartner ? {} : { feeNote: "" }),
     ...(options?.linkedQuoteId ? { fromQuoteId: options.linkedQuoteId } : {}),
@@ -451,8 +427,9 @@ export async function disconnectCalendarSync() {
   refresh();
 }
 
+// The office's OneDrive is shared by everyone, so only a partner may unlink it.
 export async function disconnectOneDrive() {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   await disconnectOneDriveConnection(ownerId);
   refresh();
 }
@@ -637,17 +614,8 @@ export async function getQuoteWordUri(
     if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
 
     // The letter lives in the quotes folder.
-    const candidates: string[][] = [[QUOTES_FOLDER]];
-    let lastError: unknown;
-    for (const folders of candidates) {
-      try {
-        const item = await getAppFolderFile(accessToken, folders, quoteWordFileName(quote));
-        return { ok: true, uri: wordDesktopUri(item) };
-      } catch (err) {
-        lastError = err;
-      }
-    }
-    throw lastError;
+    const item = await getAppFolderFile(accessToken, [QUOTES_FOLDER], quoteWordFileName(quote));
+    return { ok: true, uri: wordDesktopUri(item) };
   } catch (err) {
     console.error("Failed to build the Word link:", err);
     // The reason carries only an HTTP status / Graph error code, never a token.
@@ -664,11 +632,16 @@ export async function getQuoteWordUri(
 export async function approveQuote(quoteId: string) {
   const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
-  if (!quote) throw new Error("ההצעה לא נמצאה");
-  if (!quote.signedFile) {
-    throw new Error("יש להעלות את ההצעה החתומה לפני האישור");
-  }
-  if (quote.linkedCaseId) return;
+  // The button appears only once the signed quote is uploaded; nothing to do otherwise
+  // (a thrown error would only show production's masked error page).
+  if (!quote?.signedFile || quote.linkedCaseId) return;
+
+  // Claimed atomically, so a double click (or two partners at once) opens one case, not two.
+  const claimed = await (await getDb()).collection("quotes").findOneAndUpdate(
+    { _id: quote._id, ownerId, status: "ממתין לאישור", linkedCaseId: { $exists: false } },
+    { $set: { status: "אושרה", updatedAt: new Date() } },
+  );
+  if (!claimed) return;
 
   const caseForm = new FormData();
   caseForm.set("clientName", quote.clientName);
@@ -683,7 +656,16 @@ export async function approveQuote(quoteId: string) {
   caseForm.set("clientPhone", quote.clientPhone ?? "");
   caseForm.set("notes", quote.notes ?? "");
   caseForm.set("feeNote", quote.feeNote ?? "");
-  const caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
+  let caseId: string | undefined;
+  try {
+    caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
+  } catch (err) {
+    // The case could not be opened: the quote goes back to waiting, so it can be approved again.
+    console.error("Failed to open the case of an approved quote:", err);
+    await quotesRepo.update(ownerId, quoteId, { status: "ממתין לאישור" });
+    refresh();
+    return;
+  }
 
   // The first fee stage becomes due as soon as the case is opened, so the case
   // starts with its fee structure (editable on the fee page).
@@ -699,10 +681,7 @@ export async function approveQuote(quoteId: string) {
     });
   }
 
-  await quotesRepo.update(ownerId, quoteId, {
-    status: "אושרה",
-    ...(caseId ? { linkedCaseId: caseId } : {}),
-  });
+  if (caseId) await quotesRepo.update(ownerId, quoteId, { linkedCaseId: caseId });
   refresh();
 }
 

@@ -70,6 +70,9 @@ export function getAuthorizeUrl(ownerId: string, origin: string): string {
     redirect_uri: callbackUrl(origin),
     response_mode: "query",
     scope: SCOPE,
+    // Always ask which Microsoft account to use, so a browser signed in to another
+    // account (an employee's, a personal one) can't connect the wrong OneDrive by accident.
+    prompt: "select_account",
     state: createState(ownerId),
   });
   return `${AUTHORIZE_ENDPOINT}?${params.toString()}`;
@@ -133,14 +136,6 @@ export async function refreshTokens(refreshToken: string): Promise<TokenSet> {
   );
 }
 
-/** A cheap call to prove a connection is actually alive, not just stored. */
-export async function pingAppFolder(accessToken: string): Promise<boolean> {
-  const res = await fetch(`${GRAPH_ROOT}/me/drive/special/approot`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return res.ok;
-}
-
 // OneDrive forbids these characters in a folder name (and a trailing dot/space).
 export function sanitizeFolderName(name: string): string {
   const cleaned = name
@@ -196,7 +191,7 @@ const KEEP_FILE = ".keep";
  */
 export const CASES_ROOT_FOLDER = "מסמכי תיקים";
 
-async function ensureFolders(accessToken: string, ...folders: string[]) {
+async function createFolders(accessToken: string, ...folders: string[]) {
   const res = await fetch(
     `${GRAPH_ROOT}${appPath(...folders, KEEP_FILE)}:/content?@microsoft.graph.conflictBehavior=replace`,
     {
@@ -206,8 +201,10 @@ async function ensureFolders(accessToken: string, ...folders: string[]) {
     },
   );
   if (!res.ok) throw await graphError(res, `יצירת התיקייה "${folders.join("/")}" ב-OneDrive נכשלה`);
+}
 
-  // Only the folders were wanted; the marker file is cosmetic to remove.
+// Only the folders were wanted; the marker file is cosmetic to remove.
+async function removeMarker(accessToken: string, ...folders: string[]) {
   await fetch(`${GRAPH_ROOT}${appPath(...folders, KEEP_FILE)}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -215,52 +212,21 @@ async function ensureFolders(accessToken: string, ...folders: string[]) {
 }
 
 /**
- * Creates a case's folder directly under the app's special OneDrive folder,
- * with a starter "מסמכים" sub-folder. Safe to run again: existing folders are
- * reused. Callers decide what to do with an error - during case creation it is
+ * Creates a case's folder inside "מסמכי תיקים" (creating that too if needed).
+ * Safe to run again: existing folders are reused. Callers decide what to do with an error - during case creation it is
  * only logged.
  */
 export async function createCaseFolder(accessToken: string, name: string): Promise<OneDriveFolder> {
   const folderName = sanitizeFolderName(name);
-  await ensureFolders(accessToken, CASES_ROOT_FOLDER, folderName);
+  await createFolders(accessToken, CASES_ROOT_FOLDER, folderName);
 
-  const folder = await getAppFolder(accessToken, CASES_ROOT_FOLDER, folderName);
+  // The folder's details are read while the marker file is being removed.
+  const [folder] = await Promise.all([
+    getAppFolder(accessToken, CASES_ROOT_FOLDER, folderName),
+    removeMarker(accessToken, CASES_ROOT_FOLDER, folderName),
+  ]);
   if (!folder) throw new Error(`התיקייה "${folderName}" נוצרה אך לא נמצאה ב-OneDrive`);
   return folder;
-}
-
-/**
- * Deletes the public sharing links of a case folder (an earlier version created one per case).
- * A shared folder is no longer opened in Finder from its web link, so the links are removed;
- * employees reach the documents through the shared "מסמכי תיקים" folder instead.
- * Returns how many links were removed.
- */
-export async function removeFolderShareLinks(accessToken: string, caseFolderName: string): Promise<number> {
-  const headers = { Authorization: `Bearer ${accessToken}` };
-
-  // Sharing calls are rejected (400) when the folder is addressed by path, but accepted by the
-  // folder's id (the path lookup that gives the id is the one that works for this token).
-  const folder = await getAppFolder(accessToken, CASES_ROOT_FOLDER, caseFolderName);
-  if (!folder) return 0;
-  const base = `${GRAPH_ROOT}/me/drive/items/${encodeURIComponent(folder.id)}/permissions`;
-
-  const list = await fetch(base, { headers });
-  if (!list.ok) throw await graphError(list, "קריאת השיתופים של התיקייה נכשלה");
-  const permissions: { id: string; link?: unknown }[] = (await list.json()).value ?? [];
-  const links = permissions.filter((p) => p.link);
-
-  for (const link of links) {
-    const res = await fetch(`${base}/${encodeURIComponent(link.id)}`, { method: "DELETE", headers });
-    // OneDrive refuses (400) to delete a sharing link for this token (verified live), so the link has
-    // to be removed by hand in OneDrive; pressing the button again afterwards finds none left.
-    if (!res.ok && res.status !== 404) {
-      const error = await graphError(res, "OneDrive לא מאפשר לבטל את הקישור מכאן");
-      throw new Error(
-        `${error.message}. כדי לבטל: ב-OneDrive קליק ימני על התיקייה ← "ניהול גישה" ← הסר את הקישור, ואז לחץ כאן שוב על "בטל קישור".`,
-      );
-    }
-  }
-  return links.length;
 }
 
 /**

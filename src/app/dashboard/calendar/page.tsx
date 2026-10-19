@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import {
   createEvent,
@@ -25,14 +24,8 @@ import {
 } from "@/lib/calendar";
 import { getFeedToken } from "@/lib/db/calendar-feed";
 import { currentRole, loadDashboardData, loadEventTypes, requireOwnerId } from "@/lib/db/queries";
+import { requestOrigin } from "@/lib/origin";
 import { eventTypes as builtInEventTypes } from "@/lib/types";
-
-async function getOrigin() {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
-}
 
 export default async function CalendarPage({
   searchParams,
@@ -74,11 +67,14 @@ export default async function CalendarPage({
     timeZone: "UTC",
   }).format(new Date(`${addDays(weekStart, 2)}T00:00:00Z`));
 
-  const eventTypes = await loadEventTypes(ownerId);
-  const isPartner = (await currentRole()) === "partner";
+  const [eventTypes, role, feedToken, origin] = await Promise.all([
+    loadEventTypes(ownerId),
+    currentRole(),
+    getFeedToken(ownerId),
+    requestOrigin(),
+  ]);
+  const isPartner = role === "partner";
   const customEventTypes = eventTypes.filter((t) => !builtInEventTypes.includes(t));
-  const feedToken = await getFeedToken(ownerId);
-  const origin = await getOrigin();
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
 
   const form = (

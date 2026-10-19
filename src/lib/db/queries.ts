@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -12,6 +13,7 @@ import {
   toEvent,
   toQuote,
 } from "@/lib/db/entities";
+import { findAccountById, organizationIdOf } from "@/lib/users";
 import { caseTypes, eventTypes, type CalendarEvent, type Case, type CaseType, type Client, type Quote } from "@/lib/types";
 
 export type DashboardData = {
@@ -25,6 +27,70 @@ export type LoadResult =
   | { ok: true; data: DashboardData }
   | { ok: false; reason: string };
 
+export type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "partner" | "employee";
+  organizationId: string;
+};
+
+// A sign-in token stays valid for weeks, so the account behind it is looked up again:
+// a removed employee loses access, and a changed role applies, within a minute. The
+// result is remembered per server instance so this costs at most one query a minute.
+const ACCOUNT_CHECK_MS = 60_000;
+const checkedAccounts = new Map<string, { at: number; account: Awaited<ReturnType<typeof findAccountById>> }>();
+
+async function storedAccount(id: string) {
+  const memo = checkedAccounts.get(id);
+  if (memo && Date.now() - memo.at < ACCOUNT_CHECK_MS) return memo.account;
+  const account = await findAccountById(id);
+  checkedAccounts.set(id, { at: Date.now(), account });
+  return account;
+}
+
+/**
+ * The signed-in account, or null. Read once per request (layout and page share it).
+ * If the database can't be reached the token's own details are used, so a database
+ * hiccup shows the "no connection" screen rather than logging everybody out.
+ */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.id) return null;
+
+  const fromToken: SessionUser = {
+    id: user.id,
+    name: user.name || user.email || "משתמש",
+    email: user.email ?? "",
+    role: user.role ?? "partner",
+    organizationId: user.organizationId,
+  };
+
+  let account;
+  try {
+    account = await storedAccount(user.id);
+  } catch (err) {
+    console.error("Failed to verify the signed-in account:", err);
+    return fromToken;
+  }
+  if (!account) return null;
+
+  return {
+    ...fromToken,
+    name: account.name || fromToken.name,
+    // Accounts created before roles existed were always the organization's partner.
+    role: account.role ?? "partner",
+    organizationId: organizationIdOf(account),
+  };
+});
+
+async function requireUser(): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
 /**
  * Returns the organization id every record is scoped by - shared by a
  * partner and the employees they created, so everyone in the same office
@@ -32,9 +98,7 @@ export type LoadResult =
  * currentUserId() for that.
  */
 export async function requireOwnerId(): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  return session.user.organizationId;
+  return (await requireUser()).organizationId;
 }
 
 export class NotAPartnerError extends Error {
@@ -46,28 +110,22 @@ export class NotAPartnerError extends Error {
 
 /** Like requireOwnerId, but also rejects employee accounts (fee data is partners-only). */
 export async function requirePartnerId(): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  if (session.user.role !== "partner") throw new NotAPartnerError();
-  return session.user.organizationId;
+  const user = await requireUser();
+  if (user.role !== "partner") throw new NotAPartnerError();
+  return user.organizationId;
 }
 
 /** The individual logged-in account, as opposed to the shared organization id. */
 export async function currentUserId(): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  return session.user.id;
+  return (await requireUser()).id;
 }
 
 export async function currentUserName(): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  return session.user.name || session.user.email || "משתמש";
+  return (await requireUser()).name;
 }
 
 export async function currentRole(): Promise<"partner" | "employee"> {
-  const session = await auth();
-  return session?.user?.role ?? "partner";
+  return (await requireUser()).role;
 }
 
 /**
@@ -115,9 +173,9 @@ function describeFailure(err: unknown) {
  * an exception. requireOwnerId stays outside the try because its redirect works
  * by throwing, and swallowing that would break the auth guard.
  */
-export async function loadDashboardData(): Promise<LoadResult> {
-  const ownerId = await requireOwnerId();
-  const isPartner = (await currentRole()) === "partner";
+export const loadDashboardData = cache(async (): Promise<LoadResult> => {
+  const { organizationId: ownerId, role } = await requireUser();
+  const isPartner = role === "partner";
 
   try {
     const [clients, cases, events, quotes] = await Promise.all([
@@ -145,4 +203,4 @@ export async function loadDashboardData(): Promise<LoadResult> {
     console.error("Failed to load dashboard data:", err);
     return { ok: false, reason: describeFailure(err) };
   }
-}
+});
