@@ -9,8 +9,8 @@ export type UserDoc = {
   name: string;
   email: string;
   passwordHash: string;
-  // The account that registers is always the tenant's partner; employee
-  // accounts (restricted from fee data) are created by a partner later.
+  // The founding account is the organization's partner; other partners and employee
+  // accounts (employees restricted from fee data) are added by a partner (registration is closed).
   role: Role;
   // The tenant every record is scoped by. A partner is the root of their own
   // organization (organizationId === their own _id); an employee's points at
@@ -52,41 +52,6 @@ export async function findAccountById(id: string) {
       { _id: new ObjectId(id) },
       { projection: { name: 1, email: 1, role: 1, organizationId: 1 } },
     );
-}
-
-export async function createUser({
-  name,
-  email,
-  password,
-}: {
-  name: string;
-  email: string;
-  password: string;
-}) {
-  const db = await getDb();
-  const users = db.collection<UserDoc>("users");
-  const normalizedEmail = normalizeEmail(email);
-
-  const existing = await users.findOne({ email: normalizedEmail });
-  if (existing) {
-    throw new DuplicateEmailError();
-  }
-
-  // Generated up front so it can double as the organization's own id - a
-  // partner is always the root of their own tenant.
-  const _id = new ObjectId();
-  const passwordHash = await bcrypt.hash(password, 10);
-  const doc: UserDoc = {
-    _id,
-    name,
-    email: normalizedEmail,
-    passwordHash,
-    role: "partner",
-    organizationId: _id.toString(),
-    createdAt: new Date(),
-  };
-  await users.insertOne(doc);
-  return doc;
 }
 
 /**

@@ -2,7 +2,6 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { signIn } from "next-auth/react";
 import AuthCard from "@/components/AuthCard";
 
@@ -106,12 +105,7 @@ function LoginForm() {
         </button>
       </form>
 
-      <p className="mt-5 text-center text-sm text-muted">
-        אין לך חשבון?{" "}
-        <Link href="/register" className="font-semibold text-brand-blue hover:underline">
-          הרשמה
-        </Link>
-      </p>
+      <p className="mt-5 text-center text-sm text-muted">אין לך חשבון? שותף במשרד פותח אותו בלשונית &quot;צוות&quot;.</p>
     </AuthCard>
   );
 }

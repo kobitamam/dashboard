@@ -128,7 +128,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   "סה"כ חויב" all derive from the cases' fees. Employees' cases are loaded with `fee: null` / `feeNote: ""` (`loadDashboardData`).
 - Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`); when the
   organization has no cases (or no quotes) left, that counter starts over at 100, so test data can be deleted and numbering begins clean.
-- A partner can add more partners and employees from the team tab (`createMember`); an added partner has the same full access and
+- Public registration is CLOSED (the `/register` page and `/api/register` were removed at the user's request): accounts are
+  created only by a partner from the team tab. A partner can add more partners and employees there (`createMember`); an added partner has the same full access and
   `organizationId` = the founder's id. The founder (whose id is the organization id) and one's own account can't be removed.
 - Each case has one handling partner and one handling employee (`partnerId`/`employeeId`, user ids from the organization). The cases
   tab's "התיקים שלי" is only a filter (`?scope=mine`); everyone can always switch to all cases.

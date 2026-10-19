@@ -20,12 +20,6 @@ export default function LandingPage() {
           >
             כניסה
           </Link>
-          <Link
-            href="/register"
-            className="rounded-xl bg-brand-blue px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-          >
-            הרשמה
-          </Link>
         </div>
       </header>
 
