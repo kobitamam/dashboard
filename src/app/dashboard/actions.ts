@@ -232,8 +232,9 @@ export async function createClient(form: FormData) {
   refresh();
 }
 
+// Deleting a client or a case is partners-only (employees don't see the button).
 export async function deleteClient(id: string) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   await clientsRepo.remove(ownerId, id);
   refresh();
 }
@@ -373,7 +374,7 @@ export async function updateCaseProgress(id: string, form: FormData) {
 }
 
 export async function deleteCase(id: string) {
-  const ownerId = await requireOwnerId();
+  const ownerId = await requirePartnerId();
   await casesRepo.remove(ownerId, id);
   refresh();
 }

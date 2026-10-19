@@ -116,7 +116,7 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 
 - Every record is scoped by `ownerId` = the **organization** id (`requireOwnerId()` returns `session.user.organizationId`).
   A partner is the root of their organization; employees share the partner's data. `requirePartnerId()` gates actions.
-- **Partners only**: quotes (הצעות מחיר), billing (גבייה), fee tracking (שכר טרחה), team management, demo data.
+- **Partners only**: quotes (הצעות מחיר), billing (גבייה), fee tracking (שכר טרחה), team management, demo data, deleting a case or a client.
   Employees must never receive that data (it is not even loaded for their session).
 - A quote's fee (`src/lib/fees.ts`, `FeeStructureFields`): amount before VAT and including VAT (`src/lib/vat.ts`, 18%), a number of
   payments and the percent of the fee of each; `feePercent` (share of the reduction) exists only for a betterment levy. Approving a

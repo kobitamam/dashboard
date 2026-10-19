@@ -127,10 +127,12 @@ export default async function ClientsPage({
                     )}
                     <td className="px-4 py-3 text-muted">{c.phone || "—"}</td>
                     <td className="px-4 py-3">
-                      <DeleteButton
-                        action={deleteClient.bind(null, c.id)}
-                        confirmText={`למחוק את ${c.name}?`}
-                      />
+                      {isPartner && (
+                        <DeleteButton
+                          action={deleteClient.bind(null, c.id)}
+                          confirmText={`למחוק את ${c.name}?`}
+                        />
+                      )}
                     </td>
                   </tr>
                 ))}

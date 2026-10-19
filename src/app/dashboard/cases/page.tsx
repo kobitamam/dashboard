@@ -352,12 +352,14 @@ export default async function CasesPage({
                       </button>
                     </form>
 
-                    <div className="mt-2 flex justify-end">
-                      <DeleteButton
-                        action={deleteCase.bind(null, c.id)}
-                        confirmText={`למחוק את תיק ${c.caseNumber}?`}
-                      />
-                    </div>
+                    {isPartner && (
+                      <div className="mt-2 flex justify-end">
+                        <DeleteButton
+                          action={deleteCase.bind(null, c.id)}
+                          confirmText={`למחוק את תיק ${c.caseNumber}?`}
+                        />
+                      </div>
+                    )}
                   </Card>
                 ))}
 
