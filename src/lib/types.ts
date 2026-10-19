@@ -16,7 +16,7 @@ export type QuoteStatus = "ממתין לאישור" | "אושרה" | "נדחתה
 export type Role = "partner" | "employee";
 
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
-export const caseStatuses: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "נשלחה טיוטה", "הושלם"];
+export const caseStatuses: CaseStatus[] = ["דחוף", "ממתין למידע", "בתהליך", "נשלחה טיוטה", "הושלם"];
 
 // Every case but a betterment levy: the status sets the progress, and a new case starts
 // waiting for information (a betterment-levy case's progress follows its stage instead).

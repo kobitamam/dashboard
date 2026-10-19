@@ -29,10 +29,7 @@ import {
   bettermentStageNames,
   caseStatuses,
   caseTypes as builtInCaseTypes,
-  type CaseStatus,
 } from "@/lib/types";
-
-const columns: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "נשלחה טיוטה", "הושלם"];
 
 export default async function CasesPage({
   searchParams,
@@ -175,7 +172,7 @@ export default async function CasesPage({
         )
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {columns.map((status) => {
+          {caseStatuses.map((status) => {
             const items = cases.filter((c) => c.status === status);
             return (
               <div key={status} className="flex flex-col gap-3">
