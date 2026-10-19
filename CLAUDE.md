@@ -63,8 +63,8 @@ sends `prompt=select_account`. The OAuth callback returns through `/api/onedrive
    number to the clipboard and the script falls back to it. The script shown in the OneDrive tab (`MAC_SCRIPT`) accepts only
    `[A-Za-z0-9-]` (a page could otherwise run the shortcut with `../..` and open any path) and searches
    `~/Library/CloudStorage/*/{Apps/TA-Estate Dashboard,TA-Estate Dashboard,}/מסמכי תיקים`, so the same text works for the owner, for
-   Raz (shared `TA-Estate Dashboard`) and for an employee on a Mac; it avoids globs that zsh would abort on. The user's own Mac still
-   runs the older one-line script (works, but without the check). The Windows route is not tested yet.
+   Raz (shared `TA-Estate Dashboard`) and for an employee on a Mac; it avoids globs that zsh would abort on. The user's own Mac runs
+   this script (verified live). Raz's Mac and the Windows route are not set up/tested yet (the user will do it later).
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
@@ -118,7 +118,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 - Every record is scoped by `ownerId` = the **organization** id (`requireOwnerId()` returns `session.user.organizationId`).
   A partner is the root of their organization; employees share the partner's data. `requirePartnerId()` gates actions.
 - Approving a quote ("אישור ופתיחת תיק", `approveQuote`) opens its case right away; the signed quote may be uploaded before or after
-  (at the user's request). The approval is claimed atomically, so a double click opens one case.
+  (at the user's request; verified live: one case with its OneDrive folder). The approval is claimed atomically, so a double click
+  opens one case.
 - **Partners only**: quotes (הצעות מחיר), billing (גבייה), fee tracking (שכר טרחה), team management, demo data, deleting a case or a client.
   Employees must never receive that data (it is not even loaded for their session).
 - A quote's fee (`src/lib/fees.ts`, `FeeStructureFields`): amount before VAT and including VAT (`src/lib/vat.ts`, 18%), a number of
