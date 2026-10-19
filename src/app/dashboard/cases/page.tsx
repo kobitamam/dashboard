@@ -274,7 +274,14 @@ export default async function CasesPage({
                       <ProgressBar value={c.progress} />
                     </div>
 
-                    <form action={updateCaseProgress.bind(null, c.id)} className="mt-3 space-y-1.5">
+                    <form
+                      // Keyed by the saved values: after "עדכון" React resets the form to the values it was first
+                      // drawn with, and a select keeps those (it ignores a changed defaultValue), so the card would
+                      // show the old partner/employee. A new key redraws the form with what was just saved.
+                      key={[c.status, c.bettermentStage, c.partnerId, c.employeeId, c.dueDate, c.arbitratorRequestDate, c.counterAppraisalDate].join("|")}
+                      action={updateCaseProgress.bind(null, c.id)}
+                      className="mt-3 space-y-1.5"
+                    >
                       <div className="flex items-center gap-1.5">
                         <select
                           name="status"
