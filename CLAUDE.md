@@ -142,3 +142,6 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   follows its status (דחוף 0, ממתין למידע 10, בתהליך 50, נשלחה טיוטה 90, הושלם 100). It is derived again in `toCase`, so older
   stored values don't matter. A new non-betterment case starts as "ממתין למידע" (`NEW_CASE_STATUS`; the new-case form has no
   status or progress field). An urgent (דחוף) case card has a light red background (any type).
+- The case card has no "עדכון" button: its status/stage/partner/employee/date fields save on change (`AutoSaveForm`, native
+  "change" event -> `requestSubmit`). The form is keyed by the saved values, because React resets a form after its action and a
+  `<select>` ignores a changed `defaultValue` (verified in react-dom), which made a new assignee look unsaved.

@@ -6,6 +6,7 @@ import {
   retryCaseOneDriveFolder,
   updateCaseProgress,
 } from "@/app/dashboard/actions";
+import AutoSaveForm from "@/components/AutoSaveForm";
 import CaseFolderRetry from "@/components/CaseFolderRetry";
 import OpenFolderLink from "@/components/OpenFolderLink";
 import TypeManager from "@/components/TypeManager";
@@ -274,10 +275,10 @@ export default async function CasesPage({
                       <ProgressBar value={c.progress} />
                     </div>
 
-                    <form
-                      // Keyed by the saved values: after "עדכון" React resets the form to the values it was first
-                      // drawn with, and a select keeps those (it ignores a changed defaultValue), so the card would
-                      // show the old partner/employee. A new key redraws the form with what was just saved.
+                    {/* Saved as soon as a field changes. Keyed by the saved values: after saving, React resets the
+                        form to the values it was first drawn with, and a select keeps those (it ignores a changed
+                        defaultValue), so the card would show the old partner/employee. A new key redraws it. */}
+                    <AutoSaveForm
                       key={[c.status, c.bettermentStage, c.partnerId, c.employeeId, c.dueDate, c.arbitratorRequestDate, c.counterAppraisalDate].join("|")}
                       action={updateCaseProgress.bind(null, c.id)}
                       className="mt-3 space-y-1.5"
@@ -340,13 +341,7 @@ export default async function CasesPage({
                           />
                         </>
                       )}
-                      <button
-                        type="submit"
-                        className="w-full rounded-lg bg-brand-cyan-light px-2 py-1.5 text-[11px] font-bold text-brand-blue hover:opacity-80"
-                      >
-                        עדכון
-                      </button>
-                    </form>
+                    </AutoSaveForm>
 
                     {isPartner && (
                       <div className="mt-2 flex justify-end">
