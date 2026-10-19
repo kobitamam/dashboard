@@ -16,6 +16,7 @@ import type {
   Quote,
   QuoteStatus,
 } from "@/lib/types";
+import { caseProgress } from "@/lib/types";
 
 export type AttachmentDoc = {
   key: string;
@@ -216,7 +217,8 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     bettermentStage: doc.bettermentStage ?? null,
     partnerId: doc.partnerId || null,
     employeeId: doc.employeeId || null,
-    progress: doc.progress,
+    // Derived, so cases saved before progress followed the status show it too.
+    progress: caseProgress(doc),
     oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
     oneDriveFolderName: doc.oneDriveFolderName ?? null,
     fromQuoteId: doc.fromQuoteId ?? null,

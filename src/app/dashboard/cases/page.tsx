@@ -86,13 +86,11 @@ export default async function CasesPage({
       <MemberSelect label="עובד מטפל" name="employeeId" role="employee" members={members} value={null} />
       <Field label="מייל" name="clientEmail" type="email" />
       <Field label="טלפון" name="clientPhone" />
-      <SelectField label="סטטוס" name="status" options={caseStatuses} defaultValue="בתהליך" />
       <Field label="תאריך יעד" name="dueDate" type="date" />
       <Field label="היטל השבחה - מועד א׳: יום אחרון לבקשת מינוי שמאי מכריע" name="arbitratorRequestDate" type="date" />
       <Field label="היטל השבחה - מועד ב׳: יום אחרון להגשת שומה נגדית" name="counterAppraisalDate" type="date" />
-      <Field label="התקדמות (%)" name="progress" type="number" min={0} max={100} defaultValue={0} />
       <SelectField
-        label="היטל השבחה - שלב (במקום אחוז ההתקדמות)"
+        label="היטל השבחה - שלב"
         name="bettermentStage"
         options={bettermentStageNames}
         defaultValue={bettermentStageNames[0]}
@@ -187,7 +185,11 @@ export default async function CasesPage({
                 </div>
 
                 {items.map((c) => (
-                  <Card key={c.id} className="p-4">
+                  <Card
+                    key={c.id}
+                    // An urgent case stands out with a light red background.
+                    className={`p-4 ${c.status === "דחוף" ? "border-danger/40 bg-danger/10!" : ""}`}
+                  >
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-muted">{c.caseNumber}</span>
                       <span className="text-xs text-muted">{formatDate(c.dueDate)}</span>
@@ -288,7 +290,7 @@ export default async function CasesPage({
                             </option>
                           ))}
                         </select>
-                        {c.type === BETTERMENT_LEVY ? (
+                        {c.type === BETTERMENT_LEVY && (
                           <select
                             name="bettermentStage"
                             defaultValue={c.bettermentStage ?? bettermentStageNames[0]}
@@ -301,16 +303,6 @@ export default async function CasesPage({
                               </option>
                             ))}
                           </select>
-                        ) : (
-                          <input
-                            name="progress"
-                            type="number"
-                            min={0}
-                            max={100}
-                            defaultValue={c.progress}
-                            aria-label="אחוז התקדמות"
-                            className="w-14 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
-                          />
                         )}
                       </div>
                       <MemberSelect

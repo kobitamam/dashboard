@@ -41,13 +41,14 @@ import { listOrganizationMembers } from "@/lib/users";
 import { createUploadToken } from "@/lib/upload-token";
 import {
   BETTERMENT_LEVY,
-  bettermentProgress,
   bettermentStageNames,
+  caseProgress,
   COMPLETED_STAGE,
   caseStatuses,
   caseTypes,
   clientStatuses,
   eventTypes,
+  NEW_CASE_STATUS,
   NEW_CASE_TYPE,
   type CaseStatus,
   type ClientStatus,
@@ -301,12 +302,15 @@ async function createCaseInternal(
   const isBettermentLevy = type === BETTERMENT_LEVY;
   const stage = oneOf(form, "bettermentStage", bettermentStageNames, bettermentStageNames[0]);
 
+  // A new case waits for information (its progress follows the status); a betterment-levy
+  // case is tracked by its stage instead.
+  const status: CaseStatus = isBettermentLevy ? "בתהליך" : NEW_CASE_STATUS;
   const caseId = await casesRepo.insert(ownerId, {
     caseNumber,
     clientName,
     address,
     type,
-    status: oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך"),
+    status,
     dueDate: date(form, "dueDate"),
     ...(isBettermentLevy
       ? {
@@ -314,10 +318,7 @@ async function createCaseInternal(
           counterAppraisalDate: date(form, "counterAppraisalDate"),
         }
       : {}),
-    // A betterment-levy case's progress follows its stage.
-    progress: isBettermentLevy
-      ? bettermentProgress(stage)
-      : Math.min(100, Math.max(0, number(form, "progress"))),
+    progress: caseProgress({ type, status, bettermentStage: stage }),
     ...(isBettermentLevy ? { bettermentStage: stage } : {}),
     ...handlers,
     ...propertyDetails(form),
@@ -361,14 +362,15 @@ export async function updateCaseProgress(id: string, form: FormData) {
     status,
     ...(await assignees(ownerId, form)),
     dueDate: date(form, "dueDate"),
+    // The stage (betterment levy) or the status (every other case) sets the progress.
+    progress: caseProgress({ type: caseDoc.type, status, bettermentStage: stage }),
     ...(isBettermentLevy
       ? {
           bettermentStage: stage,
-          progress: bettermentProgress(stage),
           arbitratorRequestDate: date(form, "arbitratorRequestDate"),
           counterAppraisalDate: date(form, "counterAppraisalDate"),
         }
-      : { progress: Math.min(100, Math.max(0, number(form, "progress"))) }),
+      : {}),
   });
   refresh();
 }

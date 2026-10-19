@@ -138,3 +138,7 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 - Each case has one handling partner and one handling employee (`partnerId`/`employeeId`, user ids from the organization). The cases
   tab's "התיקים שלי" is only a filter (`?scope=mine`); everyone can always switch to all cases.
 - Types of appraisal are a built-in list plus partner-added ones (`loadCaseTypes`).
+- Progress (`caseProgress`, `src/lib/types.ts`) is never typed by hand: a betterment-levy case follows its stage; every other case
+  follows its status (דחוף 0, ממתין למידע 10, בתהליך 50, נשלחה טיוטה 90, הושלם 100). It is derived again in `toCase`, so older
+  stored values don't matter. A new non-betterment case starts as "ממתין למידע" (`NEW_CASE_STATUS`; the new-case form has no
+  status or progress field). An urgent (דחוף) case card has a light red background (any type).

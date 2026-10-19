@@ -17,6 +17,21 @@ export type Role = "partner" | "employee";
 
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
 export const caseStatuses: CaseStatus[] = ["דחוף", "בתהליך", "ממתין למידע", "נשלחה טיוטה", "הושלם"];
+
+// Every case but a betterment levy: the status sets the progress, and a new case starts
+// waiting for information (a betterment-levy case's progress follows its stage instead).
+export const NEW_CASE_STATUS: CaseStatus = "ממתין למידע";
+const statusProgress: Record<CaseStatus, number> = {
+  דחוף: 0,
+  "ממתין למידע": 10,
+  בתהליך: 50,
+  "נשלחה טיוטה": 90,
+  הושלם: 100,
+};
+
+export function caseProgress(c: { type: string; status: CaseStatus; bettermentStage?: string | null }) {
+  return c.type === BETTERMENT_LEVY ? bettermentProgress(c.bettermentStage ?? "") : (statusProgress[c.status] ?? 0);
+}
 export const MEDIATOR_REQUEST_DEADLINE = "יום אחרון לבקשת מינוי שמאי מכריע";
 export const eventTypes: EventType[] = [
   "ביקור בנכס",
