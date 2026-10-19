@@ -633,9 +633,8 @@ export async function getQuoteWordUri(
 export async function approveQuote(quoteId: string) {
   const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
-  // The button appears only once the signed quote is uploaded; nothing to do otherwise
-  // (a thrown error would only show production's masked error page).
-  if (!quote?.signedFile || quote.linkedCaseId) return;
+  // A case can be opened as soon as the quote exists; the signed quote may be uploaded later.
+  if (!quote || quote.linkedCaseId) return;
 
   // Claimed atomically, so a double click (or two partners at once) opens one case, not two.
   const claimed = await (await getDb()).collection("quotes").findOneAndUpdate(

@@ -104,7 +104,7 @@ export default async function QuotesPage({
       {quotes.length === 0 ? (
         <EmptyState
           title="אין הצעות מחיר"
-          hint="צור הצעת מחיר חדשה. לאחר אישור הלקוח והעלאת ההצעה החתומה, המערכת תפתח עבורה תיק (עבודה) אוטומטית."
+          hint="צור הצעת מחיר חדשה. בלחיצה על ״אישור ופתיחת תיק״ המערכת פותחת עבורה תיק (עבודה) אוטומטית. את ההצעה החתומה אפשר להעלות לפני האישור או אחריו."
           action={form}
         />
       ) : (
@@ -192,19 +192,13 @@ export default async function QuotesPage({
                       <div className="flex gap-1.5">
                         {status === "ממתין לאישור" && (
                           <>
-                            {q.signedFile ? (
-                              <ConfirmButton
-                                action={approveQuote.bind(null, q.id)}
-                                confirmText="לאשר את ההצעה ולפתוח תיק?"
-                                tone="success"
-                              >
-                                אישור ופתיחת תיק
-                              </ConfirmButton>
-                            ) : (
-                              <span className="self-center text-[11px] text-muted">
-                                לאישור - העלה את ההצעה החתומה
-                              </span>
-                            )}
+                            <ConfirmButton
+                              action={approveQuote.bind(null, q.id)}
+                              confirmText="לאשר את ההצעה ולפתוח תיק?"
+                              tone="success"
+                            >
+                              אישור ופתיחת תיק
+                            </ConfirmButton>
                             <ConfirmButton
                               action={rejectQuote.bind(null, q.id)}
                               confirmText="לסמן את ההצעה כנדחתה?"

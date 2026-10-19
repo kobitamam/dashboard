@@ -94,8 +94,9 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 
 ## Speed and sessions
 
-- Functions run in Vercel `iad1` (Washington). `/api/health` reports `server_region`, `database_region` (Atlas `hello` tags) and
-  `database_round_trip_ms`; if Atlas is far from `iad1`, set the function region next to it (`vercel.json` `"regions"`).
+- Atlas runs in AWS `EU_CENTRAL_1` (Frankfurt), so functions run in Vercel `fra1` (`vercel.json` `"regions"`); they ran in `iad1`
+  before, at 95ms per database round trip. `/api/health` reports `server_region`, `database_region` (Atlas `hello` tags) and
+  `database_round_trip_ms` (an additional `hello` after the ping, so it measures a warm connection).
 - `getSessionUser()` and `loadDashboardData()` are wrapped in React `cache()`, so the layout and the page share one load per request.
   Pages run their remaining reads with `Promise.all`. `getDb()` creates the `ownerId`/`email`/`organizationId` indexes once per instance.
 - `getSessionUser()` re-reads the account from `users` (memoized 60s per instance): a removed member is signed out and a role change
@@ -116,6 +117,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 
 - Every record is scoped by `ownerId` = the **organization** id (`requireOwnerId()` returns `session.user.organizationId`).
   A partner is the root of their organization; employees share the partner's data. `requirePartnerId()` gates actions.
+- Approving a quote ("אישור ופתיחת תיק", `approveQuote`) opens its case right away; the signed quote may be uploaded before or after
+  (at the user's request). The approval is claimed atomically, so a double click opens one case.
 - **Partners only**: quotes (הצעות מחיר), billing (גבייה), fee tracking (שכר טרחה), team management, demo data, deleting a case or a client.
   Employees must never receive that data (it is not even loaded for their session).
 - A quote's fee (`src/lib/fees.ts`, `FeeStructureFields`): amount before VAT and including VAT (`src/lib/vat.ts`, 18%), a number of
