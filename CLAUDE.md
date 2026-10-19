@@ -95,7 +95,7 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 ## Speed and sessions
 
 - Atlas runs in AWS `EU_CENTRAL_1` (Frankfurt), so functions run in Vercel `fra1` (`vercel.json` `"regions"`); they ran in `iad1`
-  before, at 95ms per database round trip. `/api/health` reports `server_region`, `database_region` (Atlas `hello` tags) and
+  before, at 95ms per database round trip; in `fra1` it is 2ms (verified live, the user reports the app is much faster). `/api/health` reports `server_region`, `database_region` (Atlas `hello` tags) and
   `database_round_trip_ms` (an additional `hello` after the ping, so it measures a warm connection).
 - `getSessionUser()` and `loadDashboardData()` are wrapped in React `cache()`, so the layout and the page share one load per request.
   Pages run their remaining reads with `Promise.all`. `getDb()` creates the `ownerId`/`email`/`organizationId` indexes once per instance.
