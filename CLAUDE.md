@@ -109,7 +109,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   registrar Domain The Net - its nameservers are `ns1/ns2.dns-parking.com` = Hostinger: CNAME `app` ->
   `548b15b6b9f47460.vercel-dns-017.com`). The old `dashboard-orpin-two-91.vercel.app` still works. Code builds absolute URLs from
   the request's origin (`requestOrigin()`), so the OneDrive callback on the new address needs
-  `https://app.ta-estate.co.il/api/onedrive/callback` as a redirect URI in the Azure app registration. The Vercel MCP gets 403 on
+  `https://app.ta-estate.co.il/api/onedrive/callback` as a redirect URI in the Azure app registration "TA-Estate Dashboard"
+  (added by the user; the old address's URI is kept). The Vercel MCP gets 403 on
   project/domain endpoints for this team, so domain changes are done by the user in the dashboard.
 
 ## Working here
