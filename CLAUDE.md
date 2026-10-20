@@ -103,6 +103,15 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   applies within a minute, although the JWT itself lives for weeks. If the DB is unreachable it falls back to the token.
 - `src/app/dashboard/loading.tsx` gives instant feedback on navigation. The Rubik font is self-hosted via `next/font`.
 
+## Domain
+
+- The app's address is `https://app.ta-estate.co.il` (added in Vercel > Domains by the user; DNS is at Hostinger, NOT at the
+  registrar Domain The Net - its nameservers are `ns1/ns2.dns-parking.com` = Hostinger: CNAME `app` ->
+  `548b15b6b9f47460.vercel-dns-017.com`). The old `dashboard-orpin-two-91.vercel.app` still works. Code builds absolute URLs from
+  the request's origin (`requestOrigin()`), so the OneDrive callback on the new address needs
+  `https://app.ta-estate.co.il/api/onedrive/callback` as a redirect URI in the Azure app registration. The Vercel MCP gets 403 on
+  project/domain endpoints for this team, so domain changes are done by the user in the dashboard.
+
 ## Working here
 
 - Develop on branch `claude/focused-goodall-iexeqf`. **Merge/push to `main` only when the user asks** (they test on
