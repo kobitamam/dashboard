@@ -139,6 +139,16 @@ export type PropertyDetails = {
   feeNote: string; // שכ"ט - a free-text summary, e.g. "10,000 ₪ + מע״מ"
 };
 
+// A transaction statement (חשבון עסקה) produced for a case: the Word file saved in the partners-only
+// "חשבונות עסקה" folder in OneDrive. Numbered per case: TA-100-26 - חשבון עסקה 1, 2, ...
+export type TransactionStatement = {
+  number: number;
+  date: string; // yyyy-mm-dd
+  amount: number; // VAT included
+  fileName: string;
+  webUrl: string;
+};
+
 export type Case = PropertyDetails & {
   id: string;
   caseNumber: string;
@@ -159,6 +169,7 @@ export type Case = PropertyDetails & {
   oneDriveFolderName: string | null; // folder name under the app folder, used to address its files
   fromQuoteId: string | null;
   fee: Fee | null;
+  transactionStatements: TransactionStatement[]; // partners only (empty for an employee)
 };
 
 export type Quote = PropertyDetails & {

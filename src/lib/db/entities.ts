@@ -80,6 +80,7 @@ export type CaseDoc = Owned &
     oneDriveShareUrl?: string; // a note left by an earlier version (public share links), no longer used
     fromQuoteId?: string;
     fee?: FeeDoc | null;
+    transactionStatements?: { number: number; date: Date; amount: number; fileName: string; webUrl: string }[];
   };
 
 export type QuoteDoc = Owned &
@@ -223,6 +224,13 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     oneDriveFolderName: doc.oneDriveFolderName ?? null,
     fromQuoteId: doc.fromQuoteId ?? null,
     fee: toFee(doc.fee),
+    transactionStatements: (doc.transactionStatements ?? []).map((t) => ({
+      number: t.number,
+      date: day(t.date) ?? "",
+      amount: t.amount,
+      fileName: t.fileName,
+      webUrl: t.webUrl,
+    })),
   };
 }
 

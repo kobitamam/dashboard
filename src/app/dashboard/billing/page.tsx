@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { createTransactionStatement, getTransactionStatementWordUri } from "@/app/dashboard/actions";
 import { DataUnavailable } from "@/components/form";
+import TransactionStatements from "@/components/TransactionStatements";
 import { Card, PageHeader, StatCard } from "@/components/ui";
-import { currentRole, loadDashboardData } from "@/lib/db/queries";
+import { isConnected } from "@/lib/db/onedrive-connection";
+import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
+import { isOneDriveConfigured } from "@/lib/onedrive";
 import { feeStageOf, feeTotals } from "@/lib/fees";
 import { formatMoney } from "@/lib/format";
 
@@ -15,7 +19,11 @@ export default async function BillingPage() {
     );
   }
 
-  const result = await loadDashboardData();
+  const ownerId = await requireOwnerId();
+  const [result, oneDriveConnected] = await Promise.all([
+    loadDashboardData(),
+    isOneDriveConfigured() ? isConnected(ownerId) : false,
+  ]);
   if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { cases } = result.data;
 
@@ -126,13 +134,21 @@ export default async function BillingPage() {
                         <span className="font-semibold text-success">שולם</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-left">
+                    <td className="space-y-1.5 px-4 py-3 text-left">
                       <Link
                         href={`/dashboard/fees/${r.case.id}`}
-                        className="text-xs font-semibold text-brand-blue hover:underline"
+                        className="block text-xs font-semibold text-brand-blue hover:underline"
                       >
                         💰 שכר טרחה ותשלומים
                       </Link>
+                      <TransactionStatements
+                        caseId={r.case.id}
+                        statements={r.case.transactionStatements}
+                        canCreate={r.balanceDue > 0}
+                        oneDriveConnected={oneDriveConnected}
+                        create={createTransactionStatement}
+                        getWordUri={getTransactionStatementWordUri}
+                      />
                     </td>
                   </tr>
                 ))}

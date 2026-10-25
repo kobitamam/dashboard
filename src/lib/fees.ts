@@ -154,3 +154,28 @@ export function quoteFeeText(quote: {
   }
   return parts.join(", ");
 }
+
+/**
+ * What a transaction statement (חשבון עסקה) bills: each payment that is collectable at the case's
+ * stage and not yet covered by the money received (a partly paid one for its remainder), VAT included.
+ */
+export function collectableLines(fee: Fee | null, stage: CaseStage): { label: string; amount: number }[] {
+  if (!fee) return [];
+  const { rows, paid } = feeTotals(fee, stage);
+  const installments = rows.filter((r) => r.label !== "אחוז מההפחתה").length;
+  const lines: { label: string; amount: number }[] = [];
+  let before = 0;
+  for (const [index, row] of rows.entries()) {
+    const remaining = Math.round(Math.min(row.amount, Math.max(0, before + row.amount - paid)) * 100) / 100;
+    before += row.amount;
+    if (!row.due || remaining <= 0) continue;
+    const label =
+      row.label === "אחוז מההפחתה"
+        ? `${fee.successPercentage}% מההפחתה`
+        : installments > 1
+          ? `תשלום ${index + 1} מתוך ${installments}`
+          : "שכר טרחה";
+    lines.push({ label: remaining < row.amount ? `${label} (יתרה)` : label, amount: remaining });
+  }
+  return lines;
+}

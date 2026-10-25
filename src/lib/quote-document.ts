@@ -13,7 +13,7 @@ export type QuoteDocumentValues = {
   fee: string;
 };
 
-function escapeXml(value: string) {
+export function escapeXml(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

@@ -9,6 +9,7 @@ import {
   eventsRepo,
   eventTypesRepo,
   quotesRepo,
+  toCase,
 } from "@/lib/db/entities";
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
 import {
@@ -33,8 +34,16 @@ import { buildQuoteDocx, formatQuoteDates } from "@/lib/quote-document";
 import { deleteOutlookTwin, syncCalendar } from "@/lib/calendar-sync";
 import { removeCalendarConnection } from "@/lib/db/calendar-connection";
 import { rotateFeedToken } from "@/lib/db/calendar-feed";
-import { buildInstallments, feeFromQuote, normalizePercents, quoteFeeText } from "@/lib/fees";
-import { addVat, removeVat } from "@/lib/vat";
+import {
+  buildInstallments,
+  collectableLines,
+  feeFromQuote,
+  feeStageOf,
+  normalizePercents,
+  quoteFeeText,
+} from "@/lib/fees";
+import { buildTransactionDocx } from "@/lib/transaction-document";
+import { addVat, removeVat, VAT_RATE } from "@/lib/vat";
 import { ensureClients } from "@/lib/db/clients-sync";
 import { getDb } from "@/lib/mongodb";
 import { listOrganizationMembers } from "@/lib/users";
@@ -685,6 +694,92 @@ export async function approveQuote(quoteId: string) {
 
   if (caseId) await quotesRepo.update(ownerId, quoteId, { linkedCaseId: caseId });
   refresh();
+}
+
+// Transaction statements are partners-only and live outside "מסמכי תיקים" (which employees get),
+// next to "הצעות מחיר", so only the partners - who get the whole app folder - can reach them.
+const TRANSACTIONS_FOLDER = "חשבונות עסקה";
+
+/**
+ * Produces a transaction statement (חשבון עסקה) for what can be collected on a case now: a Word file
+ * on the office's letterhead, saved as "<case number> - חשבון עסקה <n>.docx" in the partners-only
+ * folder, and remembered on the case. Errors come back as data (production masks thrown ones).
+ */
+export async function createTransactionStatement(
+  caseId: string,
+): Promise<{ ok: true; url: string; number: number } | { ok: false; error: string }> {
+  const ownerId = await requirePartnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
+
+  const view = toCase(caseDoc);
+  const lines = collectableLines(view.fee, feeStageOf(view));
+  const total = Math.round(lines.reduce((sum, l) => sum + l.amount, 0) * 100) / 100;
+  if (total <= 0) return { ok: false, error: "אין כרגע סכום לגבייה בתיק הזה" };
+
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
+
+    const number = (caseDoc.transactionStatements ?? []).reduce((max, t) => Math.max(max, t.number), 0) + 1;
+    const caseFolder = sanitizeFolderName(caseDoc.caseNumber);
+    const today = todayInIsrael();
+    const totalExVat = removeVat(total);
+    const bytes = await buildTransactionDocx({
+      ...formatQuoteDates(today),
+      reference: `${caseDoc.caseNumber} · חשבון עסקה ${number}`,
+      number: `${caseFolder}/${number}`,
+      caseNumber: caseDoc.caseNumber,
+      client: caseDoc.clientName,
+      subject: caseDoc.description || caseDoc.type,
+      parcel: formatParcel(caseDoc.block ?? "", caseDoc.parcel ?? "", caseDoc.subParcel ?? ""),
+      address: [caseDoc.address, caseDoc.city].filter(Boolean).join(", "),
+      lines,
+      totalExVat,
+      vat: Math.round((total - totalExVat) * 100) / 100,
+      total,
+      vatPercent: Math.round(VAT_RATE * 100),
+    });
+
+    const fileName = `${caseFolder} - חשבון עסקה ${number}.docx`;
+    const file = await uploadSmallFile(accessToken, { appFolderName: TRANSACTIONS_FOLDER }, fileName, bytes, DOCX_TYPE);
+    await casesRepo.push(ownerId, caseId, "transactionStatements", {
+      number,
+      date: today,
+      amount: total,
+      fileName: file.name,
+      webUrl: file.webUrl,
+    });
+    refresh();
+    return { ok: true, url: file.webUrl, number };
+  } catch (err) {
+    console.error("Failed to create a transaction statement:", err);
+    // The reason carries only an HTTP status / Graph error code, never a token.
+    const reason = err instanceof Error ? err.message : "";
+    return { ok: false, error: `הפקת חשבון העסקה נכשלה${reason ? ` (${reason.slice(0, 160)})` : ""}` };
+  }
+}
+
+/** The link that opens a case's transaction statement in the Word desktop app. */
+export async function getTransactionStatementWordUri(
+  caseId: string,
+  number: number,
+): Promise<{ ok: true; uri: string } | { ok: false; error: string }> {
+  const ownerId = await requirePartnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  const statement = caseDoc?.transactionStatements?.find((t) => t.number === number);
+  if (!statement) return { ok: false, error: "הקובץ לא נמצא" };
+
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
+    const item = await getAppFolderFile(accessToken, [TRANSACTIONS_FOLDER], statement.fileName);
+    return { ok: true, uri: wordDesktopUri(item) };
+  } catch (err) {
+    console.error("Failed to build the Word link of a transaction statement:", err);
+    const reason = err instanceof Error ? err.message : "";
+    return { ok: false, error: `לא הצלחנו לפתוח ב-Word${reason ? ` (${reason})` : ""}` };
+  }
 }
 
 // Fee data (שכר טרחה) is partners-only - requirePartnerId rejects an

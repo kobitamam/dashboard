@@ -40,6 +40,12 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
    then shows "צור תיקייה" (`retryCaseOneDriveFolder`).
 8. Removing a file in the UI only removes it from the list; the file stays in OneDrive.
 9. The quote letter is generated from the office's own Word template (`src/lib/quote-template.ts`, base64,
+9b. **Transaction statements (חשבון עסקה)** are produced from the billing tab (`createTransactionStatement`, partners only): the quote
+   template's letterhead/addressee/bank/signature blocks are kept and its body replaced (`src/lib/transaction-document.ts`, blocks
+   located by their text). It bills what is collectable now (`collectableLines`: due, not yet paid installments, VAT included), is
+   saved as `<TA-100-26> - חשבון עסקה <n>.docx` in `חשבונות עסקה/` at the app-folder root (beside `הצעות מחיר`, outside
+   `מסמכי תיקים`, so employees can't reach it) and recorded on the case (`transactionStatements`, stripped for employees).
+   Rendered with LibreOffice before shipping; not yet tested against the live OneDrive.
    `{{PLACEHOLDERS}}`; fill logic in `src/lib/quote-document.ts`) and saved to `הצעות מחיר/` and STAYS there.
 
 The OneDrive connection lives in its own tab, `/dashboard/onedrive`. It is ONE connection per organization (the office's own OneDrive),
