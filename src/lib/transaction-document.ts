@@ -8,7 +8,7 @@ import { VAT_RATE } from "./vat";
 type LetterValues = {
   hebrewDate: string;
   date: string;
-  reference: string; // e.g. "TA-100/26 · חשבון עסקה 1"
+  reference: string; // the case number, e.g. "TA-100/26"
   client: string;
   subject: string;
   parcel: string;

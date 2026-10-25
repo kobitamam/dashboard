@@ -731,7 +731,7 @@ async function saveStatement(
     const today = todayInIsrael();
     const bytes = await build({
       ...formatQuoteDates(today),
-      reference: `${caseDoc.caseNumber} · חשבון עסקה ${number}`,
+      reference: caseDoc.caseNumber,
       number: `${caseFolder}/${number}`,
       client: caseDoc.clientName,
       subject: caseDoc.description || caseDoc.type,
