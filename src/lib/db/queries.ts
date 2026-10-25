@@ -193,7 +193,7 @@ export const loadDashboardData = cache(async (): Promise<LoadResult> => {
         // Fee data is partners-only: an employee's cases arrive without it.
         cases: cases.map((c) => {
           const view = toCase(c);
-          return isPartner ? view : { ...view, fee: null, feeNote: "", transactionStatements: [] };
+          return isPartner ? view : { ...view, fee: null, feeNote: "", transactionStatements: [], bettermentStatementInput: null };
         }),
         events: events.map(toEvent),
         quotes: quotes.map(toQuote),

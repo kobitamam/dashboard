@@ -1,3 +1,5 @@
+import type { BettermentStatementInput } from "@/lib/betterment-statement";
+
 export type ClientStatus = "פעיל" | "ליד חדש" | "סגור";
 export type CaseStatus = "בתהליך" | "ממתין למידע" | "נשלחה טיוטה" | "דחוף" | "הושלם";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
@@ -170,6 +172,7 @@ export type Case = PropertyDetails & {
   fromQuoteId: string | null;
   fee: Fee | null;
   transactionStatements: TransactionStatement[]; // partners only (empty for an employee)
+  bettermentStatementInput: BettermentStatementInput | null; // the last closing statement's figures (partners only)
 };
 
 export type Quote = PropertyDetails & {

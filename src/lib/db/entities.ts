@@ -17,6 +17,7 @@ import type {
   QuoteStatus,
 } from "@/lib/types";
 import { caseProgress } from "@/lib/types";
+import type { BettermentStatementInput } from "@/lib/betterment-statement";
 
 export type AttachmentDoc = {
   key: string;
@@ -81,6 +82,7 @@ export type CaseDoc = Owned &
     fromQuoteId?: string;
     fee?: FeeDoc | null;
     transactionStatements?: { number: number; date: Date; amount: number; fileName: string; webUrl: string }[];
+    bettermentStatementInput?: BettermentStatementInput; // what was typed for the last closing statement
   };
 
 export type QuoteDoc = Owned &
@@ -231,6 +233,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
       fileName: t.fileName,
       webUrl: t.webUrl,
     })),
+    bettermentStatementInput: doc.bettermentStatementInput ?? null,
   };
 }
 

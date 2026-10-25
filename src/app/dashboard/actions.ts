@@ -42,7 +42,8 @@ import {
   normalizePercents,
   quoteFeeText,
 } from "@/lib/fees";
-import { buildTransactionDocx } from "@/lib/transaction-document";
+import { bettermentTotals, type BettermentStatementInput } from "@/lib/betterment-statement";
+import { buildBettermentDocx, buildTransactionDocx } from "@/lib/transaction-document";
 import { addVat, removeVat, VAT_RATE } from "@/lib/vat";
 import { ensureClients } from "@/lib/db/clients-sync";
 import { getDb } from "@/lib/mongodb";
@@ -700,14 +701,70 @@ export async function approveQuote(quoteId: string) {
 // next to "הצעות מחיר", so only the partners - who get the whole app folder - can reach them.
 const TRANSACTIONS_FOLDER = "חשבונות עסקה";
 
+type StatementResult = { ok: true; url: string; number: number } | { ok: false; error: string };
+type CaseRecord = NonNullable<Awaited<ReturnType<typeof casesRepo.get>>>;
+
+// Builds a case's next statement (numbered per case), saves it as "<case number> - חשבון עסקה <n>.docx"
+// in the partners-only folder and remembers it on the case. Errors come back as data.
+async function saveStatement(
+  ownerId: string,
+  caseDoc: CaseRecord,
+  total: number,
+  build: (letter: {
+    hebrewDate: string;
+    date: string;
+    reference: string;
+    number: string;
+    client: string;
+    subject: string;
+    parcel: string;
+    address: string;
+  }) => Promise<Uint8Array>,
+  extra: Record<string, unknown> = {},
+): Promise<StatementResult> {
+  try {
+    const accessToken = await getValidAccessToken(ownerId);
+    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
+
+    const number = (caseDoc.transactionStatements ?? []).reduce((max, t) => Math.max(max, t.number), 0) + 1;
+    const caseFolder = sanitizeFolderName(caseDoc.caseNumber);
+    const today = todayInIsrael();
+    const bytes = await build({
+      ...formatQuoteDates(today),
+      reference: `${caseDoc.caseNumber} · חשבון עסקה ${number}`,
+      number: `${caseFolder}/${number}`,
+      client: caseDoc.clientName,
+      subject: caseDoc.description || caseDoc.type,
+      parcel: formatParcel(caseDoc.block ?? "", caseDoc.parcel ?? "", caseDoc.subParcel ?? ""),
+      address: [caseDoc.address, caseDoc.city].filter(Boolean).join(", "),
+    });
+
+    const fileName = `${caseFolder} - חשבון עסקה ${number}.docx`;
+    const file = await uploadSmallFile(accessToken, { appFolderName: TRANSACTIONS_FOLDER }, fileName, bytes, DOCX_TYPE);
+    const id = String(caseDoc._id);
+    await casesRepo.push(ownerId, id, "transactionStatements", {
+      number,
+      date: today,
+      amount: total,
+      fileName: file.name,
+      webUrl: file.webUrl,
+    });
+    if (Object.keys(extra).length) await casesRepo.update(ownerId, id, extra);
+    refresh();
+    return { ok: true, url: file.webUrl, number };
+  } catch (err) {
+    console.error("Failed to create a transaction statement:", err);
+    // The reason carries only an HTTP status / Graph error code, never a token.
+    const reason = err instanceof Error ? err.message : "";
+    return { ok: false, error: `הפקת חשבון העסקה נכשלה${reason ? ` (${reason.slice(0, 160)})` : ""}` };
+  }
+}
+
 /**
  * Produces a transaction statement (חשבון עסקה) for what can be collected on a case now: a Word file
- * on the office's letterhead, saved as "<case number> - חשבון עסקה <n>.docx" in the partners-only
- * folder, and remembered on the case. Errors come back as data (production masks thrown ones).
+ * on the office's letterhead listing the due, unpaid payments.
  */
-export async function createTransactionStatement(
-  caseId: string,
-): Promise<{ ok: true; url: string; number: number } | { ok: false; error: string }> {
+export async function createTransactionStatement(caseId: string): Promise<StatementResult> {
   const ownerId = await requirePartnerId();
   const caseDoc = await casesRepo.get(ownerId, caseId);
   if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
@@ -717,47 +774,70 @@ export async function createTransactionStatement(
   const total = Math.round(lines.reduce((sum, l) => sum + l.amount, 0) * 100) / 100;
   if (total <= 0) return { ok: false, error: "אין כרגע סכום לגבייה בתיק הזה" };
 
-  try {
-    const accessToken = await getValidAccessToken(ownerId);
-    if (!accessToken) return { ok: false, error: "OneDrive לא מחובר - חבר אותו בלשונית OneDrive" };
-
-    const number = (caseDoc.transactionStatements ?? []).reduce((max, t) => Math.max(max, t.number), 0) + 1;
-    const caseFolder = sanitizeFolderName(caseDoc.caseNumber);
-    const today = todayInIsrael();
-    const totalExVat = removeVat(total);
-    const bytes = await buildTransactionDocx({
-      ...formatQuoteDates(today),
-      reference: `${caseDoc.caseNumber} · חשבון עסקה ${number}`,
-      number: `${caseFolder}/${number}`,
+  const totalExVat = removeVat(total);
+  return saveStatement(ownerId, caseDoc, total, (letter) =>
+    buildTransactionDocx({
+      ...letter,
       caseNumber: caseDoc.caseNumber,
-      client: caseDoc.clientName,
-      subject: caseDoc.description || caseDoc.type,
-      parcel: formatParcel(caseDoc.block ?? "", caseDoc.parcel ?? "", caseDoc.subParcel ?? ""),
-      address: [caseDoc.address, caseDoc.city].filter(Boolean).join(", "),
       lines,
       totalExVat,
       vat: Math.round((total - totalExVat) * 100) / 100,
       total,
       vatPercent: Math.round(VAT_RATE * 100),
-    });
+    }),
+  );
+}
 
-    const fileName = `${caseFolder} - חשבון עסקה ${number}.docx`;
-    const file = await uploadSmallFile(accessToken, { appFolderName: TRANSACTIONS_FOLDER }, fileName, bytes, DOCX_TYPE);
-    await casesRepo.push(ownerId, caseId, "transactionStatements", {
-      number,
-      date: today,
-      amount: total,
-      fileName: file.name,
-      webUrl: file.webUrl,
-    });
-    refresh();
-    return { ok: true, url: file.webUrl, number };
-  } catch (err) {
-    console.error("Failed to create a transaction statement:", err);
-    // The reason carries only an HTTP status / Graph error code, never a token.
-    const reason = err instanceof Error ? err.message : "";
-    return { ok: false, error: `הפקת חשבון העסקה נכשלה${reason ? ` (${reason.slice(0, 160)})` : ""}` };
-  }
+const limited = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+const amount = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 1e10) : 0;
+};
+
+/**
+ * The closing statement of a betterment-levy case (גמר חשבון), laid out like the office's own example:
+ * per unit, the committee's levy against the arbitrator's, the saving, the fee on it less the payment
+ * made when the case was opened, plus VAT. What was typed is kept on the case for the next time.
+ */
+export async function createBettermentStatement(
+  caseId: string,
+  raw: BettermentStatementInput,
+): Promise<StatementResult> {
+  const ownerId = await requirePartnerId();
+  const caseDoc = await casesRepo.get(ownerId, caseId);
+  if (!caseDoc) return { ok: false, error: "התיק לא נמצא" };
+  if (caseDoc.type !== BETTERMENT_LEVY) return { ok: false, error: "גמר חשבון מיועד לתיקי היטל השבחה" };
+
+  const input: BettermentStatementInput = {
+    attention: limited(raw?.attention, 120),
+    feePercent: Math.min(100, amount(raw?.feePercent)),
+    offset: amount(raw?.offset),
+    units: (Array.isArray(raw?.units) ? raw.units : [])
+      .slice(0, 40)
+      .map((u) => ({
+        address: limited(u?.address, 80),
+        unit: limited(u?.unit, 30),
+        plan: limited(u?.plan, 60),
+        date: limited(u?.date, 30),
+        committee: amount(u?.committee),
+        committeeIndexed: amount(u?.committeeIndexed),
+        arbitrator: amount(u?.arbitrator),
+        arbitratorIndexed: amount(u?.arbitratorIndexed),
+      }))
+      .filter((u) => u.committee || u.committeeIndexed || u.arbitrator || u.arbitratorIndexed),
+  };
+  if (input.units.length === 0) return { ok: false, error: "יש למלא לפחות יחידה אחת עם סכומי ההיטל" };
+  if (input.feePercent <= 0) return { ok: false, error: "יש למלא את אחוז שכר הטרחה מהחיסכון" };
+  const { total } = bettermentTotals(input);
+  if (total <= 0) return { ok: false, error: "הסכום לתשלום יוצא אפס או פחות - בדוק את הסכומים ואת הקיזוז" };
+
+  return saveStatement(
+    ownerId,
+    caseDoc,
+    total,
+    (letter) => buildBettermentDocx({ ...letter, subject: "גמר חשבון" }, input),
+    { bettermentStatementInput: input },
+  );
 }
 
 /** The link that opens a case's transaction statement in the Word desktop app. */

@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { createTransactionStatement, getTransactionStatementWordUri } from "@/app/dashboard/actions";
+import {
+  createBettermentStatement,
+  createTransactionStatement,
+  getTransactionStatementWordUri,
+} from "@/app/dashboard/actions";
 import { DataUnavailable } from "@/components/form";
 import TransactionStatements from "@/components/TransactionStatements";
 import { Card, PageHeader, StatCard } from "@/components/ui";
@@ -7,7 +11,23 @@ import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { isOneDriveConfigured } from "@/lib/onedrive";
 import { feeStageOf, feeTotals } from "@/lib/fees";
+import { emptyUnit } from "@/lib/betterment-statement";
 import { formatMoney } from "@/lib/format";
+import { BETTERMENT_LEVY, type Case } from "@/lib/types";
+import { removeVat } from "@/lib/vat";
+
+// The closing statement's form starts from the last one typed for the case, or else from the case
+// itself: its fee's share of the reduction, and its first payment (before VAT) as the offset.
+function bettermentDefaults(c: Case) {
+  if (c.bettermentStatementInput) return c.bettermentStatementInput;
+  const first = c.fee?.installments?.[0]?.amount ?? c.fee?.baseAmount ?? 0;
+  return {
+    attention: "",
+    units: [emptyUnit(c.address)],
+    feePercent: c.fee?.successPercentage ?? 0,
+    offset: first > 0 ? Math.round(removeVat(first)) : 0,
+  };
+}
 
 export default async function BillingPage() {
   if ((await currentRole()) !== "partner") {
@@ -37,7 +57,8 @@ export default async function BillingPage() {
     ...feeTotals(c.fee, feeStageOf(c)),
   }));
   const billing = rows
-    .filter((r) => r.balanceDue > 0 || !r.case.fee || r.completed)
+    // A betterment-levy case stays listed, for its closing statement (גמר חשבון).
+    .filter((r) => r.balanceDue > 0 || !r.case.fee || r.completed || r.case.type === BETTERMENT_LEVY)
     .sort(
       (a, b) =>
         Number(b.balanceDue > 0) - Number(a.balanceDue > 0) || b.balanceDue - a.balanceDue,
@@ -148,6 +169,11 @@ export default async function BillingPage() {
                         oneDriveConnected={oneDriveConnected}
                         create={createTransactionStatement}
                         getWordUri={getTransactionStatementWordUri}
+                        betterment={
+                          r.case.type === BETTERMENT_LEVY
+                            ? { defaults: bettermentDefaults(r.case), create: createBettermentStatement }
+                            : undefined
+                        }
                       />
                     </td>
                   </tr>

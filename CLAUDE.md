@@ -40,13 +40,18 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
    then shows "צור תיקייה" (`retryCaseOneDriveFolder`).
 8. Removing a file in the UI only removes it from the list; the file stays in OneDrive.
 9. The quote letter is generated from the office's own Word template (`src/lib/quote-template.ts`, base64,
+   `{{PLACEHOLDERS}}`; fill logic in `src/lib/quote-document.ts`) and saved to `הצעות מחיר/` and STAYS there.
 9b. **Transaction statements (חשבון עסקה)** are produced from the billing tab (`createTransactionStatement`, partners only): the quote
    template's letterhead/addressee/bank/signature blocks are kept and its body replaced (`src/lib/transaction-document.ts`, blocks
    located by their text). It bills what is collectable now (`collectableLines`: due, not yet paid installments, VAT included), is
    saved as `<TA-100-26> - חשבון עסקה <n>.docx` in `חשבונות עסקה/` at the app-folder root (beside `הצעות מחיר`, outside
    `מסמכי תיקים`, so employees can't reach it) and recorded on the case (`transactionStatements`, stripped for employees).
    Rendered with LibreOffice before shipping; not yet tested against the live OneDrive.
-   `{{PLACEHOLDERS}}`; fill logic in `src/lib/quote-document.ts`) and saved to `הצעות מחיר/` and STAYS there.
+   A betterment-levy case also gets a closing statement (גמר חשבון, `createBettermentStatement`, modelled on the office's own
+   example): a form takes per-unit committee/arbitrator levies (plain and indexed), the fee percent of the saving and the offset of
+   the opening payment (before VAT); `bettermentTotals` computes saving, fee, net and total incl. VAT; the Word file has a real
+   table (`bettermentTable`), and the typed figures are kept on the case (`bettermentStatementInput`) to prefill the next time.
+   The example's table was an EMF picture of an Excel range; its numbers matched our formula (fee = round(saving*%) - offset, *1.18).
 
 The OneDrive connection lives in its own tab, `/dashboard/onedrive`. It is ONE connection per organization (the office's own OneDrive),
 so only a partner can connect/disconnect it (page, `disconnectOneDrive`, and the callback all check the role): an employee connecting
