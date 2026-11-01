@@ -508,27 +508,20 @@ function parseFeeForm(form: FormData) {
   return { exVat, inclVat, percents, feePercent };
 }
 
-export async function createQuote(form: FormData) {
-  const ownerId = await requirePartnerId();
-  const clientName = text(form, "clientName");
-  if (!clientName) return;
-
-  const quoteNumber = await nextNumber(ownerId, "Q", new Date());
+// What the quote form posts (new or edited): its details and fee, with the fee's text for the letter.
+async function quoteFields(ownerId: string, form: FormData) {
   const type = await resolveCaseType(ownerId, form, true);
   const fee = parseFeeForm(form);
   // The reduction percent exists only for a betterment levy.
   const feePercent = type === BETTERMENT_LEVY ? fee.feePercent : null;
-  await quotesRepo.insert(ownerId, {
-    quoteNumber,
-    date: todayInIsrael(),
-    clientName,
+  return {
+    clientName: text(form, "clientName"),
     address: text(form, "address"),
     type,
     amount: fee.exVat,
     amountInclVat: fee.inclVat,
     installments: fee.percents,
     feePercent,
-    status: "ממתין לאישור",
     ...propertyDetails(form),
     // The fee as written in the letter and shown on the case card, built from the fields above.
     feeNote: quoteFeeText({
@@ -538,6 +531,37 @@ export async function createQuote(form: FormData) {
       feePercent,
       isBettermentLevy: type === BETTERMENT_LEVY,
     }),
+  };
+}
+
+export async function createQuote(form: FormData) {
+  const ownerId = await requirePartnerId();
+  if (!text(form, "clientName")) return;
+
+  const quoteNumber = await nextNumber(ownerId, "Q", new Date());
+  await quotesRepo.insert(ownerId, {
+    quoteNumber,
+    date: todayInIsrael(),
+    status: "ממתין לאישור",
+    ...(await quoteFields(ownerId, form)),
+  });
+  refresh();
+}
+
+/**
+ * Saves changes to a quote's details and fee (its number, date and status stay). A letter already made
+ * in Word is not rewritten by itself - the card offers to make it again from the new details. A case
+ * already opened from the quote keeps its own details (its fee is edited on the fee page).
+ */
+export async function updateQuote(id: string, form: FormData) {
+  const ownerId = await requirePartnerId();
+  if (!text(form, "clientName")) return;
+  const quote = await quotesRepo.get(ownerId, id);
+  if (!quote) return;
+
+  await quotesRepo.update(ownerId, id, {
+    ...(await quoteFields(ownerId, form)),
+    ...(quote.wordFileUrl ? { wordFileStale: true } : {}),
   });
   refresh();
 }
@@ -567,11 +591,13 @@ function quoteWordFileName(quote: { quoteNumber: string; clientName: string }) {
  */
 export async function createQuoteDocument(
   quoteId: string,
+  remake = false,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const ownerId = await requirePartnerId();
   const quote = await quotesRepo.get(ownerId, quoteId);
   if (!quote) return { ok: false, error: "ההצעה לא נמצאה" };
-  if (quote.wordFileUrl) return { ok: true, url: quote.wordFileUrl };
+  // An existing letter is only made again on request (after the quote was edited).
+  if (quote.wordFileUrl && !remake) return { ok: true, url: quote.wordFileUrl };
 
   try {
     const accessToken = await getValidAccessToken(ownerId);
@@ -605,7 +631,7 @@ export async function createQuoteDocument(
       bytes,
       DOCX_TYPE,
     );
-    await quotesRepo.update(ownerId, quoteId, { wordFileUrl: file.webUrl, wordFileId: file.id });
+    await quotesRepo.update(ownerId, quoteId, { wordFileUrl: file.webUrl, wordFileId: file.id, wordFileStale: false });
     refresh();
     return { ok: true, url: file.webUrl };
   } catch (err) {

@@ -187,6 +187,7 @@ export type Quote = PropertyDetails & {
   installments: number[]; // the share of the fee (percent) of each payment, adding up to 100
   feePercent: number | null; // אחוז שכ״ט מהפחתה (betterment levy only)
   wordFileUrl: string | null; // the quote letter (Word) created in OneDrive
+  wordFileStale: boolean; // the quote was edited after its letter was made
   status: QuoteStatus;
   signedFile: Attachment | null;
   linkedCaseId: string | null;

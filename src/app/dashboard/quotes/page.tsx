@@ -7,12 +7,14 @@ import {
   getQuoteWordUri,
   rejectQuote,
   startOneDriveUpload,
+  updateQuote,
 } from "@/app/dashboard/actions";
 import {
   AddRecord,
   ConfirmButton,
   DataUnavailable,
   DeleteButton,
+  EditRecord,
   EmptyState,
   Field,
 } from "@/components/form";
@@ -24,7 +26,7 @@ import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { formatDate, formatMoney, formatParcel } from "@/lib/format";
 import { isOneDriveConfigured } from "@/lib/onedrive";
-import { BETTERMENT_LEVY, type QuoteStatus } from "@/lib/types";
+import { BETTERMENT_LEVY, type Quote, type QuoteStatus } from "@/lib/types";
 
 const columns: QuoteStatus[] = ["ממתין לאישור", "אושרה", "נדחתה"];
 
@@ -53,19 +55,40 @@ export default async function QuotesPage({
   const allQuotes = result.data.quotes;
   const quotes = typeFilter ? allQuotes.filter((q) => q.type === typeFilter) : allQuotes;
 
+  // The quote's fields - empty for a new quote, filled with a saved one's details for editing.
+  const quoteFields = (q?: Quote) => (
+    <>
+      <Field label="גוש" name="block" defaultValue={q?.block} />
+      <Field label="חלקה" name="parcel" defaultValue={q?.parcel} />
+      <Field label="תת חלקה" name="subParcel" defaultValue={q?.subParcel} />
+      <Field label="רחוב" name="address" placeholder="רחוב ומספר" defaultValue={q?.address} />
+      <Field label="עיר" name="city" defaultValue={q?.city} />
+      <Field
+        label="תיאור"
+        name="description"
+        placeholder="שווי שוק, הפקעה, פינוי בינוי..."
+        defaultValue={q?.description}
+      />
+      <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" defaultValue={q?.clientName} />
+      <Field label="מייל" name="clientEmail" type="email" defaultValue={q?.clientEmail} />
+      <Field label="טלפון" name="clientPhone" defaultValue={q?.clientPhone} />
+      <QuoteTypeAndFee
+        // A type that has since been removed from the list stays selectable for its own quote.
+        types={q && !types.includes(q.type) ? [q.type, ...types] : types}
+        defaultType={q?.type ?? types[0]}
+        feeDefaults={
+          q
+            ? { exVat: q.amount, inclVat: q.amountInclVat, percents: q.installments, feePercent: q.feePercent }
+            : undefined
+        }
+      />
+      <Field label="הערות" name="notes" defaultValue={q?.notes} />
+    </>
+  );
+
   const form = (
     <AddRecord label="+ הצעת מחיר חדשה" action={createQuote}>
-      <Field label="גוש" name="block" />
-      <Field label="חלקה" name="parcel" />
-      <Field label="תת חלקה" name="subParcel" />
-      <Field label="רחוב" name="address" placeholder="רחוב ומספר" />
-      <Field label="עיר" name="city" />
-      <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
-      <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
-      <Field label="מייל" name="clientEmail" type="email" />
-      <Field label="טלפון" name="clientPhone" />
-      <QuoteTypeAndFee types={types} defaultType={types[0]} />
-      <Field label="הערות" name="notes" />
+      {quoteFields()}
     </AddRecord>
   );
 
@@ -164,6 +187,7 @@ export default async function QuotesPage({
                       <QuoteWordButton
                         quoteId={q.id}
                         url={q.wordFileUrl}
+                        stale={q.wordFileStale}
                         oneDriveConnected={oneDriveConnected}
                         createDocument={createQuoteDocument}
                         getWordUri={getQuoteWordUri}
@@ -209,10 +233,23 @@ export default async function QuotesPage({
                           </>
                         )}
                       </div>
-                      <DeleteButton
-                        action={deleteQuote.bind(null, q.id)}
-                        confirmText={`למחוק את הצעה ${q.quoteNumber}?`}
-                      />
+                      <div className="flex items-center gap-1">
+                        <EditRecord
+                          title={`עריכת הצעה ${q.quoteNumber}`}
+                          note={
+                            q.linkedCaseId
+                              ? "התיק שכבר נפתח מההצעה לא יתעדכן. את שכר הטרחה שלו עורכים בעמוד שכר הטרחה של התיק."
+                              : undefined
+                          }
+                          action={updateQuote.bind(null, q.id)}
+                        >
+                          {quoteFields(q)}
+                        </EditRecord>
+                        <DeleteButton
+                          action={deleteQuote.bind(null, q.id)}
+                          confirmText={`למחוק את הצעה ${q.quoteNumber}?`}
+                        />
+                      </div>
                     </div>
                   </Card>
                 ))}

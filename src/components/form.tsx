@@ -211,6 +211,60 @@ export function AddRecord({
   );
 }
 
+/** An "edit" link that opens a form (prefilled by its fields' defaults) over the page, and closes after saving. */
+export function EditRecord({
+  label = "✏️ עריכה",
+  title,
+  note,
+  action,
+  children,
+}: {
+  label?: string;
+  title: string;
+  note?: string;
+  action: (formData: FormData) => Promise<void>;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg px-2 py-1 text-xs font-semibold text-brand-blue hover:bg-brand-cyan-light"
+      >
+        {label}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 p-4">
+          <form
+            action={async (formData) => {
+              await action(formData);
+              setOpen(false);
+            }}
+            className="w-full max-w-4xl rounded-2xl border border-border bg-surface p-5 text-right shadow-lg"
+          >
+            <p className="mb-1 text-base font-bold">{title}</p>
+            {note && <p className="mb-3 text-xs text-muted">{note}</p>}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+            <div className="mt-4 flex gap-2">
+              <SubmitButton>שמירת שינויים</SubmitButton>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground/70 hover:bg-background"
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function DeleteButton({
   action,
   confirmText = "למחוק את הרשומה?",

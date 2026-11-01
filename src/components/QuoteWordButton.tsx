@@ -8,14 +8,16 @@ type Result<T> = ({ ok: true } & T) | { ok: false; error: string };
 export default function QuoteWordButton({
   quoteId,
   url,
+  stale,
   oneDriveConnected,
   createDocument,
   getWordUri,
 }: {
   quoteId: string;
   url: string | null;
+  stale: boolean; // the quote was edited after the letter was made
   oneDriveConnected: boolean;
-  createDocument: (quoteId: string) => Promise<Result<{ url: string }>>;
+  createDocument: (quoteId: string, remake?: boolean) => Promise<Result<{ url: string }>>;
   getWordUri: (quoteId: string) => Promise<Result<{ uri: string }>>;
 }) {
   const router = useRouter();
@@ -44,11 +46,15 @@ export default function QuoteWordButton({
     }
   }
 
-  async function handleCreate() {
+  async function handleCreate(remake = false) {
+    // Making the letter again replaces the file, including anything changed in it by hand in Word.
+    if (remake && !confirm("ליצור את המכתב מחדש מהפרטים המעודכנים? שינויים שנעשו ידנית בקובץ ב-Word יימחקו.")) {
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
-      const created = await createDocument(quoteId);
+      const created = await createDocument(quoteId, remake);
       if (!created.ok) {
         setError(created.error);
         return;
@@ -92,7 +98,7 @@ export default function QuoteWordButton({
             <span className="flex-1 text-right text-muted">טרם נוצר</span>
             <button
               type="button"
-              onClick={handleCreate}
+              onClick={() => handleCreate()}
               disabled={busy}
               className="shrink-0 font-bold text-brand-blue hover:underline disabled:opacity-60"
             >
@@ -101,6 +107,19 @@ export default function QuoteWordButton({
           </>
         )}
       </div>
+      {url && stale && oneDriveConnected && (
+        <p className="mt-1 flex items-center justify-between gap-2 text-warning">
+          <span>ההצעה עודכנה אחרי יצירת המכתב</span>
+          <button
+            type="button"
+            onClick={() => handleCreate(true)}
+            disabled={busy}
+            className="shrink-0 font-bold text-brand-blue hover:underline disabled:opacity-60"
+          >
+            ⟳ עדכן את המכתב
+          </button>
+        </p>
+      )}
       {error && <p className="mt-1 text-danger">{error}</p>}
     </div>
   );

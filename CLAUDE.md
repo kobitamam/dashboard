@@ -144,6 +144,10 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 
 - Every record is scoped by `ownerId` = the **organization** id (`requireOwnerId()` returns `session.user.organizationId`).
   A partner is the root of their organization; employees share the partner's data. `requirePartnerId()` gates actions.
+- A saved quote can be edited ("✏️ עריכה" on its card, `EditRecord` modal -> `updateQuote`; same fields as the new-quote form via
+  `quoteFields`). Number, date and status stay. A Word letter already made is NOT rewritten by itself: the quote gets `wordFileStale`
+  and the card offers "⟳ עדכן את המכתב" (`createQuoteDocument(id, true)`, with a confirm since hand edits in the file are replaced).
+  A case already opened from the quote is not updated.
 - Approving a quote ("אישור ופתיחת תיק", `approveQuote`) opens its case right away; the signed quote may be uploaded before or after
   (at the user's request; verified live: one case with its OneDrive folder). The approval is claimed atomically, so a double click
   opens one case.

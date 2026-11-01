@@ -166,7 +166,15 @@ export default function FeeStructureFields({
 }
 
 /** The quote form's appraisal type and fee: the reduction percent shows only for a betterment levy. */
-export function QuoteTypeAndFee({ types, defaultType }: { types: string[]; defaultType: string }) {
+export function QuoteTypeAndFee({
+  types,
+  defaultType,
+  feeDefaults,
+}: {
+  types: string[];
+  defaultType: string;
+  feeDefaults?: FeeDefaults; // editing a saved quote
+}) {
   const [type, setType] = useState(defaultType);
   return (
     <>
@@ -178,7 +186,7 @@ export function QuoteTypeAndFee({ types, defaultType }: { types: string[]; defau
         defaultValue={defaultType}
         onValueChange={setType}
       />
-      <FeeStructureFields betterment={type === BETTERMENT_LEVY} />
+      <FeeStructureFields betterment={type === BETTERMENT_LEVY} defaults={feeDefaults} />
     </>
   );
 }

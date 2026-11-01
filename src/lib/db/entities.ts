@@ -99,6 +99,7 @@ export type QuoteDoc = Owned &
     feePercent?: number | null;
     wordFileUrl?: string;
     wordFileId?: string;
+    wordFileStale?: boolean;
     status: QuoteStatus;
     signedFile?: AttachmentDoc;
     linkedCaseId?: string;
@@ -253,6 +254,7 @@ export function toQuote(doc: WithId<QuoteDoc>): Quote {
     installments: doc.installments?.length ? doc.installments : [50, 50],
     feePercent: doc.feePercent ?? null,
     wordFileUrl: doc.wordFileUrl ?? null,
+    wordFileStale: !!doc.wordFileStale,
     status: doc.status,
     signedFile: doc.signedFile ? toAttachment(doc.signedFile) : null,
     linkedCaseId: doc.linkedCaseId ?? null,
