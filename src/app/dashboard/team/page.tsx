@@ -1,6 +1,7 @@
-import { inviteMember, removeMemberAction } from "@/app/dashboard/team-actions";
+import { inviteMember, removeMemberAction, resetMemberPassword } from "@/app/dashboard/team-actions";
 import { DeleteButton } from "@/components/form";
 import InviteMemberForm from "@/components/InviteMemberForm";
+import ResetPasswordButton from "@/components/ResetPasswordButton";
 import { Card, PageHeader } from "@/components/ui";
 import { currentRole, currentUserId, requireOwnerId } from "@/lib/db/queries";
 import { formatDate } from "@/lib/format";
@@ -43,12 +44,18 @@ export default async function TeamPage() {
                   {m.email} · הצטרף ב-{formatDate(m.createdAt.toISOString())}
                 </p>
               </div>
-              {m.id !== selfId && !m.isFounder && (
-                <DeleteButton
-                  action={removeMemberAction.bind(null, m.id)}
-                  confirmText={`להסיר את הגישה של ${m.name}?`}
-                />
-              )}
+              <div className="flex shrink-0 items-center gap-1">
+                {/* Resetting a password is the founding partner's alone (the user asked for it on their account only). */}
+                {selfId === organizationId && (
+                  <ResetPasswordButton userId={m.id} name={m.name} reset={resetMemberPassword} />
+                )}
+                {m.id !== selfId && !m.isFounder && (
+                  <DeleteButton
+                    action={removeMemberAction.bind(null, m.id)}
+                    confirmText={`להסיר את הגישה של ${m.name}?`}
+                  />
+                )}
+              </div>
             </div>
           ))}
         </Card>

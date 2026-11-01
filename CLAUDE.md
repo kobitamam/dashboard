@@ -159,6 +159,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 - Public registration is CLOSED (the `/register` page and `/api/register` were removed at the user's request): accounts are
   created only by a partner from the team tab. A partner can add more partners and employees there (`createMember`); an added partner has the same full access and
   `organizationId` = the founder's id. The founder (whose id is the organization id) and one's own account can't be removed.
+  A forgotten password is replaced from the team tab ("איפוס סיסמה", `resetMemberPassword`) - by the FOUNDER only (the user asked
+  for it on his account alone). Passwords are bcrypt hashes and can never be shown; the user asked to "see" them and was told why not.
 - Each case has one handling partner and one handling employee (`partnerId`/`employeeId`, user ids from the organization). The cases
   tab's "התיקים שלי" is only a filter (`?scope=mine`); everyone can always switch to all cases.
 - Types of appraisal are a built-in list plus partner-added ones (`loadCaseTypes`).

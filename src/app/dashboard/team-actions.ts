@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { currentUserId, requirePartnerId } from "@/lib/db/queries";
-import { createMember, DuplicateEmailError, removeMember, type Role } from "@/lib/users";
+import { createMember, DuplicateEmailError, removeMember, setMemberPassword, type Role } from "@/lib/users";
 
 function refresh() {
   revalidatePath("/dashboard/team");
@@ -43,4 +43,24 @@ export async function removeMemberAction(userId: string) {
 
   await removeMember(organizationId, userId);
   refresh();
+}
+
+/**
+ * The founding partner (only them, at the user's request) sets a new password for someone in the office who
+ * forgot theirs. Passwords are stored only as a one-way hash, so they can be replaced but never shown.
+ */
+export async function resetMemberPassword(
+  userId: string,
+  password: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const organizationId = await requirePartnerId();
+  if ((await currentUserId()) !== organizationId) return { ok: false, error: "רק השותף המייסד יכול לאפס סיסמה" };
+  if (password.length < 6) return { ok: false, error: "הסיסמה חייבת להיות באורך של 6 תווים לפחות" };
+  try {
+    const updated = await setMemberPassword(organizationId, userId, password);
+    return updated ? { ok: true } : { ok: false, error: "החשבון לא נמצא" };
+  } catch (err) {
+    console.error("Failed to reset a password:", err);
+    return { ok: false, error: "שינוי הסיסמה נכשל, נסה שוב" };
+  }
 }

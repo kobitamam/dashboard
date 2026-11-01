@@ -151,6 +151,20 @@ export async function removeMember(organizationId: string, userId: string) {
   return result.deletedCount > 0;
 }
 
+/**
+ * Sets a new password for an account in the organization (a partner resetting a forgotten one).
+ * Scoped to the organization: its root account is matched by its own id, the others by organizationId.
+ */
+export async function setMemberPassword(organizationId: string, userId: string, password: string) {
+  if (!ObjectId.isValid(userId)) return false;
+  const db = await getDb();
+  const filter = userId === organizationId ? { _id: new ObjectId(userId) } : { _id: new ObjectId(userId), organizationId };
+  const result = await db
+    .collection<UserDoc>("users")
+    .updateOne(filter, { $set: { passwordHash: await bcrypt.hash(password, 10) } });
+  return result.matchedCount > 0;
+}
+
 export async function verifyPassword(email: string, password: string) {
   const user = await findUserByEmail(email);
   if (!user) return null;
