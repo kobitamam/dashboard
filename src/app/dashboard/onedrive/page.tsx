@@ -7,14 +7,23 @@ import { requestOrigin } from "@/lib/origin";
 
 // The Mac shortcut's script. It finds the synced "מסמכי תיקים" folder wherever OneDrive keeps it
 // (the owner's app folder, a shared "TA-Estate Dashboard", or a shared "מסמכי תיקים"), so the same
-// text works on every Mac, and it accepts only a plain case number (TA-100-26).
+// text works on every Mac, and it accepts only a plain case number (TA-100-26). When the case's folder
+// isn't found it says why, in Hebrew, instead of Shortcuts' bare "exit code 1".
 const MAC_SCRIPT = `n="$1"; [ -z "$n" ] && n="$(pbpaste)"
-case "$n" in ""|*[!A-Za-z0-9-]*) exit 0;; esac
+case "$n" in ""|*[!A-Za-z0-9-]*) osascript -e 'display alert "OpenCase: לא התקבל מספר תיק"'; exit 0;; esac
+root=""
 for d in "$HOME"/Library/CloudStorage/*; do
   for f in "$d/Apps/TA-Estate Dashboard/מסמכי תיקים" "$d/TA-Estate Dashboard/מסמכי תיקים" "$d/מסמכי תיקים"; do
     [ -d "$f/$n" ] && { open "$f/$n"; exit 0; }
+    [ -d "$f" ] && root="$f"
   done
-done`;
+done
+if [ -n "$root" ]; then
+  open "$root"
+  osascript -e 'display alert "התיקייה '"$n"' עוד לא הגיעה למחשב הזה. נפתחה התיקייה מסמכי תיקים."'
+else
+  osascript -e 'display alert "לא נמצאה התיקייה מסמכי תיקים, או שלקיצורי דרך אין הרשאה לתיקיות של OneDrive."'
+fi`;
 
 export default async function OneDrivePage({
   searchParams,
