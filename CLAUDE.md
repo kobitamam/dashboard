@@ -135,6 +135,7 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 - Develop on branch `claude/focused-goodall-iexeqf`. **Merge/push to `main` only when the user asks** (they test on
   production). Fast-forward only: `git push origin origin/<branch>:main`. Vercel then deploys; confirm `READY`
   with the Vercel MCP (`get_deployment`) before telling the user to test.
+- Wording with the user: say "מיזגתי" / "המיזוג בוצע" - never "מוזג" (the user pointed out it reads as pouring a drink).
 - Preview deployments have NO env vars (they are scoped to Production), so login/DB do not work there; test on `main`.
 - Vercel runtime logs are not readable from here (403), so build diagnosability into error messages instead.
 - Before committing: `npm run lint` and `npm run build` must pass.
