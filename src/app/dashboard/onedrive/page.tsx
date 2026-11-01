@@ -122,18 +122,18 @@ export default async function OneDrivePage({
             &quot;הוסף קיצור דרך אל הקבצים שלי&quot;, והיא תופיע בתיקיית ה-OneDrive שלך.
           </li>
           <li>
-            לחץ על &quot;התחל&quot;, הקלד <b dir="ltr">PowerShell</b> ופתח את <b dir="ltr">Windows PowerShell</b> (לא
-            צריך מנהל מערכת). הדבק את השורה הזו ולחץ Enter - אמור להופיע <b dir="ltr">OK</b>:
+            <a href="/api/windows-setup" className="font-semibold text-brand-blue hover:underline">
+              הורד את קובץ ההתקנה
+            </a>{" "}
+            ולחץ עליו פעמיים. אשר את ההודעות של Windows (&quot;כן&quot;).
+          </li>
+          <li>
+            אם Windows חוסם את הקובץ (&quot;בקרת אפליקציות חכמה חסמה...&quot;): לחץ על &quot;התחל&quot;, הקלד{" "}
+            <b dir="ltr">PowerShell</b> ופתח את <b dir="ltr">Windows PowerShell</b> (לא ISE ולא x86, ולא צריך מנהל
+            מערכת). הדבק את השורה הזו ולחץ Enter - אמור להופיע <b dir="ltr">OK</b>:
             <pre dir="ltr" className="mt-1 overflow-x-auto whitespace-pre-wrap break-all rounded bg-background px-2 py-1 text-left text-[11px]">
               {powershellSetup()}
             </pre>
-            <span className="text-xs">
-              (אפשר במקום זה{" "}
-              <a href="/api/windows-setup" className="font-semibold text-brand-blue hover:underline">
-                להוריד קובץ התקנה
-              </a>{" "}
-              וללחוץ עליו פעמיים, אבל ב-Windows 11 &quot;בקרת אפליקציות חכמה&quot; חוסמת אותו.)
-            </span>
           </li>
           <li>
             חזור למערכת ולחץ &quot;פתח בתיקייה&quot; בכרטיס תיק. בפעם הראשונה הדפדפן ישאל אם לאפשר, ואפשר לסמן
