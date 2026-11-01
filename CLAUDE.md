@@ -80,7 +80,7 @@ sends `prompt=select_account`. The OAuth callback returns through `/api/onedrive
    hadn't synced yet; after OneDrive finished syncing it worked - VERIFIED live on Raz's Mac), so the script now opens `מסמכי תיקים` with a Hebrew alert when the case folder is missing, and says when the
    root itself isn't visible (missing, or Shortcuts lacks access to OneDrive's files). Windows: Smart App Control (Windows 11) BLOCKS the
    downloaded `.reg` ("בקרת אפליקציות חכמה חסמה קובץ..."), also as administrator; the same registration pasted as one PowerShell line
-   (`powershellSetup()` in `src/lib/windows-setup.ts`, shown in the OneDrive tab) works - VERIFIED live on an employee's PC (פריאל).
+   (`powershellSetup()` in `src/lib/windows-setup.ts`, shown in the OneDrive tab) works - VERIFIED live on the employees' PCs (פריאל, אליאס; Windows PowerShell 5.1, not ISE/x86).
    Never suggest turning Smart App Control off (it can't be turned back on without reinstalling Windows).
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
