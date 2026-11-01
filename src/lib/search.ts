@@ -11,7 +11,13 @@ export type SearchEntry = {
   haystack: string;
 };
 
-const normalize = (text: string) => text.toLowerCase().replace(/[‎‏]/g, "").trim();
+// Lower case, without the invisible direction/joiner marks that text pasted from Word or a website
+// carries inside words (a name with one of them would otherwise not match what is typed).
+const normalize = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, "")
+    .trim();
 
 /** Every word typed must appear somewhere in the text (in any order). */
 export function matchesQuery(haystack: string, query: string) {

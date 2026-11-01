@@ -13,10 +13,14 @@ export default function HeaderSearch({ index }: { index: SearchEntry[] }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
-  const results = useMemo(
-    () => (query.trim() ? index.filter((e) => matchesQuery(e.haystack, query)).slice(0, MAX_RESULTS) : []),
+  const matches = useMemo(
+    () => (query.trim() ? index.filter((e) => matchesQuery(e.haystack, query)) : []),
     [index, query],
   );
+  const results = matches.slice(0, MAX_RESULTS);
+  const caseCount = matches.filter((e) => e.kind === "case").length;
+  // Every case that matches, on the cases tab (a single result only opens that one case).
+  const allCasesHref = `/dashboard/cases?search=${encodeURIComponent(query.trim())}`;
 
   // Close the list when clicking anywhere else.
   useEffect(() => {
@@ -27,10 +31,10 @@ export default function HeaderSearch({ index }: { index: SearchEntry[] }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  function go(entry: SearchEntry) {
+  function go(href: string) {
     setOpen(false);
     setQuery("");
-    router.push(entry.href);
+    router.push(href);
   }
 
   return (
@@ -53,7 +57,11 @@ export default function HeaderSearch({ index }: { index: SearchEntry[] }) {
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
           if (e.key === "Escape") setOpen(false);
-          if (e.key === "Enter" && results[0]) go(results[0]);
+          // Enter shows all the matching cases, or the one client when only clients match.
+          if (e.key === "Enter") {
+            if (caseCount > 0) go(allCasesHref);
+            else if (results[0]) go(results[0].href);
+          }
         }}
         placeholder="חיפוש לקוח או תיק..."
         aria-label="חיפוש לקוח או תיק"
@@ -69,7 +77,7 @@ export default function HeaderSearch({ index }: { index: SearchEntry[] }) {
               <button
                 key={`${entry.kind}-${entry.id}`}
                 type="button"
-                onClick={() => go(entry)}
+                onClick={() => go(entry.href)}
                 className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-right hover:bg-background"
               >
                 <span
@@ -89,6 +97,15 @@ export default function HeaderSearch({ index }: { index: SearchEntry[] }) {
                 </span>
               </button>
             ))
+          )}
+          {caseCount > 1 && (
+            <button
+              type="button"
+              onClick={() => go(allCasesHref)}
+              className="mt-1 w-full rounded-lg border-t border-border px-3 py-2 text-right text-xs font-semibold text-brand-blue hover:bg-background"
+            >
+              הצג את כל {caseCount} התיקים שנמצאו
+            </button>
           )}
         </div>
       )}
