@@ -78,7 +78,10 @@ sends `prompt=select_account`. The OAuth callback returns through `/api/onedrive
    this script (verified live). On Raz's Mac the shared folder is `~/Library/CloudStorage/OneDrive2-אישי/TA-Estate Dashboard/מסמכי תיקים`
    (two OneDrive accounts: `OneDrive-אישי` and `OneDrive2-אישי`); his first try ended with Shortcuts' bare "קוד יציאה: 1" (the case folder
    hadn't synced yet; after OneDrive finished syncing it worked - VERIFIED live on Raz's Mac), so the script now opens `מסמכי תיקים` with a Hebrew alert when the case folder is missing, and says when the
-   root itself isn't visible (missing, or Shortcuts lacks access to OneDrive's files). The Windows route is not tested yet.
+   root itself isn't visible (missing, or Shortcuts lacks access to OneDrive's files). Windows: Smart App Control (Windows 11) BLOCKS the
+   downloaded `.reg` ("בקרת אפליקציות חכמה חסמה קובץ..."), also as administrator; the same registration pasted as one PowerShell line
+   (`powershellSetup()` in `src/lib/windows-setup.ts`, shown in the OneDrive tab) works - VERIFIED live on an employee's PC (פריאל).
+   Never suggest turning Smart App Control off (it can't be turned back on without reinstalling Windows).
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
 only, they are never moved into a case and never listed on the case card (employees must not reach them).
