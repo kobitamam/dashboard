@@ -76,8 +76,8 @@ sends `prompt=select_account`. The OAuth callback returns through `/api/onedrive
    `~/Library/CloudStorage/*/{Apps/TA-Estate Dashboard,TA-Estate Dashboard,}/מסמכי תיקים`, so the same text works for the owner, for
    Raz (shared `TA-Estate Dashboard`) and for an employee on a Mac; it avoids globs that zsh would abort on. The user's own Mac runs
    this script (verified live). On Raz's Mac the shared folder is `~/Library/CloudStorage/OneDrive2-אישי/TA-Estate Dashboard/מסמכי תיקים`
-   (two OneDrive accounts: `OneDrive-אישי` and `OneDrive2-אישי`); his first try ended with Shortcuts' bare "קוד יציאה: 1" (case folder not
-   found from the shortcut), so the script now opens `מסמכי תיקים` with a Hebrew alert when the case folder is missing, and says when the
+   (two OneDrive accounts: `OneDrive-אישי` and `OneDrive2-אישי`); his first try ended with Shortcuts' bare "קוד יציאה: 1" (the case folder
+   hadn't synced yet; after OneDrive finished syncing it worked - VERIFIED live on Raz's Mac), so the script now opens `מסמכי תיקים` with a Hebrew alert when the case folder is missing, and says when the
    root itself isn't visible (missing, or Shortcuts lacks access to OneDrive's files). The Windows route is not tested yet.
 
 Layout in OneDrive: `TA-Estate Dashboard/הצעות מחיר/` holds the quote's Word letter and the signed quote - partners
