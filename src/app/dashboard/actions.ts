@@ -10,6 +10,7 @@ import {
   eventTypesRepo,
   quotesRepo,
   toCase,
+  toQuote,
 } from "@/lib/db/entities";
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
 import {
@@ -20,7 +21,7 @@ import {
   requireOwnerId,
 } from "@/lib/db/queries";
 import { seedDemoData } from "@/lib/db/seed";
-import { formatParcel } from "@/lib/format";
+import { formatParcel, propertyLines } from "@/lib/format";
 import {
   createCaseFolder,
   createUploadSession,
@@ -100,7 +101,28 @@ function propertyDetails(form: FormData) {
     clientPhone: text(form, "clientPhone"),
     notes: text(form, "notes"),
     feeNote: text(form, "feeNote"),
+    extraProperties: extraProperties(form),
   };
+}
+
+// The further properties typed in the form's "נכסים נוספים" rows (ExtraPropertiesFields); empty rows are dropped.
+function extraProperties(form: FormData) {
+  const column = (key: string) => form.getAll(key).map((v) => (typeof v === "string" ? v.trim().slice(0, 120) : ""));
+  const blocks = column("extraBlock");
+  const parcels = column("extraParcel");
+  const subParcels = column("extraSubParcel");
+  const addresses = column("extraAddress");
+  const cities = column("extraCity");
+  return blocks
+    .map((block, i) => ({
+      block,
+      parcel: parcels[i] ?? "",
+      subParcel: subParcels[i] ?? "",
+      address: addresses[i] ?? "",
+      city: cities[i] ?? "",
+    }))
+    .filter((p) => p.block || p.parcel || p.subParcel || p.address || p.city)
+    .slice(0, 50);
 }
 
 function refresh() {
@@ -611,6 +633,7 @@ export async function createQuoteDocument(
       subject: quote.description || quote.type,
       parcel: formatParcel(quote.block ?? "", quote.parcel ?? "", quote.subParcel ?? ""),
       address: [quote.address, quote.city].filter(Boolean).join(", "),
+      properties: propertyLines(toQuote(quote)),
       work: quote.description || quote.type,
       fee:
         quote.feeNote ||
@@ -694,6 +717,13 @@ export async function approveQuote(quoteId: string) {
   caseForm.set("clientPhone", quote.clientPhone ?? "");
   caseForm.set("notes", quote.notes ?? "");
   caseForm.set("feeNote", quote.feeNote ?? "");
+  for (const p of quote.extraProperties ?? []) {
+    caseForm.append("extraBlock", p.block);
+    caseForm.append("extraParcel", p.parcel);
+    caseForm.append("extraSubParcel", p.subParcel);
+    caseForm.append("extraAddress", p.address);
+    caseForm.append("extraCity", p.city);
+  }
   let caseId: string | undefined;
   try {
     caseId = await createCaseInternal(caseForm, { linkedQuoteId: quoteId });
@@ -745,6 +775,7 @@ async function saveStatement(
     subject: string;
     parcel: string;
     address: string;
+    properties: string[];
   }) => Promise<Uint8Array>,
   extra: Record<string, unknown> = {},
 ): Promise<StatementResult> {
@@ -763,6 +794,7 @@ async function saveStatement(
       subject: caseDoc.description || caseDoc.type,
       parcel: formatParcel(caseDoc.block ?? "", caseDoc.parcel ?? "", caseDoc.subParcel ?? ""),
       address: [caseDoc.address, caseDoc.city].filter(Boolean).join(", "),
+      properties: propertyLines(toCase(caseDoc)),
     });
 
     const fileName = `${caseFolder} - חשבון עסקה ${number}.docx`;

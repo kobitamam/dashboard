@@ -9,6 +9,8 @@ export type QuoteDocumentValues = {
   subject: string;
   parcel: string;
   address: string;
+  // With more than one property, each one's line ("גוש ... - כתובת"); replaces the parcel and address lines.
+  properties?: string[];
   work: string;
   fee: string;
 };
@@ -19,6 +21,22 @@ export function escapeXml(value: string) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * A letter about several properties lists one line per property: the template's {{PARCEL}} paragraph is
+ * repeated for each (keeping its formatting) and its {{ADDRESS}} paragraph, now part of each line, is dropped.
+ */
+export function expandPropertyLines(xml: string, lines: string[] | undefined) {
+  if (!lines || lines.length < 2) return xml;
+  const paragraphs = xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) ?? [];
+  const parcel = paragraphs.find((p) => p.includes("{{PARCEL}}"));
+  const address = paragraphs.find((p) => p.includes("{{ADDRESS}}"));
+  if (!parcel) return xml;
+  const repeated = lines.map((line) => parcel.split("{{PARCEL}}").join(escapeXml(line))).join("");
+  let result = xml.replace(parcel, () => repeated);
+  if (address) result = result.replace(address, () => "");
+  return result;
 }
 
 /** Fills the office's quote template and returns the .docx bytes. */
@@ -39,7 +57,7 @@ export async function buildQuoteDocx(values: QuoteDocumentValues): Promise<Uint8
     "{{FEE}}": values.fee,
   };
 
-  let xml = await file.async("string");
+  let xml = expandPropertyLines(await file.async("string"), values.properties);
   for (const [placeholder, value] of Object.entries(replacements)) {
     // split/join rather than replace, so "$&" and friends in user text stay literal.
     xml = xml.split(placeholder).join(escapeXml(value));

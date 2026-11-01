@@ -127,6 +127,15 @@ export type Fee = {
   payments: FeePayment[];
 };
 
+// One more property a quote (and the case opened from it) covers, beside its main one.
+export type PropertyLocation = {
+  block: string;
+  parcel: string;
+  subParcel: string;
+  address: string;
+  city: string;
+};
+
 // The fields a quote and the job it becomes share, matching the columns of
 // the office's existing quotes spreadsheet (גוש/חלקה/תת חלקה/עיר/תיאור/...).
 export type PropertyDetails = {
@@ -139,6 +148,7 @@ export type PropertyDetails = {
   clientPhone: string; // טלפון
   notes: string; // הערות
   feeNote: string; // שכ"ט - a free-text summary, e.g. "10,000 ₪ + מע״מ"
+  extraProperties: PropertyLocation[]; // further properties when the work covers more than one
 };
 
 // A transaction statement (חשבון עסקה) produced for a case: the Word file saved in the partners-only

@@ -7,6 +7,7 @@ import {
   updateCaseProgress,
 } from "@/app/dashboard/actions";
 import AutoSaveForm from "@/components/AutoSaveForm";
+import ExtraPropertiesFields from "@/components/ExtraPropertiesFields";
 import CaseFolderRetry from "@/components/CaseFolderRetry";
 import OpenFolderLink from "@/components/OpenFolderLink";
 import TypeManager from "@/components/TypeManager";
@@ -24,7 +25,7 @@ import { currentRole, currentUserId, loadCaseTypes, loadDashboardData, requireOw
 import { caseDeadlines } from "@/lib/deadlines";
 import { caseHaystack, matchesQuery } from "@/lib/search";
 import { listOrganizationMembers, type OrganizationMember } from "@/lib/users";
-import { daysUntil, formatDate, formatParcel, formatTime } from "@/lib/format";
+import { daysUntil, formatDate, formatParcel, formatTime, propertyLines } from "@/lib/format";
 import {
   BETTERMENT_LEVY,
   bettermentStageNames,
@@ -77,6 +78,7 @@ export default async function CasesPage({
       <Field label="תת חלקה" name="subParcel" />
       <Field label="רחוב" name="address" placeholder="רחוב ומספר" />
       <Field label="עיר" name="city" />
+      <ExtraPropertiesFields />
       <Field label="תיאור" name="description" placeholder="שווי שוק, הפקעה, פינוי בינוי..." />
       <SelectField label="סוג שומה" name="type" options={types} defaultValue={types[0]} />
       <Field label="לקוח" name="clientName" required placeholder="שם הלקוח" />
@@ -208,6 +210,11 @@ export default async function CasesPage({
                         {formatParcel(c.block, c.parcel, c.subParcel)}
                       </p>
                     )}
+                    {c.extraProperties.map((p, i) => (
+                      <p key={i} className="mt-0.5 text-xs text-muted">
+                        + {propertyLines(p)[0]}
+                      </p>
+                    ))}
                     {c.description && <p className="mt-1 text-xs font-medium text-brand-blue">{c.description}</p>}
                     {c.type && <p className="mt-0.5 text-xs text-muted">{c.type}</p>}
                     {(c.partnerId || c.employeeId) && (

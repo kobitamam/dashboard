@@ -40,6 +40,8 @@ export function caseHaystack(c: Case) {
     formatParcel(c.block, c.parcel, c.subParcel),
     c.block,
     c.parcel,
+    // The further properties of a case covering more than one.
+    ...c.extraProperties.flatMap((p) => [p.address, p.city, formatParcel(p.block, p.parcel, p.subParcel), p.block, p.parcel]),
   ].join(" ");
 }
 

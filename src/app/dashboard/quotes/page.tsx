@@ -19,12 +19,13 @@ import {
   Field,
 } from "@/components/form";
 import { QuoteTypeAndFee } from "@/components/FeeStructureFields";
+import ExtraPropertiesFields from "@/components/ExtraPropertiesFields";
 import QuoteFileSlot from "@/components/QuoteFileSlot";
 import QuoteWordButton from "@/components/QuoteWordButton";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadCaseTypes, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
-import { formatDate, formatMoney, formatParcel } from "@/lib/format";
+import { formatDate, formatMoney, formatParcel, propertyLines } from "@/lib/format";
 import { isOneDriveConfigured } from "@/lib/onedrive";
 import { BETTERMENT_LEVY, type Quote, type QuoteStatus } from "@/lib/types";
 
@@ -63,6 +64,7 @@ export default async function QuotesPage({
       <Field label="תת חלקה" name="subParcel" defaultValue={q?.subParcel} />
       <Field label="רחוב" name="address" placeholder="רחוב ומספר" defaultValue={q?.address} />
       <Field label="עיר" name="city" defaultValue={q?.city} />
+      <ExtraPropertiesFields defaults={q?.extraProperties} />
       <Field
         label="תיאור"
         name="description"
@@ -163,6 +165,11 @@ export default async function QuotesPage({
                         {formatParcel(q.block, q.parcel, q.subParcel)}
                       </p>
                     )}
+                    {q.extraProperties.map((p, i) => (
+                      <p key={i} className="mt-0.5 text-xs text-muted">
+                        + {propertyLines(p)[0]}
+                      </p>
+                    ))}
                     {q.description && <p className="mt-1 text-xs font-medium text-brand-blue">{q.description}</p>}
                     {q.type && <p className="mt-0.5 text-xs text-muted">{q.type}</p>}
                     <div className="mt-2">

@@ -145,6 +145,10 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 
 - Every record is scoped by `ownerId` = the **organization** id (`requireOwnerId()` returns `session.user.organizationId`).
   A partner is the root of their organization; employees share the partner's data. `requirePartnerId()` gates actions.
+- A quote (and a new case) can cover several properties: the main גוש/חלקה/כתובת fields plus "נכסים נוספים" rows
+  (`ExtraPropertiesFields` -> `extraProperties: PropertyLocation[]`, parsed in `propertyDetails`). Approval copies them to the case;
+  cards list them ("+ ..."), search covers them, and the Word letters list one line per property (`expandPropertyLines`: the
+  template's {{PARCEL}} paragraph repeated, {{ADDRESS}} dropped) when there is more than one.
 - A saved quote can be edited ("✏️ עריכה" on its card, `EditRecord` modal -> `updateQuote`; same fields as the new-quote form via
   `quoteFields`). Number, date and status stay. A Word letter already made is NOT rewritten by itself: the quote gets `wordFileStale`
   and the card offers "⟳ עדכן את המכתב" (`createQuoteDocument(id, true)`, with a confirm since hand edits in the file are replaced).

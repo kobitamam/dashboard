@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import { bettermentTotals, type BettermentStatementInput } from "./betterment-statement";
 import { QUOTE_TEMPLATE_BASE64 } from "./quote-template";
-import { escapeXml } from "./quote-document";
+import { escapeXml, expandPropertyLines } from "./quote-document";
 import { VAT_RATE } from "./vat";
 
 // What every statement's letterhead shows: the dates, the reference and the addressee block.
@@ -13,6 +13,7 @@ type LetterValues = {
   subject: string;
   parcel: string;
   address: string;
+  properties?: string[]; // one line per property when there is more than one
 };
 
 export type TransactionDocumentValues = LetterValues & {
@@ -73,7 +74,10 @@ async function buildLetter(values: LetterValues, body: string[], attention: stri
   const bank = blocks.slice(find("פרטי חשבון להעברה בנקאית"), find("חתימת מזמין העבודה"));
   const signature = blocks.slice(find("בכבוד רב"));
 
-  let document = xml.slice(0, start) + [...addressee, ...body, ...bank, ...signature].join("") + xml.slice(end);
+  let document = expandPropertyLines(
+    xml.slice(0, start) + [...addressee, ...body, ...bank, ...signature].join("") + xml.slice(end),
+    values.properties,
+  );
   const replacements: Record<string, string> = {
     "{{HEBDATE}}": values.hebrewDate,
     "{{DATE}}": values.date,

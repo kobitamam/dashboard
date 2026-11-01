@@ -31,6 +31,24 @@ export function formatParcel(block: string, parcel: string, subParcel: string) {
   return parts.join(" · ");
 }
 
+/**
+ * Every property of a quote or case - the main one and any added - as one line each,
+ * e.g. "גוש 5209 · חלקה 35 - הרצל 8, בית שמש".
+ */
+export function propertyLines(
+  item: { block: string; parcel: string; subParcel: string; address: string; city: string } & {
+    extraProperties?: { block: string; parcel: string; subParcel: string; address: string; city: string }[];
+  },
+) {
+  return [item, ...(item.extraProperties ?? [])]
+    .map((p) =>
+      [formatParcel(p.block, p.parcel, p.subParcel), [p.address, p.city].filter(Boolean).join(", ")]
+        .filter(Boolean)
+        .join(" - "),
+    )
+    .filter(Boolean);
+}
+
 /** Formats decimal hours as "H:MM", e.g. 2.25 -> "2:15". */
 export function formatDuration(hours: number) {
   const totalMinutes = Math.max(0, Math.round(hours * 60));

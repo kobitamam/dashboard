@@ -203,6 +203,7 @@ function toPropertyDetails(doc: PropertyDetailsDoc): PropertyDetails {
     clientPhone: doc.clientPhone ?? "",
     notes: doc.notes ?? "",
     feeNote: doc.feeNote ?? "",
+    extraProperties: doc.extraProperties ?? [],
   };
 }
 
