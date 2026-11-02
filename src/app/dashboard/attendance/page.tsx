@@ -1,9 +1,15 @@
-import { clockIn, clockOut, removeAttendanceEntry } from "@/app/dashboard/attendance-actions";
-import { DeleteButton, EmptyState } from "@/components/form";
+import {
+  addAttendanceEntry,
+  clockIn,
+  clockOut,
+  editAttendanceEntry,
+  removeAttendanceEntry,
+} from "@/app/dashboard/attendance-actions";
+import { DeleteButton, EditRecord, EmptyState, Field } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
 import { attendanceRepo, toAttendance } from "@/lib/db/entities";
 import { currentRole, currentUserId, requireOwnerId } from "@/lib/db/queries";
-import { formatDate, formatDuration, formatTime } from "@/lib/format";
+import { formatDuration, formatIsraelDate, formatIsraelTime, toIsraelParts } from "@/lib/format";
 import type { AttendanceEntry } from "@/lib/types";
 
 function hoursBetween(startIso: string, endIso: string | null) {
@@ -12,21 +18,55 @@ function hoursBetween(startIso: string, endIso: string | null) {
   return (end - start) / 3_600_000;
 }
 
-function EntryRow({ entry, showName }: { entry: AttendanceEntry; showName?: boolean }) {
+// The day and the entry/exit times (Israel's clock), and the reason for the change - required.
+function TimeFields({ entry }: { entry?: AttendanceEntry }) {
+  const start = entry ? toIsraelParts(entry.clockIn) : null;
+  const end = entry?.clockOut ? toIsraelParts(entry.clockOut) : null;
+  return (
+    <>
+      <Field label="תאריך" name="date" type="date" required defaultValue={start?.date ?? toIsraelParts(new Date()).date} />
+      <Field label="שעת כניסה" name="clockIn" type="time" required defaultValue={start?.time} />
+      <Field label="שעת יציאה" name="clockOut" type="time" required={!entry || !!entry.clockOut} defaultValue={end?.time} />
+      <div className="sm:col-span-2 lg:col-span-3">
+        <Field label="סיבת השינוי (חובה)" name="reason" required placeholder="לדוגמה: שכחתי להחתים יציאה" />
+      </div>
+    </>
+  );
+}
+
+function EntryRow({ entry, showName, canEdit }: { entry: AttendanceEntry; showName?: boolean; canEdit: boolean }) {
+  const lastEdit = entry.edits[entry.edits.length - 1];
   return (
     <div className="flex items-center justify-between gap-3 p-4 text-sm">
       <div>
         <p className="font-medium text-foreground">
           {showName ? `${entry.userName} · ` : ""}
-          {formatDate(entry.clockIn)}
+          {formatIsraelDate(entry.clockIn)}
         </p>
         <p className="text-xs text-muted">
-          {formatTime(entry.clockIn)} - {entry.clockOut ? formatTime(entry.clockOut) : "כעת"}
+          {formatIsraelTime(entry.clockIn)} - {entry.clockOut ? formatIsraelTime(entry.clockOut) : "כעת"}
           {" · "}
           {formatDuration(hoursBetween(entry.clockIn, entry.clockOut))} שעות
         </p>
+        {lastEdit && (
+          <p className="mt-0.5 text-xs text-warning" title={entry.edits.map((e) => `${e.byName}: ${e.reason}`).join("\n")}>
+            ✎ שונה ידנית{entry.edits.length > 1 ? ` (${entry.edits.length} פעמים)` : ""}: {lastEdit.reason}
+            {showName ? ` · ${lastEdit.byName}` : ""}
+          </p>
+        )}
       </div>
-      <DeleteButton action={removeAttendanceEntry.bind(null, entry.id)} confirmText="למחוק את הרשומה?" />
+      {canEdit && (
+        <div className="flex shrink-0 items-center gap-1">
+          <EditRecord
+            title="שינוי ידני של שעות"
+            note="השינוי נשמר עם הסיבה שתכתוב, ויופיע ליד הרשומה."
+            action={editAttendanceEntry.bind(null, entry.id)}
+          >
+            <TimeFields entry={entry} />
+          </EditRecord>
+          <DeleteButton action={removeAttendanceEntry.bind(null, entry.id)} confirmText="למחוק את הרשומה?" />
+        </div>
+      )}
     </div>
   );
 }
@@ -42,11 +82,11 @@ export default async function AttendancePage() {
   const myEntries = entries.filter((e) => e.userId === userId);
   const openEntry = myEntries.find((e) => !e.clockOut) ?? null;
 
-  const now = new Date();
+  // This month by Israel's calendar.
+  const thisMonth = toIsraelParts(new Date()).date.slice(0, 7);
   const monthlyTotals = new Map<string, { name: string; hours: number }>();
   for (const e of entries) {
-    const d = new Date(e.clockIn);
-    if (d.getFullYear() !== now.getFullYear() || d.getMonth() !== now.getMonth()) continue;
+    if (toIsraelParts(e.clockIn).date.slice(0, 7) !== thisMonth) continue;
     const hours = hoursBetween(e.clockIn, e.clockOut);
     const existing = monthlyTotals.get(e.userId);
     if (existing) existing.hours += hours;
@@ -66,7 +106,7 @@ export default async function AttendancePage() {
                 בעבודה
               </span>
               <p className="mt-2 text-sm text-muted">
-                נכנסת ב-{formatTime(openEntry.clockIn)} ({formatDate(openEntry.clockIn)})
+                נכנסת ב-{formatIsraelTime(openEntry.clockIn)} ({formatIsraelDate(openEntry.clockIn)})
               </p>
             </div>
             <form action={clockOut}>
@@ -96,7 +136,17 @@ export default async function AttendancePage() {
         )}
       </Card>
 
-      <h2 className="mb-3 mt-6 text-lg font-bold">הרשומות שלי</h2>
+      <div className="mb-3 mt-6 flex items-center justify-between">
+        <h2 className="text-lg font-bold">הרשומות שלי</h2>
+        <EditRecord
+          label="+ הוספת יום ידנית"
+          title="הוספת יום עבודה ידנית"
+          note="למשל כששכחת להחתים כניסה. הרשומה תסומן כשינוי ידני, עם הסיבה."
+          action={addAttendanceEntry}
+        >
+          <TimeFields />
+        </EditRecord>
+      </div>
       {myEntries.length === 0 ? (
         <EmptyState
           title="אין עדיין רשומות נוכחות"
@@ -105,7 +155,7 @@ export default async function AttendancePage() {
       ) : (
         <Card className="divide-y divide-border">
           {myEntries.map((e) => (
-            <EntryRow key={e.id} entry={e} />
+            <EntryRow key={e.id} entry={e} canEdit />
           ))}
         </Card>
       )}
@@ -134,7 +184,7 @@ export default async function AttendancePage() {
           ) : (
             <Card className="divide-y divide-border">
               {entries.map((e) => (
-                <EntryRow key={e.id} entry={e} showName />
+                <EntryRow key={e.id} entry={e} showName canEdit />
               ))}
             </Card>
           )}

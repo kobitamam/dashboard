@@ -1,12 +1,56 @@
+// Dates and meeting times are stored as the office's wall clock in UTC fields (see the calendar notes),
+// so they are formatted in UTC to show exactly what was typed.
 const dateFormatter = new Intl.DateTimeFormat("he-IL", {
   day: "numeric",
   month: "short",
+  timeZone: "UTC",
 });
 
 const timeFormatter = new Intl.DateTimeFormat("he-IL", {
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "UTC",
 });
+
+// The attendance clock records real moments (when the button was pressed), shown in Israel's time.
+const ISRAEL = "Asia/Jerusalem";
+const israelDate = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "short", timeZone: ISRAEL });
+const israelTime = new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: ISRAEL });
+const israelParts = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: ISRAEL,
+});
+
+export const formatIsraelDate = (iso: string) => israelDate.format(new Date(iso));
+export const formatIsraelTime = (iso: string) => israelTime.format(new Date(iso));
+
+/** A moment as Israel's calendar day and clock time: { date: "2026-11-02", time: "08:30" }. */
+export function toIsraelParts(value: Date | string) {
+  const parts = Object.fromEntries(israelParts.formatToParts(new Date(value)).map((p) => [p.type, p.value]));
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+/** The moment a day and clock time in Israel stand for (summer and winter time included). */
+export function fromIsraelParts(date: string, time: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const clock = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!match || !clock) return null;
+  const asUtc = Date.UTC(+match[1], +match[2] - 1, +match[3], +clock[1], +clock[2]);
+  // Israel's offset at that moment, found by reading the guess back in Israel's time (twice, for the
+  // hours around a clock change).
+  let guess = asUtc;
+  for (let i = 0; i < 2; i++) {
+    const shown = toIsraelParts(new Date(guess));
+    const shownUtc = Date.parse(`${shown.date}T${shown.time}:00Z`);
+    guess = asUtc - (shownUtc - guess);
+  }
+  return new Date(guess);
+}
 
 export function formatDate(iso: string | null) {
   if (!iso) return "—";

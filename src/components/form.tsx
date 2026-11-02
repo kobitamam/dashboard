@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import { NEW_CASE_TYPE } from "@/lib/types";
 
 const fieldClass =
@@ -222,16 +223,23 @@ export function EditRecord({
   label?: string;
   title: string;
   note?: string;
-  action: (formData: FormData) => Promise<void>;
+  // An action may answer { ok: false, error }: the form then stays open and shows the error.
+  action: (formData: FormData) => Promise<void | { ok: true } | { ok: false; error: string }>;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
         className="rounded-lg px-2 py-1 text-xs font-semibold text-brand-blue hover:bg-brand-cyan-light"
       >
         {label}
@@ -239,17 +247,40 @@ export function EditRecord({
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 p-4">
           <form
-            action={async (formData) => {
-              await action(formData);
-              setOpen(false);
+            // Submitted by hand rather than as a form action, so a refused save (an error answer) keeps what
+            // was typed: React clears a form's fields after its action runs.
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setBusy(true);
+              setError(null);
+              try {
+                const result = await action(new FormData(event.currentTarget));
+                if (result && !result.ok) {
+                  setError(result.error);
+                  return;
+                }
+                setOpen(false);
+                router.refresh();
+              } catch {
+                setError("השמירה נכשלה, נסה שוב");
+              } finally {
+                setBusy(false);
+              }
             }}
             className="w-full max-w-4xl rounded-2xl border border-border bg-surface p-5 text-right shadow-lg"
           >
             <p className="mb-1 text-base font-bold">{title}</p>
             {note && <p className="mb-3 text-xs text-muted">{note}</p>}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+            {error && <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
             <div className="mt-4 flex gap-2">
-              <SubmitButton>שמירת שינויים</SubmitButton>
+              <button
+                type="submit"
+                disabled={busy}
+                className="rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
+              >
+                {busy ? "שומר..." : "שמירת שינויים"}
+              </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}

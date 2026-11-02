@@ -180,6 +180,12 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   follows its status (דחוף 0, ממתין למידע 10, בתהליך 50, נשלחה טיוטה 90, הושלם 100). It is derived again in `toCase`, so older
   stored values don't matter. A new non-betterment case starts as "ממתין למידע" (`NEW_CASE_STATUS`; the new-case form has no
   status or progress field). An urgent (דחוף) case card has a light red background (any type).
+- Attendance (שעון נוכחות) records real moments, shown in Israel's time (`formatIsraelTime`/`formatIsraelDate`, `toIsraelParts`,
+  `fromIsraelParts` in `src/lib/format.ts`); it used the plain formatters, which run in UTC on Vercel, so times showed 2-3 hours early
+  (the bug the user reported). The plain `formatDate`/`formatTime` are pinned to UTC on purpose (dates and meeting times are stored as
+  wall-clock in UTC fields). Entries can be changed by hand (`editAttendanceEntry`: one's own, or anyone's for a partner) and whole
+  days added (`addAttendanceEntry`), always with a required reason kept in `edits` (who, when, why, previous times) and shown on the row.
+  `EditRecord` submits by hand (not a form action) so an `{ ok: false, error }` answer keeps the typed values on screen.
 - The case card has no "עדכון" button: its status/stage/partner/employee/date fields save on change (`AutoSaveForm`, native
   "change" event -> `requestSubmit`). The form is keyed by the saved values, because React resets a form after its action and a
   `<select>` ignores a changed `defaultValue` (verified in react-dom), which made a new assignee look unsaved.

@@ -209,6 +209,8 @@ export type AttendanceEntry = {
   userName: string;
   clockIn: string;
   clockOut: string | null;
+  // Hand changes, oldest first: who, when, why, and the times as they were before the change.
+  edits: { at: string; byName: string; reason: string; clockIn: string; clockOut: string | null }[];
 };
 
 export type CalendarEvent = {

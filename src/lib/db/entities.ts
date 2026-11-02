@@ -138,6 +138,8 @@ export type AttendanceDoc = Owned & {
   userName: string;
   clockIn: Date;
   clockOut: Date | null;
+  // Hand changes to the times (or an entry added by hand), each with the reason given for it.
+  edits?: { at: Date; byUserId: string; byName: string; reason: string; clockIn: Date; clockOut: Date | null }[];
 };
 
 export const clientsRepo = new Repository<ClientDoc>("clients");
@@ -281,5 +283,12 @@ export function toAttendance(doc: WithId<AttendanceDoc>): AttendanceEntry {
     userName: doc.userName,
     clockIn: doc.clockIn.toISOString(),
     clockOut: doc.clockOut ? doc.clockOut.toISOString() : null,
+    edits: (doc.edits ?? []).map((e) => ({
+      at: e.at.toISOString(),
+      byName: e.byName,
+      reason: e.reason,
+      clockIn: e.clockIn.toISOString(),
+      clockOut: e.clockOut ? e.clockOut.toISOString() : null,
+    })),
   };
 }
