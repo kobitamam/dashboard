@@ -18,12 +18,14 @@ import WeekCalendar from "@/components/WeekCalendar";
 import {
   addDays,
   buildCalendarItems,
+  type EventColor,
   israelNowMinutes,
   todayInIsraelDay,
   weekStartOf,
 } from "@/lib/calendar";
 import { getFeedToken } from "@/lib/db/calendar-feed";
-import { currentRole, loadDashboardData, loadEventTypes, requireOwnerId } from "@/lib/db/queries";
+import { currentRole, currentUserId, loadDashboardData, loadEventTypes, requireOwnerId } from "@/lib/db/queries";
+import { listOrganizationMembers } from "@/lib/users";
 import { requestOrigin } from "@/lib/origin";
 import { eventTypes as builtInEventTypes } from "@/lib/types";
 
@@ -39,12 +41,26 @@ export default async function CalendarPage({
   if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { events, cases } = result.data;
 
-  // Meetings/hearings are stored; case deadlines are derived from the cases, so
-  // the calendar can never drift out of sync with them.
-  const items = buildCalendarItems(events, cases);
-
   const params = await searchParams;
   const ownerId = await requireOwnerId();
+  const [eventTypes, role, userId, members, origin] = await Promise.all([
+    loadEventTypes(ownerId),
+    currentRole(),
+    currentUserId(),
+    listOrganizationMembers(ownerId),
+    requestOrigin(),
+  ]);
+  const feedToken = await getFeedToken(userId);
+
+  // An event takes the colour of the partner who added it: the founding partner's (whose id is the
+  // organization's) yellow, any other partner's pink; others keep the colour of their type.
+  const partners = new Set(members.filter((m) => m.role === "partner").map((m) => m.id));
+  const colorOf = (createdBy: string | null): EventColor | undefined =>
+    !createdBy || !partners.has(createdBy) ? undefined : createdBy === ownerId ? "yellow" : "pink";
+
+  // Meetings/hearings are stored; case deadlines are derived from the cases, so
+  // the calendar can never drift out of sync with them.
+  const items = buildCalendarItems(events, cases, colorOf);
 
   // A week starts on Sunday; Friday and Saturday are shown on request.
   const showWeekend = params.weekend === "1";
@@ -67,12 +83,6 @@ export default async function CalendarPage({
     timeZone: "UTC",
   }).format(new Date(`${addDays(weekStart, 2)}T00:00:00Z`));
 
-  const [eventTypes, role, feedToken, origin] = await Promise.all([
-    loadEventTypes(ownerId),
-    currentRole(),
-    getFeedToken(ownerId),
-    requestOrigin(),
-  ]);
   const isPartner = role === "partner";
   const customEventTypes = eventTypes.filter((t) => !builtInEventTypes.includes(t));
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
@@ -106,6 +116,26 @@ export default async function CalendarPage({
           ))}
         </select>
       </label>
+      {isPartner && (
+        // Asked every time, with no answer chosen in advance.
+        <fieldset className="sm:col-span-2 lg:col-span-3">
+          <legend className="mb-1.5 text-xs font-medium text-muted">עם מי לשתף את האירוע?</legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            {(
+              [
+                ["private", "רק אני"],
+                ["partners", "השותפים בלבד"],
+                ["all", "כולם"],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} className="flex items-center gap-1.5">
+                <input type="radio" name="visibility" value={value} required className="accent-[var(--brand-blue)]" />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
     </AddRecord>
   );
 
@@ -149,6 +179,22 @@ export default async function CalendarPage({
         )}
 
         <WeekCalendar days={days} today={today} nowMinutes={nowMinutes} items={items} />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-[11px] text-muted">
+          {members
+            .filter((m) => partners.has(m.id))
+            .map((m) => (
+              <span key={m.id} className="flex items-center gap-1.5">
+                <span
+                  className={`h-3 w-3 rounded-sm border ${
+                    colorOf(m.id) === "yellow" ? "border-yellow-300 bg-yellow-100" : "border-pink-300 bg-pink-100"
+                  }`}
+                />
+                אירוע של {m.name}
+              </span>
+            ))}
+          <span>🔒 רק למי שהוסיף</span>
+          <span>👥 לשותפים בלבד</span>
+        </div>
       </Card>
 
       {isPartner && (
@@ -169,7 +215,8 @@ export default async function CalendarPage({
           <p className="mt-3 text-sm text-muted">
             מוסיף ליומן של Apple יומן נוסף ברשימה שבצד, כמו היומנים האחרים שלך. אפשר לתת לו
             שם וצבע משלו. הוא מציג את הפגישות, הדיונים והדדליינים של התיקים ומתעדכן לבד.
-            הוא לצפייה בלבד: אירוע שמוסיפים ב-Apple לא נכנס למערכת.
+            הוא לצפייה בלבד: אירוע שמוסיפים ב-Apple לא נכנס למערכת. הקישור אישי ומציג בדיוק את מה
+            שאתה רואה ביומן כאן, כולל אירועים שלא שותפו עם כולם.
           </p>
           {feedPath ? (
             <>

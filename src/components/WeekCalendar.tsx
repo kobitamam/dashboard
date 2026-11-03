@@ -35,6 +35,16 @@ const styleFor = (kind: string) => {
   return customStyles[hash % customStyles.length];
 };
 
+// An event a partner added takes their colour (it wins over its type's colour).
+const partnerStyles = {
+  yellow: "bg-yellow-100 text-yellow-900 border-yellow-300",
+  pink: "bg-pink-100 text-pink-900 border-pink-300",
+} as const;
+const itemStyle = (item: CalendarItem) => (item.color ? partnerStyles[item.color] : styleFor(item.kind));
+// Shown before the title of an event not shared with everyone.
+const visibilityMark = (item: CalendarItem) =>
+  item.visibility === "private" ? "🔒 " : item.visibility === "partners" ? "👥 " : "";
+
 type Placed = { item: CalendarItem; start: number; end: number; lane: number; lanes: number };
 
 /** Side-by-side lanes for events that overlap in time within one day. */
@@ -127,10 +137,13 @@ export default function WeekCalendar({
                   <div
                     key={i.id}
                     title={`${i.title} · ${i.detail}`}
-                    className={`rounded-md border px-1.5 py-1 text-[11px] leading-snug ${styleFor(i.kind)}`}
+                    className={`rounded-md border px-1.5 py-1 text-[11px] leading-snug ${itemStyle(i)}`}
                   >
                     <div className="flex items-start justify-between gap-1">
-                      <p className="font-semibold">{i.title}</p>
+                      <p className="font-semibold">
+                        {visibilityMark(i)}
+                        {i.title}
+                      </p>
                       {i.eventId && (
                         <div className="-mt-1 -ml-1.5 shrink-0">
                           <DeleteButton
@@ -184,7 +197,7 @@ export default function WeekCalendar({
                 <div
                   key={item.id}
                   title={`${item.time}  ${item.title}${item.detail ? ` · ${item.detail}` : ""}`}
-                  className={`absolute overflow-hidden rounded-md border px-1.5 py-1 text-[11px] leading-snug ${styleFor(item.kind)}`}
+                  className={`absolute overflow-hidden rounded-md border px-1.5 py-1 text-[11px] leading-snug ${itemStyle(item)}`}
                   style={{
                     top: top(start) + 1,
                     height: Math.max(top(end) - top(start) - 2, 20),
@@ -193,7 +206,10 @@ export default function WeekCalendar({
                   }}
                 >
                   <div className="flex items-start justify-between gap-1">
-                    <p className="font-semibold">{item.title}</p>
+                    <p className="font-semibold">
+                      {visibilityMark(item)}
+                      {item.title}
+                    </p>
                     {item.eventId && (
                       <div className="-mt-1 -ml-1.5 shrink-0">
                         <DeleteButton

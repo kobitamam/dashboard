@@ -213,8 +213,14 @@ export type AttendanceEntry = {
   edits: { at: string; byName: string; reason: string; clockIn: string; clockOut: string | null }[];
 };
 
+// Who sees an event: everyone in the office (the default, and every event saved before this existed),
+// the partners only, or just the person who added it.
+export type EventVisibility = "all" | "partners" | "private";
+
 export type CalendarEvent = {
   id: string;
+  createdBy: string | null; // the account that added it (null for events saved before this was recorded)
+  visibility: EventVisibility;
   title: string;
   start: string;
   location: string;

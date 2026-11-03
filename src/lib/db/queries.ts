@@ -13,6 +13,7 @@ import {
   toEvent,
   toQuote,
 } from "@/lib/db/entities";
+import { canSeeEvent } from "@/lib/calendar";
 import { findAccountById, organizationIdOf } from "@/lib/users";
 import { caseTypes, eventTypes, type CalendarEvent, type Case, type CaseType, type Client, type Quote } from "@/lib/types";
 
@@ -174,7 +175,7 @@ function describeFailure(err: unknown) {
  * by throwing, and swallowing that would break the auth guard.
  */
 export const loadDashboardData = cache(async (): Promise<LoadResult> => {
-  const { organizationId: ownerId, role } = await requireUser();
+  const { organizationId: ownerId, role, id: userId } = await requireUser();
   const isPartner = role === "partner";
 
   try {
@@ -195,7 +196,8 @@ export const loadDashboardData = cache(async (): Promise<LoadResult> => {
           const view = toCase(c);
           return isPartner ? view : { ...view, fee: null, feeNote: "", transactionStatements: [], bettermentStatementInput: null };
         }),
-        events: events.map(toEvent),
+        // An event shared with the partners only, or kept private, reaches only those it is shared with.
+        events: events.map(toEvent).filter((e) => canSeeEvent(e, { id: userId, role })),
         quotes: quotes.map(toQuote),
       },
     };

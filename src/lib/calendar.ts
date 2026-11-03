@@ -1,5 +1,18 @@
 import { caseDeadlines } from "@/lib/deadlines";
-import type { CalendarEvent, Case } from "@/lib/types";
+import type { CalendarEvent, Case, EventVisibility } from "@/lib/types";
+
+/** Whether someone sees an event, by its sharing choice: everyone, the partners only, or its creator alone. */
+export function canSeeEvent(
+  event: { createdBy: string | null; visibility: EventVisibility },
+  viewer: { id: string; role: "partner" | "employee" },
+) {
+  if (event.visibility === "partners") return viewer.role === "partner" || event.createdBy === viewer.id;
+  if (event.visibility === "private") return event.createdBy === viewer.id;
+  return true;
+}
+
+// An event's colour follows who added it (the founding partner yellow, the other partners pink).
+export type EventColor = "yellow" | "pink";
 
 // Event times are entered and shown as plain office-clock times and stored as
 // their UTC fields, so the calendar page and the .ics feed read them the same way
@@ -13,9 +26,15 @@ export type CalendarItem = {
   detail: string;
   kind: string; // the event type, or "דדליין", for colouring
   eventId?: string;
+  color?: EventColor; // by who added it; otherwise the kind's colour
+  visibility?: EventVisibility;
 };
 
-export function buildCalendarItems(events: CalendarEvent[], cases: Case[]): CalendarItem[] {
+export function buildCalendarItems(
+  events: CalendarEvent[],
+  cases: Case[],
+  colorOf: (createdBy: string | null) => EventColor | undefined = () => undefined,
+): CalendarItem[] {
   const caseById = new Map(cases.map((c) => [c.id, c]));
   const items: CalendarItem[] = [
     ...events.map((e) => {
@@ -31,6 +50,8 @@ export function buildCalendarItems(events: CalendarEvent[], cases: Case[]): Cale
           .filter(Boolean)
           .join(" · "),
         eventId: e.id,
+        color: colorOf(e.createdBy),
+        visibility: e.visibility,
       };
     }),
     ...cases

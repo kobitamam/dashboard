@@ -108,6 +108,14 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   (`deleteOutlookTwin`), otherwise the next sync would re-import it. Not tested live: it needs the Microsoft account to have an Outlook
   mailbox (Graph otherwise answers MailboxNotEnabledForRESTAPI) and `Calendars.ReadWrite` consent.
 - A one-way read-only .ics feed (`/api/calendar/<token>.ics`) also exists as a simpler alternative (`calendarFeeds`).
+  Feeds are PER PERSON (`calendarFeeds._id` = user id, `getFeedToken`/`rotateFeedToken`/`feedForToken`) and show exactly what that
+  person sees in the app. The original link (doc `_id` = organization id = the founder's id) keeps working as the founder's link -
+  the user asked that his Apple Calendar keep showing everything the app's calendar shows.
+- Events record `createdBy` and `visibility` (`all` | `partners` | `private`). A partner must choose it when adding an event
+  ("עם מי לשתף את האירוע?"); an employee's events are always `all`. `canSeeEvent` (`src/lib/calendar.ts`) filters them in
+  `loadDashboardData`, the .ics feed and `deleteEvent`. Older events (no creator) are `all`.
+- A partner's event is coloured by its creator: the founder (יעקב) yellow, any other partner (רז) pink (`colorOf` in the calendar
+  page, `partnerStyles` in `WeekCalendar`); others keep their type colour. 🔒 marks a private event, 👥 a partners-only one.
 
 ## Speed and sessions
 

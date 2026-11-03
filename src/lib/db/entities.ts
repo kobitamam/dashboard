@@ -10,6 +10,7 @@ import type {
   Client,
   ClientStatus,
   EventType,
+  EventVisibility,
   Fee,
   FeePayment,
   PropertyDetails,
@@ -113,6 +114,8 @@ export type EventDoc = Owned & {
   type: EventType;
   caseId?: string;
   allDay?: boolean;
+  createdBy?: string; // user id
+  visibility?: EventVisibility;
   // Set while the event is mirrored in the Outlook calendar (see lib/calendar-sync.ts).
   outlookId?: string;
   syncHash?: string;
@@ -267,6 +270,8 @@ export function toQuote(doc: WithId<QuoteDoc>): Quote {
 export function toEvent(doc: WithId<EventDoc>): CalendarEvent {
   return {
     id: doc._id.toString(),
+    createdBy: doc.createdBy ?? null,
+    visibility: doc.visibility ?? "all",
     title: doc.title,
     start: doc.start.toISOString(),
     location: doc.location,

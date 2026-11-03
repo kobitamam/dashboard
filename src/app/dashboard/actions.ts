@@ -10,11 +10,14 @@ import {
   eventTypesRepo,
   quotesRepo,
   toCase,
+  toEvent,
   toQuote,
 } from "@/lib/db/entities";
+import { canSeeEvent } from "@/lib/calendar";
 import { disconnect as disconnectOneDriveConnection, getValidAccessToken } from "@/lib/db/onedrive-connection";
 import {
   currentRole,
+  currentUserId,
   loadCaseTypes,
   loadEventTypes,
   requirePartnerId,
@@ -63,6 +66,7 @@ import {
   NEW_CASE_TYPE,
   type CaseStatus,
   type ClientStatus,
+  type EventVisibility,
   type UploadTarget,
 } from "@/lib/types";
 
@@ -415,6 +419,7 @@ export async function deleteCase(id: string) {
 
 export async function createEvent(form: FormData) {
   const ownerId = await requireOwnerId();
+  const [userId, role] = await Promise.all([currentUserId(), currentRole()]);
   const title = text(form, "title");
   const start = date(form, "start");
   if (!title || !start) return;
@@ -424,10 +429,15 @@ export async function createEvent(form: FormData) {
   const linkedCase = linkedCaseId ? await casesRepo.get(ownerId, linkedCaseId) : null;
 
   const allDay = form.get("allDay") === "on";
+  // A partner chooses who sees the event; an employee's events are shared with everyone.
+  const visibility: EventVisibility =
+    role === "partner" ? oneOf<EventVisibility>(form, "visibility", ["all", "partners", "private"], "all") : "all";
 
   await eventsRepo.insert(ownerId, {
     title,
     start,
+    createdBy: userId,
+    visibility,
     ...(allDay ? { allDay: true } : {}),
     location: text(form, "location"),
     type: await resolveEventType(ownerId, form),
@@ -440,18 +450,22 @@ export async function createEvent(form: FormData) {
 
 export async function deleteEvent(id: string) {
   const ownerId = await requireOwnerId();
+  const [userId, role] = await Promise.all([currentUserId(), currentRole()]);
+  // Only an event one can see can be deleted (a private one by its creator alone).
+  const event = await eventsRepo.get(ownerId, id);
+  if (!event || !canSeeEvent(toEvent(event), { id: userId, role })) return;
   await deleteOutlookTwin(ownerId, id);
   await eventsRepo.remove(ownerId, id);
   refresh();
 }
 
 /**
- * Creates the Apple Calendar subscription link, or replaces it (the old link stops
- * working). The calendar is shared by the whole office, so employees may use it too.
+ * Creates the person's own Apple Calendar subscription link, or replaces it (the old link stops
+ * working). It shows what they see on the calendar page, so employees may use it too.
  */
 export async function rotateCalendarFeed() {
   const ownerId = await requireOwnerId();
-  await rotateFeedToken(ownerId);
+  await rotateFeedToken(await currentUserId(), ownerId);
   refresh();
 }
 
