@@ -62,3 +62,13 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* iPhone/iPad zoom into a text box under 16px when it is tapped, and the home-screen app stays zoomed in.
+   Only iOS matches this (-webkit-touch-callout), so the computers keep the smaller text. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

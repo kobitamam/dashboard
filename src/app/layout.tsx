@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Rubik } from "next/font/google";
 import "./globals.css";
 
@@ -13,6 +13,14 @@ const rubik = Rubik({
 export const metadata: Metadata = {
   title: "TA-Estate | ניהול משרד שמאות מקרקעין",
   description: "מערכת ניהול לעסק שמאות מקרקעין - TA-Estate",
+  // Added to the iPhone home screen it opens full screen, named TA-Estate (icon: app/apple-icon.png).
+  appleWebApp: { capable: true, title: "TA-Estate", statusBarStyle: "default" },
+  // Next emits only the standard mobile-web-app-capable; older iOS versions read Apple's own name.
+  other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff", // the header's colour, so the phone's status bar blends with it
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -128,6 +128,14 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   applies within a minute, although the JWT itself lives for weeks. If the DB is unreachable it falls back to the token.
 - `src/app/dashboard/loading.tsx` gives instant feedback on navigation. The Rubik font is self-hosted via `next/font`.
 
+## Phone app (home-screen web app)
+
+- There is no App Store app (the user chose this): the site installs as a web app. `src/app/manifest.ts` (standalone, starts at
+  `/dashboard`, RTL), icons `public/icon-192.png` / `icon-512.png` and `src/app/apple-icon.png` (the sidebar's "TA" mark, rendered with
+  Playwright from the Rubik font), and `appleWebApp` + `apple-mobile-web-app-capable` in `src/app/layout.tsx`. On iPhone: Safari > share >
+  "הוסף למסך הבית". The home-screen app keeps its own cookies, so one signs in once inside it. `globals.css` sets inputs to 16px on iOS only,
+  because iOS zooms into smaller text boxes and the standalone app stays zoomed.
+
 ## Domain
 
 - The app's address is `https://app.ta-estate.co.il` (added in Vercel > Domains by the user; DNS is at Hostinger, NOT at the
