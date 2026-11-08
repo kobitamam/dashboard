@@ -193,9 +193,11 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   tab's "התיקים שלי" is only a filter (`?scope=mine`); everyone can always switch to all cases.
 - Types of appraisal are a built-in list plus partner-added ones (`loadCaseTypes`).
 - Progress (`caseProgress`, `src/lib/types.ts`) is never typed by hand: a betterment-levy case follows its stage; every other case
-  follows its status (דחוף 0, ממתין למידע 10, בתהליך 50, נשלחה טיוטה 90, הושלם 100). It is derived again in `toCase`, so older
+  follows its status (ממתין למידע 10, בתהליך 40, נשלחה טיוטה 70, נשלח חתום 85, בגבייה 95, הושלם 100). It is derived again in `toCase`, so older
   stored values don't matter. A new non-betterment case starts as "ממתין למידע" (`NEW_CASE_STATUS`; the new-case form has no
-  status or progress field). An urgent (דחוף) case card has a light red background (any type).
+  status or progress field). The status "דחוף" (urgent, with its red card) was REMOVED at the user's request; a case still stored
+  with it reads as "בתהליך" (`normalizeCaseStatus` in `toCase`). "נשלח חתום" (signed appraisal sent) follows "נשלחה טיוטה" and, like
+  it, makes the middle installments due (`feeStageOf` -> "draft").
 - **"בגבייה" (in collection)** sits between "נשלחה טיוטה" and "הושלם" (progress 95; a betterment-levy stage of the same name, 90,
   kept in step with the status both ways in `updateCaseProgress`). It means the work was delivered: the LAST installment (and a
   betterment share of the reduction) falls due (`feeStageOf` -> "done", so transaction statements bill it too), the case is listed

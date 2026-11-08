@@ -69,7 +69,6 @@ export default async function CasesPage({
   };
   const chip = (active: boolean) =>
     `rounded-full px-3 py-1 text-xs font-semibold ${active ? "bg-brand-blue text-white" : "bg-surface text-muted hover:bg-background"}`;
-  const urgent = cases.filter((c) => c.status === "דחוף").length;
 
   const form = (
     <AddRecord label="+ תיק חדש" action={createCase}>
@@ -108,7 +107,7 @@ export default async function CasesPage({
         title="מעקב תיקים"
         subtitle={
           allCases.length
-            ? `${allCases.length} תיקים במערכת · ${urgent} דחופים`
+            ? `${allCases.length} תיקים במערכת`
             : "עדיין לא נפתחו תיקים"
         }
         action={allCases.length > 0 ? form : undefined}
@@ -185,11 +184,7 @@ export default async function CasesPage({
                 </div>
 
                 {items.map((c) => (
-                  <Card
-                    key={c.id}
-                    // An urgent case stands out with a light red background.
-                    className={`p-4 ${c.status === "דחוף" ? "border-danger/40 bg-danger/10!" : ""}`}
-                  >
+                  <Card key={c.id} className="p-4">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-muted">{c.caseNumber}</span>
                       <span className="text-xs text-muted">{formatDate(c.dueDate)}</span>

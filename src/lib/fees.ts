@@ -4,14 +4,14 @@ import { BETTERMENT_LEVY, COLLECTION_STAGE, isWorkDone, type Case, type Fee, typ
 /**
  * How far a case has got, for billing: a payment becomes collectable at a stage.
  *  - "open": the case was opened (first installment)
- *  - "draft": the draft was sent (installments between the first and the last)
+ *  - "draft": the draft (or the signed appraisal) was sent (installments between the first and the last)
  *  - "done": the case went to collection (בגבייה) or was completed (the last installment and the share of the reduction)
  */
 export type CaseStage = "open" | "draft" | "done";
 
 export function feeStageOf(c: Pick<Case, "status" | "type" | "bettermentStage">): CaseStage {
   if (isWorkDone(c.status)) return "done";
-  if (c.status === "נשלחה טיוטה") return "draft";
+  if (c.status === "נשלחה טיוטה" || c.status === "נשלח חתום") return "draft";
   if (c.type === BETTERMENT_LEVY) {
     const stage = c.bettermentStage ?? "";
     if (stage === "הושלם" || stage === COLLECTION_STAGE) return "done";

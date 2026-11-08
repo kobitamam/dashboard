@@ -17,7 +17,7 @@ import type {
   Quote,
   QuoteStatus,
 } from "@/lib/types";
-import { caseProgress } from "@/lib/types";
+import { caseProgress, normalizeCaseStatus } from "@/lib/types";
 import type { BettermentStatementInput } from "@/lib/betterment-statement";
 
 export type AttachmentDoc = {
@@ -220,7 +220,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     clientName: doc.clientName,
     address: doc.address,
     type: doc.type,
-    status: doc.status,
+    status: normalizeCaseStatus(doc.status),
     dueDate: day(doc.dueDate),
     arbitratorRequestDate: day(doc.arbitratorRequestDate),
     counterAppraisalDate: day(doc.counterAppraisalDate),
@@ -228,7 +228,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
     partnerId: doc.partnerId || null,
     employeeId: doc.employeeId || null,
     // Derived, so cases saved before progress followed the status show it too.
-    progress: caseProgress(doc),
+    progress: caseProgress({ ...doc, status: normalizeCaseStatus(doc.status) }),
     oneDriveFolderUrl: doc.oneDriveFolderUrl ?? null,
     oneDriveFolderName: doc.oneDriveFolderName ?? null,
     fromQuoteId: doc.fromQuoteId ?? null,

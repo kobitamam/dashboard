@@ -1,7 +1,7 @@
 import type { BettermentStatementInput } from "@/lib/betterment-statement";
 
 export type ClientStatus = "פעיל" | "ליד חדש" | "סגור";
-export type CaseStatus = "בתהליך" | "ממתין למידע" | "נשלחה טיוטה" | "בגבייה" | "דחוף" | "הושלם";
+export type CaseStatus = "ממתין למידע" | "בתהליך" | "נשלחה טיוטה" | "נשלח חתום" | "בגבייה" | "הושלם";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
 // The built-in kinds plus any the office added (see loadEventTypes), so it is just a string.
 export type EventType = string;
@@ -18,7 +18,13 @@ export type QuoteStatus = "ממתין לאישור" | "אושרה" | "נדחתה
 export type Role = "partner" | "employee";
 
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
-export const caseStatuses: CaseStatus[] = ["דחוף", "ממתין למידע", "בתהליך", "נשלחה טיוטה", "בגבייה", "הושלם"];
+// In the order a case moves through them. "דחוף" (urgent) was removed at the user's request; cases saved
+// with it read as "בתהליך" (normalizeCaseStatus).
+export const caseStatuses: CaseStatus[] = ["ממתין למידע", "בתהליך", "נשלחה טיוטה", "נשלח חתום", "בגבייה", "הושלם"];
+
+export function normalizeCaseStatus(value: string): CaseStatus {
+  return (caseStatuses as string[]).includes(value) ? (value as CaseStatus) : "בתהליך";
+}
 
 // The work was delivered and the fee is being collected: its last payment falls due and the case
 // shows on the billing tab (see feeStageOf), until it is marked completed.
@@ -31,10 +37,10 @@ export const isWorkDone = (status: CaseStatus) => status === "הושלם" || sta
 // waiting for information (a betterment-levy case's progress follows its stage instead).
 export const NEW_CASE_STATUS: CaseStatus = "ממתין למידע";
 const statusProgress: Record<CaseStatus, number> = {
-  דחוף: 0,
   "ממתין למידע": 10,
-  בתהליך: 50,
-  "נשלחה טיוטה": 90,
+  בתהליך: 40,
+  "נשלחה טיוטה": 70,
+  "נשלח חתום": 85,
   בגבייה: 95,
   הושלם: 100,
 };

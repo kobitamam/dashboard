@@ -61,7 +61,7 @@ export async function seedDemoData(ownerId: string) {
       clientName: "בנק הפועלים - סניף רמת גן",
       address: "רוטשילד 45, תל אביב",
       type: "שומה לצרכי מימון/משכנתא",
-      status: "דחוף",
+      status: "נשלח חתום",
       dueDate: at(1),
       progress: 80,
     },

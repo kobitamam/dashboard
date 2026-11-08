@@ -26,7 +26,7 @@ export default async function Dashboard() {
   const casesToCollect = billing.filter((b) => b.balanceDue > 0).length;
   const activeClients = clients.filter((c) => c.status === "פעיל").length;
   const openCases = cases.filter((c) => c.status !== "הושלם");
-  const urgentCases = openCases.filter((c) => c.status === "דחוף");
+  const inCollection = openCases.filter((c) => c.status === "בגבייה");
 
   const today = new Date();
   const todayEvents = events.filter((e) => isSameDay(e.start, today));
@@ -86,7 +86,7 @@ export default async function Dashboard() {
         <StatCard
           label="תיקים פתוחים"
           value={String(openCases.length)}
-          hint={`${urgentCases.length} תיקים דחופים`}
+          hint={`${inCollection.length} בגבייה`}
           tone="cyan"
           icon={<FolderMini />}
         />
