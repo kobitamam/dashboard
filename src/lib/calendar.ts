@@ -1,5 +1,5 @@
 import { caseDeadlines } from "@/lib/deadlines";
-import type { CalendarEvent, Case, EventVisibility } from "@/lib/types";
+import { isWorkDone, type CalendarEvent, type Case, type EventVisibility } from "@/lib/types";
 
 /** Whether someone sees an event, by its sharing choice: everyone, the partners only, or its creator alone. */
 export function canSeeEvent(
@@ -55,7 +55,7 @@ export function buildCalendarItems(
       };
     }),
     ...cases
-      .filter((c) => c.status !== "הושלם")
+      .filter((c) => !isWorkDone(c.status))
       .flatMap((c) =>
         caseDeadlines(c).map((d) => ({
           id: `deadline-${c.id}-${d.key}`,

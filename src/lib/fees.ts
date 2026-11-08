@@ -1,20 +1,20 @@
 import { addVat } from "@/lib/vat";
-import { BETTERMENT_LEVY, type Case, type Fee, type Installment } from "@/lib/types";
+import { BETTERMENT_LEVY, COLLECTION_STAGE, isWorkDone, type Case, type Fee, type Installment } from "@/lib/types";
 
 /**
  * How far a case has got, for billing: a payment becomes collectable at a stage.
  *  - "open": the case was opened (first installment)
  *  - "draft": the draft was sent (installments between the first and the last)
- *  - "done": the case was completed (the last installment and the share of the reduction)
+ *  - "done": the case went to collection (בגבייה) or was completed (the last installment and the share of the reduction)
  */
 export type CaseStage = "open" | "draft" | "done";
 
 export function feeStageOf(c: Pick<Case, "status" | "type" | "bettermentStage">): CaseStage {
-  if (c.status === "הושלם") return "done";
+  if (isWorkDone(c.status)) return "done";
   if (c.status === "נשלחה טיוטה") return "draft";
   if (c.type === BETTERMENT_LEVY) {
     const stage = c.bettermentStage ?? "";
-    if (stage === "הושלם") return "done";
+    if (stage === "הושלם" || stage === COLLECTION_STAGE) return "done";
     if (stage && stage !== "טרם נשלחה טיוטה") return "draft";
   }
   return "open";

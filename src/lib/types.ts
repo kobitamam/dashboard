@@ -1,7 +1,7 @@
 import type { BettermentStatementInput } from "@/lib/betterment-statement";
 
 export type ClientStatus = "פעיל" | "ליד חדש" | "סגור";
-export type CaseStatus = "בתהליך" | "ממתין למידע" | "נשלחה טיוטה" | "דחוף" | "הושלם";
+export type CaseStatus = "בתהליך" | "ממתין למידע" | "נשלחה טיוטה" | "בגבייה" | "דחוף" | "הושלם";
 export type AlertSeverity = "גבוהה" | "בינונית" | "נמוכה";
 // The built-in kinds plus any the office added (see loadEventTypes), so it is just a string.
 export type EventType = string;
@@ -18,7 +18,14 @@ export type QuoteStatus = "ממתין לאישור" | "אושרה" | "נדחתה
 export type Role = "partner" | "employee";
 
 export const clientStatuses: ClientStatus[] = ["פעיל", "ליד חדש", "סגור"];
-export const caseStatuses: CaseStatus[] = ["דחוף", "ממתין למידע", "בתהליך", "נשלחה טיוטה", "הושלם"];
+export const caseStatuses: CaseStatus[] = ["דחוף", "ממתין למידע", "בתהליך", "נשלחה טיוטה", "בגבייה", "הושלם"];
+
+// The work was delivered and the fee is being collected: its last payment falls due and the case
+// shows on the billing tab (see feeStageOf), until it is marked completed.
+export const COLLECTION_STATUS: CaseStatus = "בגבייה";
+
+/** The appraisal itself is finished (in collection or completed): no more deadlines for it. */
+export const isWorkDone = (status: CaseStatus) => status === "הושלם" || status === COLLECTION_STATUS;
 
 // Every case but a betterment levy: the status sets the progress, and a new case starts
 // waiting for information (a betterment-levy case's progress follows its stage instead).
@@ -28,6 +35,7 @@ const statusProgress: Record<CaseStatus, number> = {
   "ממתין למידע": 10,
   בתהליך: 50,
   "נשלחה טיוטה": 90,
+  בגבייה: 95,
   הושלם: 100,
 };
 
@@ -65,10 +73,12 @@ export const bettermentStages = [
   { name: "נשלחה טיוטה", progress: 25 },
   { name: "נשלח חתום, ממתין לדיון", progress: 50 },
   { name: "ממתין להחלטה", progress: 75 },
+  { name: "בגבייה", progress: 90 },
   { name: "הושלם", progress: 100 },
 ] as const;
 
 export const COMPLETED_STAGE = "הושלם";
+export const COLLECTION_STAGE = "בגבייה";
 
 export const bettermentStageNames: string[] = bettermentStages.map((s) => s.name);
 

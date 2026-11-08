@@ -57,6 +57,8 @@ import {
   BETTERMENT_LEVY,
   bettermentStageNames,
   caseProgress,
+  COLLECTION_STAGE,
+  COLLECTION_STATUS,
   COMPLETED_STAGE,
   caseStatuses,
   caseTypes,
@@ -386,12 +388,16 @@ export async function updateCaseProgress(id: string, form: FormData) {
   let stage = oneOf(form, "bettermentStage", bettermentStageNames, storedStage);
   let status = oneOf<CaseStatus>(form, "status", caseStatuses, "בתהליך");
 
-  // A betterment-levy case is finished when either its stage or its status says
-  // so (whichever one the user just changed), and a finished case goes to billing.
+  // A betterment-levy case goes to collection, or is finished, when either its stage or its status
+  // says so (whichever one the user just changed); collection puts it on the billing tab.
   if (isBettermentLevy) {
-    const done = COMPLETED_STAGE;
-    if (stage === done && storedStage !== done) status = "הושלם";
-    else if (status === "הושלם" && caseDoc.status !== "הושלם") stage = done;
+    for (const [stageName, statusName] of [
+      [COLLECTION_STAGE, COLLECTION_STATUS],
+      [COMPLETED_STAGE, "הושלם"],
+    ] as const) {
+      if (stage === stageName && storedStage !== stageName) status = statusName;
+      else if (status === statusName && caseDoc.status !== statusName) stage = stageName;
+    }
   }
 
   await casesRepo.update(ownerId, id, {
@@ -407,6 +413,21 @@ export async function updateCaseProgress(id: string, form: FormData) {
           counterAppraisalDate: date(form, "counterAppraisalDate"),
         }
       : {}),
+  });
+  refresh();
+}
+
+/** From the billing tab: the fee of a case in collection was collected, so the case is completed. */
+export async function completeCollection(id: string) {
+  const ownerId = await requirePartnerId();
+  const caseDoc = await casesRepo.get(ownerId, id);
+  if (!caseDoc || caseDoc.status !== COLLECTION_STATUS) return;
+  const isBettermentLevy = caseDoc.type === BETTERMENT_LEVY;
+  const stage = isBettermentLevy ? COMPLETED_STAGE : caseDoc.bettermentStage;
+  await casesRepo.update(ownerId, id, {
+    status: "הושלם",
+    progress: caseProgress({ type: caseDoc.type, status: "הושלם", bettermentStage: stage }),
+    ...(isBettermentLevy ? { bettermentStage: stage } : {}),
   });
   refresh();
 }

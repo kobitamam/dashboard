@@ -1,19 +1,20 @@
 import Link from "next/link";
 import {
+  completeCollection,
   createBettermentStatement,
   createTransactionStatement,
   getTransactionStatementWordUri,
 } from "@/app/dashboard/actions";
-import { DataUnavailable } from "@/components/form";
+import { ConfirmButton, DataUnavailable } from "@/components/form";
 import TransactionStatements from "@/components/TransactionStatements";
-import { Card, PageHeader, StatCard } from "@/components/ui";
+import { Card, PageHeader, StatCard, StatusBadge } from "@/components/ui";
 import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { isOneDriveConfigured } from "@/lib/onedrive";
 import { feeStageOf, feeTotals } from "@/lib/fees";
 import { emptyUnit } from "@/lib/betterment-statement";
 import { formatMoney } from "@/lib/format";
-import { BETTERMENT_LEVY, type Case } from "@/lib/types";
+import { BETTERMENT_LEVY, COLLECTION_STATUS, type Case } from "@/lib/types";
 import { removeVat } from "@/lib/vat";
 
 // The closing statement's form starts from the last one typed for the case, or else from the case
@@ -48,21 +49,28 @@ export default async function BillingPage() {
   const { cases } = result.data;
 
   // Each case's fee is collected in the installments set in its quote: the first when the case
-  // is opened, the last when it is completed (or, for a betterment levy, when its stage reaches
-  // "הושלם"), any in between once the draft is sent. Cases with something to collect (or no fee
-  // set yet) are listed, the ones to collect now first. Payments are recorded on the fee page.
+  // is opened, the last when it moves to collection ("בגבייה", or is completed), any in between once
+  // the draft is sent. Cases in collection come first, then those with something to collect now (or no
+  // fee set yet). Payments are recorded on the fee page; "הגבייה הושלמה" moves a case on to "הושלם".
   const rows = cases.map((c) => ({
     case: c,
     completed: c.status === "הושלם",
+    inCollection: c.status === COLLECTION_STATUS,
     ...feeTotals(c.fee, feeStageOf(c)),
   }));
   const billing = rows
     // A betterment-levy case stays listed, for its closing statement (גמר חשבון).
-    .filter((r) => r.balanceDue > 0 || !r.case.fee || r.completed || r.case.type === BETTERMENT_LEVY)
+    .filter(
+      (r) =>
+        r.inCollection || r.balanceDue > 0 || !r.case.fee || r.completed || r.case.type === BETTERMENT_LEVY,
+    )
     .sort(
       (a, b) =>
-        Number(b.balanceDue > 0) - Number(a.balanceDue > 0) || b.balanceDue - a.balanceDue,
+        Number(b.inCollection) - Number(a.inCollection) ||
+        Number(b.balanceDue > 0) - Number(a.balanceDue > 0) ||
+        b.balanceDue - a.balanceDue,
     );
+  const inCollection = rows.filter((r) => r.inCollection).length;
   const awaitingCollection = rows.reduce((sum, r) => sum + r.balanceDue, 0);
   const received = rows.reduce((sum, r) => sum + r.paid, 0);
   const upcoming = rows.reduce((sum, r) => sum + Math.max(0, r.total - Math.max(r.dueNow, r.paid)), 0);
@@ -86,9 +94,14 @@ export default async function BillingPage() {
             <h2 className="text-lg font-bold">
               תיקים לגבייה
               <span className="mr-2 text-sm font-normal text-muted">({billing.length})</span>
+              {inCollection > 0 && (
+                <span className="mr-2 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                  {inCollection} בגבייה
+                </span>
+              )}
             </h2>
             <p className="text-xs text-muted">
-              תשלום ראשון - כשנפתח תיק · אחרון - כשהתיק הושלם · באמצע - כשנשלחה טיוטה
+              תשלום ראשון - כשנפתח תיק · באמצע - כשנשלחה טיוטה · אחרון - כשהתיק עובר ל״בגבייה״ במעקב התיקים
             </p>
           </div>
           {billing.length > 0 && (
@@ -118,7 +131,14 @@ export default async function BillingPage() {
               <tbody>
                 {billing.map((r) => (
                   <tr key={r.case.id} className="border-b border-border last:border-0 hover:bg-background/60">
-                    <td className="px-4 py-3 font-mono text-xs text-muted">{r.case.caseNumber}</td>
+                    <td className="px-4 py-3">
+                      <span className="block font-mono text-xs text-muted">{r.case.caseNumber}</span>
+                      {(r.inCollection || r.completed) && (
+                        <span className="mt-1 inline-block">
+                          <StatusBadge status={r.case.status} />
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-semibold text-foreground">{r.case.clientName}</td>
                     <td className="px-4 py-3">
                       {!r.case.fee ? (
@@ -156,6 +176,19 @@ export default async function BillingPage() {
                       )}
                     </td>
                     <td className="space-y-1.5 px-4 py-3 text-left">
+                      {r.inCollection && (
+                        <ConfirmButton
+                          action={completeCollection.bind(null, r.case.id)}
+                          confirmText={
+                            r.balanceDue > 0
+                              ? `נותרה יתרה של ${formatMoney(r.balanceDue)}. לסמן את הגבייה כהושלמה בכל זאת?`
+                              : "לסמן שהגבייה הושלמה? התיק יעבור ל״הושלם״ במעקב התיקים."
+                          }
+                          tone="success"
+                        >
+                          ✓ הגבייה הושלמה
+                        </ConfirmButton>
+                      )}
                       <Link
                         href={`/dashboard/fees/${r.case.id}`}
                         className="block text-xs font-semibold text-brand-blue hover:underline"

@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/calendar-connection";
 import { casesRepo, eventsRepo, toCase } from "@/lib/db/entities";
 import { getDb } from "@/lib/mongodb";
+import { isWorkDone } from "@/lib/types";
 import {
   createCalendar,
   createRemoteEvent,
@@ -190,7 +191,7 @@ async function runSync(ownerId: string, token: string, knownCalendarId?: string)
   // ---- case deadlines (system -> Outlook only) ----
   const wanted = new Map<string, { event: OutgoingEvent; hash: string }>();
   for (const c of cases) {
-    if (c.status === "הושלם") continue;
+    if (isWorkDone(c.status)) continue;
     for (const d of caseDeadlines(c)) {
       const event: OutgoingEvent = {
         subject: `דדליין: ${d.label}`,

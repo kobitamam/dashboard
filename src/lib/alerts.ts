@@ -1,7 +1,7 @@
 import { caseDeadlines } from "@/lib/deadlines";
 import { daysUntil } from "@/lib/format";
 import { feeTotals } from "@/lib/fees";
-import type { Alert, CalendarEvent, Case } from "@/lib/types";
+import { isWorkDone, type Alert, type CalendarEvent, type Case } from "@/lib/types";
 
 const DEADLINE_WARNING_DAYS = 3;
 
@@ -34,7 +34,8 @@ export function deriveAlerts(
   }
 
   for (const item of cases) {
-    if (item.status === "הושלם") continue;
+    // A case in collection was delivered, so its deadlines no longer apply.
+    if (isWorkDone(item.status)) continue;
     const days = daysUntil(item.dueDate, today);
 
     if (days !== null && days < 0) {

@@ -84,6 +84,7 @@ const statusStyles: Record<string, string> = {
   בתהליך: "bg-brand-cyan-light text-brand-blue",
   "ממתין למידע": "bg-warning/10 text-warning",
   "נשלחה טיוטה": "bg-brand-blue/10 text-brand-blue",
+  בגבייה: "bg-violet-100 text-violet-700",
   דחוף: "bg-danger/10 text-danger",
   הושלם: "bg-success/10 text-success",
   שולם: "bg-success/10 text-success",

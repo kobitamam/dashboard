@@ -177,7 +177,7 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 - A quote's fee (`src/lib/fees.ts`, `FeeStructureFields`): amount before VAT and including VAT (`src/lib/vat.ts`, 18%), a number of
   payments and the percent of the fee of each; `feePercent` (share of the reduction) exists only for a betterment levy. Approving a
   quote copies it to the case as `fee.installments` (amounts include VAT). Installments fall due by stage (`feeStageOf`): the first when
-  the case is opened, the last when it is completed (plus the share of the reduction), any in between once the draft is sent
+  the case is opened, the last when it goes to collection ("בגבייה") or is completed (plus the share of the reduction), any in between once the draft is sent
   (status "נשלחה טיוטה" or a betterment stage past "טרם נשלחה טיוטה"). Receipts (`fee.payments`) cover installments in order. Fees saved
   before installments existed use `baseAmount`/`finalAmount`. The billing tab lists each case's installments and what is due now.
   There are NO invoices any more (removed at the user's request): the billing tab, dashboard cards, alerts and the clients tab's
@@ -196,6 +196,11 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   follows its status (דחוף 0, ממתין למידע 10, בתהליך 50, נשלחה טיוטה 90, הושלם 100). It is derived again in `toCase`, so older
   stored values don't matter. A new non-betterment case starts as "ממתין למידע" (`NEW_CASE_STATUS`; the new-case form has no
   status or progress field). An urgent (דחוף) case card has a light red background (any type).
+- **"בגבייה" (in collection)** sits between "נשלחה טיוטה" and "הושלם" (progress 95; a betterment-levy stage of the same name, 90,
+  kept in step with the status both ways in `updateCaseProgress`). It means the work was delivered: the LAST installment (and a
+  betterment share of the reduction) falls due (`feeStageOf` -> "done", so transaction statements bill it too), the case is listed
+  first on the billing tab with its badge, and deadlines/late alerts stop (`isWorkDone`). The billing tab's "✓ הגבייה הושלמה"
+  (`completeCollection`, partners only, confirms and warns about an open balance) moves it to "הושלם". Cases are not moved by payments.
 - Attendance (שעון נוכחות) records real moments, shown in Israel's time (`formatIsraelTime`/`formatIsraelDate`, `toIsraelParts`,
   `fromIsraelParts` in `src/lib/format.ts`); it used the plain formatters, which run in UTC on Vercel, so times showed 2-3 hours early
   (the bug the user reported). The plain `formatDate`/`formatTime` are pinned to UTC on purpose (dates and meeting times are stored as
