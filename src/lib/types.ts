@@ -179,6 +179,8 @@ export type TransactionStatement = {
 
 export type Case = PropertyDetails & {
   id: string;
+  // When the case was opened (its quote approved, or opened by hand): the record's creation moment.
+  openedAt: string | null;
   caseNumber: string;
   clientName: string;
   address: string;

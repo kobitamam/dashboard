@@ -25,7 +25,7 @@ import { currentRole, currentUserId, loadCaseTypes, loadDashboardData, requireOw
 import { caseDeadlines } from "@/lib/deadlines";
 import { caseHaystack, matchesQuery } from "@/lib/search";
 import { listOrganizationMembers, type OrganizationMember } from "@/lib/users";
-import { daysUntil, formatDate, formatParcel, formatTime, propertyLines } from "@/lib/format";
+import { daysUntil, formatDate, formatIsraelFullDate, formatParcel, formatTime, propertyLines } from "@/lib/format";
 import {
   BETTERMENT_LEVY,
   bettermentStageNames,
@@ -205,6 +205,9 @@ export default async function CasesPage({
                         <span className="font-mono text-xs text-muted">{c.caseNumber}</span>
                         <span className="text-xs text-muted">{c.dueDate ? `יעד: ${formatDate(c.dueDate)}` : ""}</span>
                       </div>
+                      {c.openedAt && (
+                        <p className="mt-0.5 text-xs text-muted">נפתח ב-{formatIsraelFullDate(c.openedAt)}</p>
+                      )}
                       {(c.clientEmail || c.clientPhone) && (
                         <p className="mt-0.5 text-xs text-muted">
                           {[c.clientEmail, c.clientPhone].filter(Boolean).join(" · ")}

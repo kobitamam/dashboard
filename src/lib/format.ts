@@ -28,6 +28,8 @@ const israelParts = new Intl.DateTimeFormat("en-CA", {
 
 export const formatIsraelDate = (iso: string) => israelDate.format(new Date(iso));
 export const formatIsraelTime = (iso: string) => israelTime.format(new Date(iso));
+/** A real moment's day in Israel, in full: "08/11/2026". */
+export const formatIsraelFullDate = (iso: string) => toIsraelParts(iso).date.split("-").reverse().join("/");
 
 /** A moment as Israel's calendar day and clock time: { date: "2026-11-02", time: "08:30" }. */
 export function toIsraelParts(value: Date | string) {

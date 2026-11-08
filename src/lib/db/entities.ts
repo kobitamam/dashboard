@@ -216,6 +216,7 @@ export function toCase(doc: WithId<CaseDoc>): Case {
   return {
     ...toPropertyDetails(doc),
     id: doc._id.toString(),
+    openedAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
     caseNumber: doc.caseNumber,
     clientName: doc.clientName,
     address: doc.address,
