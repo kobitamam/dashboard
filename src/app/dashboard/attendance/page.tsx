@@ -5,18 +5,24 @@ import {
   editAttendanceEntry,
   removeAttendanceEntry,
 } from "@/app/dashboard/attendance-actions";
+import Link from "next/link";
+import AttendanceFilters from "@/components/AttendanceFilters";
 import { DeleteButton, EditRecord, EmptyState, Field } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
 import { attendanceRepo, toAttendance } from "@/lib/db/entities";
+import {
+  currentMonth,
+  entryHours,
+  entryMonth,
+  isMonth,
+  monthLabel,
+  peopleOf,
+  totalsByPerson,
+} from "@/lib/attendance-report";
 import { currentRole, currentUserId, requireOwnerId } from "@/lib/db/queries";
 import { formatDuration, formatIsraelDate, formatIsraelTime, toIsraelParts } from "@/lib/format";
 import type { AttendanceEntry } from "@/lib/types";
-
-function hoursBetween(startIso: string, endIso: string | null) {
-  const start = new Date(startIso).getTime();
-  const end = endIso ? new Date(endIso).getTime() : Date.now();
-  return (end - start) / 3_600_000;
-}
+import { listOrganizationMembers } from "@/lib/users";
 
 // The day and the entry/exit times (Israel's clock), and the reason for the change - required.
 function TimeFields({ entry }: { entry?: AttendanceEntry }) {
@@ -46,7 +52,7 @@ function EntryRow({ entry, showName, canEdit }: { entry: AttendanceEntry; showNa
         <p className="text-xs text-muted">
           {formatIsraelTime(entry.clockIn)} - {entry.clockOut ? formatIsraelTime(entry.clockOut) : "כעת"}
           {" · "}
-          {formatDuration(hoursBetween(entry.clockIn, entry.clockOut))} שעות
+          {formatDuration(entryHours(entry))} שעות
         </p>
         {lastEdit && (
           <p className="mt-0.5 text-xs text-warning" title={entry.edits.map((e) => `${e.byName}: ${e.reason}`).join("\n")}>
@@ -71,27 +77,42 @@ function EntryRow({ entry, showName, canEdit }: { entry: AttendanceEntry; showNa
   );
 }
 
-export default async function AttendancePage() {
+export default async function AttendancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; person?: string }>;
+}) {
   const ownerId = await requireOwnerId();
-  const userId = await currentUserId();
-  const isPartner = (await currentRole()) === "partner";
-
-  const docs = await attendanceRepo.list(ownerId, { clockIn: -1 });
-  const entries = docs.map(toAttendance);
+  const [userId, role, params, docs, members] = await Promise.all([
+    currentUserId(),
+    currentRole(),
+    searchParams,
+    attendanceRepo.list(ownerId, { clockIn: -1 }),
+    listOrganizationMembers(ownerId),
+  ]);
+  const isPartner = role === "partner";
+  const all = docs.map(toAttendance);
+  // An employee's page only ever holds their own hours.
+  const entries = isPartner ? all : all.filter((e) => e.userId === userId);
 
   const myEntries = entries.filter((e) => e.userId === userId);
   const openEntry = myEntries.find((e) => !e.clockOut) ?? null;
 
-  // This month by Israel's calendar.
-  const thisMonth = toIsraelParts(new Date()).date.slice(0, 7);
-  const monthlyTotals = new Map<string, { name: string; hours: number }>();
-  for (const e of entries) {
-    if (toIsraelParts(e.clockIn).date.slice(0, 7) !== thisMonth) continue;
-    const hours = hoursBetween(e.clockIn, e.clockOut);
-    const existing = monthlyTotals.get(e.userId);
-    if (existing) existing.hours += hours;
-    else monthlyTotals.set(e.userId, { name: e.userName, hours });
-  }
+  // The month shown (Israel's calendar), and, for a partner, one person or the whole team.
+  const month = isMonth(params.month) ? params.month : currentMonth();
+  const people = peopleOf(members, all);
+  const person = isPartner && people.some((p) => p.id === params.person) ? params.person! : "";
+  const months = [...new Set([currentMonth(), month, ...entries.map(entryMonth)])]
+    .sort()
+    .reverse()
+    .map((value) => ({ value, label: monthLabel(value) }));
+
+  const inMonth = entries.filter((e) => entryMonth(e) === month);
+  const myMonth = inMonth.filter((e) => e.userId === userId);
+  const [myTotal] = totalsByPerson(myMonth, [{ id: userId, name: "" }]);
+  const teamMonth = person ? inMonth.filter((e) => e.userId === person) : inMonth;
+  const teamTotals = totalsByPerson(teamMonth, person ? people.filter((p) => p.id === person) : people);
+  const personName = people.find((p) => p.id === person)?.name;
 
   return (
     <div>
@@ -136,8 +157,25 @@ export default async function AttendancePage() {
         )}
       </Card>
 
-      <div className="mb-3 mt-6 flex items-center justify-between">
-        <h2 className="text-lg font-bold">הרשומות שלי</h2>
+      <div className="mb-3 mt-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">דוח שעות</h2>
+        <AttendanceFilters
+          month={month}
+          months={months}
+          person={person}
+          people={isPartner ? people : undefined}
+        />
+      </div>
+
+      <div className="mb-3 mt-6 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-bold">
+          הרשומות שלי - {monthLabel(month)}
+          {myTotal && (
+            <span className="ms-2 text-sm font-semibold text-brand-blue">
+              {formatDuration(myTotal.hours)} שעות · {myTotal.days} ימים
+            </span>
+          )}
+        </h2>
         <EditRecord
           label="+ הוספת יום ידנית"
           title="הוספת יום עבודה ידנית"
@@ -147,14 +185,14 @@ export default async function AttendancePage() {
           <TimeFields />
         </EditRecord>
       </div>
-      {myEntries.length === 0 ? (
+      {myMonth.length === 0 ? (
         <EmptyState
-          title="אין עדיין רשומות נוכחות"
-          hint="לחץ על כניסה כדי להתחיל לתעד שעות עבודה."
+          title={myEntries.length === 0 ? "אין עדיין רשומות נוכחות" : "אין רשומות בחודש הזה"}
+          hint={myEntries.length === 0 ? "לחץ על כניסה כדי להתחיל לתעד שעות עבודה." : "אפשר לבחור חודש אחר למעלה."}
         />
       ) : (
         <Card className="divide-y divide-border">
-          {myEntries.map((e) => (
+          {myMonth.map((e) => (
             <EntryRow key={e.id} entry={e} canEdit />
           ))}
         </Card>
@@ -162,31 +200,45 @@ export default async function AttendancePage() {
 
       {isPartner && (
         <>
-          <h2 className="mb-3 mt-8 text-lg font-bold">כל הצוות - החודש</h2>
-          {monthlyTotals.size === 0 ? (
-            <p className="text-sm text-muted">אין עדיין רשומות נוכחות החודש.</p>
+          <h2 className="mb-3 mt-8 text-base font-bold">
+            {personName ? `${personName} - ${monthLabel(month)}` : `כל הצוות - ${monthLabel(month)}`}
+          </h2>
+          {teamTotals.length === 0 ? (
+            <p className="text-sm text-muted">אין רשומות נוכחות בחודש הזה.</p>
           ) : (
             <Card className="mb-6 divide-y divide-border">
-              {[...monthlyTotals.values()].map((u) => (
-                <div key={u.name} className="flex items-center justify-between p-4 text-sm">
-                  <span className="font-medium text-foreground">{u.name}</span>
-                  <span className="font-semibold text-brand-blue">
-                    {formatDuration(u.hours)} שעות
+              {teamTotals.map((t) => (
+                <div key={t.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                  {person ? (
+                    <span className="font-medium text-foreground">{t.name}</span>
+                  ) : (
+                    <Link
+                      href={`?month=${month}&person=${t.id}`}
+                      className="font-medium text-brand-blue hover:underline"
+                      title="הצג רק את השעות שלו"
+                    >
+                      {t.name}
+                    </Link>
+                  )}
+                  <span className="text-muted">
+                    {t.days} ימים{t.open ? " · כעת בעבודה" : ""}
+                    {" · "}
+                    <b className="text-brand-blue">{formatDuration(t.hours)} שעות</b>
                   </span>
                 </div>
               ))}
             </Card>
           )}
 
-          <h2 className="mb-3 text-lg font-bold">כל הרשומות</h2>
-          {entries.length === 0 ? (
-            <p className="text-sm text-muted">אין רשומות.</p>
-          ) : (
-            <Card className="divide-y divide-border">
-              {entries.map((e) => (
-                <EntryRow key={e.id} entry={e} showName canEdit />
-              ))}
-            </Card>
+          {teamMonth.length > 0 && (
+            <>
+              <h3 className="mb-3 text-sm font-bold text-muted">{personName ? "הרשומות" : "כל הרשומות"}</h3>
+              <Card className="divide-y divide-border">
+                {teamMonth.map((e) => (
+                  <EntryRow key={e.id} entry={e} showName={!person} canEdit />
+                ))}
+              </Card>
+            </>
           )}
         </>
       )}

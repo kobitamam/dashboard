@@ -202,6 +202,12 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   wall-clock in UTC fields). Entries can be changed by hand (`editAttendanceEntry`: one's own, or anyone's for a partner) and whole
   days added (`addAttendanceEntry`), always with a required reason kept in `edits` (who, when, why, previous times) and shown on the row.
   `EditRecord` submits by hand (not a form action) so an `{ ok: false, error }` answer keeps the typed values on screen.
+- The attendance page shows one month at a time (`?month=2026-11`, Israel's calendar) and, for a partner, one person or the whole team
+  (`?person=<user id>`; names in the team summary link to it). "📊 הורדה לאקסל" downloads the same selection from
+  `/api/attendance/export` (an employee always gets only their own hours, enforced in the route). The .xlsx is written by hand with JSZip
+  (`src/lib/attendance-report.ts`: right-to-left sheets, a summary sheet + one per person, real dates/times, durations as `[h]:mm` and
+  decimal hours, manual-edit reasons in the notes); an entry with no exit is listed but not counted. Times are whole-minute day fractions
+  (a fraction rounded to 8 digits showed 08:00 as 07:59 in LibreOffice). Checked by rendering with LibreOffice; not yet opened in Excel.
 - The case card has no "עדכון" button: its status/stage/partner/employee/date fields save on change (`AutoSaveForm`, native
   "change" event -> `requestSubmit`). The form is keyed by the saved values, because React resets a form after its action and a
   `<select>` ignores a changed `defaultValue` (verified in react-dom), which made a new assignee look unsaved.
