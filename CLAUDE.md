@@ -215,6 +215,9 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   (`src/lib/attendance-report.ts`: right-to-left sheets, a summary sheet + one per person, real dates/times, durations as `[h]:mm` and
   decimal hours, manual-edit reasons in the notes); an entry with no exit is listed but not counted. Times are whole-minute day fractions
   (a fraction rounded to 8 digits showed 08:00 as 07:59 in LibreOffice). Checked by rendering with LibreOffice; not yet opened in Excel.
+- Case cards on the board are FOLDED (user's request, to scan quickly): client name, address (or גוש/חלקה) and type only; everything
+  else (number, due date, contacts, assignees, links, progress, the autosave form, delete) is inside a native `<details>` opened by
+  "▾ הרחב מידע". A search that leaves one case opens it.
 - The case card has no "עדכון" button: its status/stage/partner/employee/date fields save on change (`AutoSaveForm`, native
   "change" event -> `requestSubmit`). The form is keyed by the saved values, because React resets a form after its action and a
   `<select>` ignores a changed `defaultValue` (verified in react-dom), which made a new assignee look unsaved.

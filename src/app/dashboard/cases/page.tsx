@@ -184,175 +184,185 @@ export default async function CasesPage({
                 </div>
 
                 {items.map((c) => (
-                  <Card key={c.id} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs text-muted">{c.caseNumber}</span>
-                      <span className="text-xs text-muted">{formatDate(c.dueDate)}</span>
-                    </div>
-                    <p className="mt-2 text-sm font-semibold text-foreground">{c.clientName}</p>
-                    {(c.clientEmail || c.clientPhone) && (
+                  <Card key={c.id} className="p-3">
+                    {/* Folded by default so the board is quick to scan: client, address and type only.
+                        The rest opens with "הרחב מידע" (a plain <details>, no script); a search that found
+                        one case opens it. */}
+                    <p className="text-sm font-semibold text-foreground">{c.clientName}</p>
+                    {(c.address || c.city || formatParcel(c.block, c.parcel, c.subParcel)) && (
                       <p className="mt-0.5 text-xs text-muted">
-                        {[c.clientEmail, c.clientPhone].filter(Boolean).join(" · ")}
+                        {[c.address, c.city].filter(Boolean).join(", ") || formatParcel(c.block, c.parcel, c.subParcel)}
                       </p>
                     )}
-                    {(c.address || c.city) && (
-                      <p className="mt-0.5 text-xs text-muted">
-                        {[c.address, c.city].filter(Boolean).join(", ")}
-                      </p>
-                    )}
-                    {formatParcel(c.block, c.parcel, c.subParcel) && (
-                      <p className="mt-0.5 text-xs text-muted">
-                        {formatParcel(c.block, c.parcel, c.subParcel)}
-                      </p>
-                    )}
-                    {c.extraProperties.map((p, i) => (
-                      <p key={i} className="mt-0.5 text-xs text-muted">
-                        + {propertyLines(p)[0]}
-                      </p>
-                    ))}
-                    {c.description && <p className="mt-1 text-xs font-medium text-brand-blue">{c.description}</p>}
                     {c.type && <p className="mt-0.5 text-xs text-muted">{c.type}</p>}
-                    {(c.partnerId || c.employeeId) && (
-                      <p className="mt-1 text-xs text-foreground/80">
-                        {[
-                          c.partnerId && `שותף: ${nameOf.get(c.partnerId) ?? "—"}`,
-                          c.employeeId && `עובד: ${nameOf.get(c.employeeId) ?? "—"}`,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    )}
-                    {isPartner && c.feeNote && (
-                      <p className="mt-1 text-xs text-muted">שכ״ט: {c.feeNote}</p>
-                    )}
-                    {c.notes && <p className="mt-1 text-xs text-muted">{c.notes}</p>}
-                    {result.data.events
-                      .filter((e) => e.caseId === c.id && (daysUntil(e.start) ?? 0) >= 0)
-                      .slice(0, 2)
-                      .map((e) => (
-                        <p key={e.id} className="mt-1 text-xs font-medium text-brand-blue">
-                          {e.type}: {formatDate(e.start)} {e.allDay ? "(כל היום)" : formatTime(e.start)}
-                        </p>
-                      ))}
-                    {caseDeadlines(c)
-                      .filter((d) => d.key !== "due")
-                      .map((d) => (
-                        <p key={d.key} className="mt-1 text-xs font-medium text-warning">
-                          {d.label}: {formatDate(d.date)}
-                        </p>
-                      ))}
 
-                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                      {isPartner ? (
-                        c.oneDriveFolderUrl ? (
-                          <a
-                            href={c.oneDriveFolderUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-brand-blue hover:underline"
-                          >
-                            📁 תיקיית התיק ב-OneDrive
-                          </a>
-                        ) : (
-                          <CaseFolderRetry caseId={c.id} retry={retryCaseOneDriveFolder} />
-                        )
-                      ) : null}
-                      {c.oneDriveFolderName && <OpenFolderLink folderName={c.oneDriveFolderName} />}
-                      {isPartner && (
-                        <Link href={`/dashboard/fees/${c.id}`} className="font-medium text-brand-blue hover:underline">
-                          💰 שכר טרחה
-                        </Link>
-                      )}
-                    </div>
-
-                    <div className="mt-3">
-                      <div className="mb-1 flex justify-between text-[11px] text-muted">
-                        <span>
-                          {c.type === BETTERMENT_LEVY
-                            ? `שלב: ${c.bettermentStage ?? bettermentStageNames[0]}`
-                            : "התקדמות"}
-                        </span>
-                        <span>{c.progress}%</span>
+                    <details className="group mt-2" open={!!search && cases.length === 1}>
+                      <summary className="cursor-pointer list-none text-xs font-semibold text-brand-blue hover:underline [&::-webkit-details-marker]:hidden">
+                        <span className="group-open:hidden">▾ הרחב מידע</span>
+                        <span className="hidden group-open:inline">▴ צמצם</span>
+                      </summary>
+                      <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+                        <span className="font-mono text-xs text-muted">{c.caseNumber}</span>
+                        <span className="text-xs text-muted">{c.dueDate ? `יעד: ${formatDate(c.dueDate)}` : ""}</span>
                       </div>
-                      <ProgressBar value={c.progress} />
-                    </div>
+                      {(c.clientEmail || c.clientPhone) && (
+                        <p className="mt-0.5 text-xs text-muted">
+                          {[c.clientEmail, c.clientPhone].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                      {formatParcel(c.block, c.parcel, c.subParcel) && (
+                        <p className="mt-0.5 text-xs text-muted">
+                          {formatParcel(c.block, c.parcel, c.subParcel)}
+                        </p>
+                      )}
+                      {c.extraProperties.map((p, i) => (
+                        <p key={i} className="mt-0.5 text-xs text-muted">
+                          + {propertyLines(p)[0]}
+                        </p>
+                      ))}
+                      {c.description && <p className="mt-1 text-xs font-medium text-brand-blue">{c.description}</p>}
+                      {(c.partnerId || c.employeeId) && (
+                        <p className="mt-1 text-xs text-foreground/80">
+                          {[
+                            c.partnerId && `שותף: ${nameOf.get(c.partnerId) ?? "—"}`,
+                            c.employeeId && `עובד: ${nameOf.get(c.employeeId) ?? "—"}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      )}
+                      {isPartner && c.feeNote && (
+                        <p className="mt-1 text-xs text-muted">שכ״ט: {c.feeNote}</p>
+                      )}
+                      {c.notes && <p className="mt-1 text-xs text-muted">{c.notes}</p>}
+                      {result.data.events
+                        .filter((e) => e.caseId === c.id && (daysUntil(e.start) ?? 0) >= 0)
+                        .slice(0, 2)
+                        .map((e) => (
+                          <p key={e.id} className="mt-1 text-xs font-medium text-brand-blue">
+                            {e.type}: {formatDate(e.start)} {e.allDay ? "(כל היום)" : formatTime(e.start)}
+                          </p>
+                        ))}
+                      {caseDeadlines(c)
+                        .filter((d) => d.key !== "due")
+                        .map((d) => (
+                          <p key={d.key} className="mt-1 text-xs font-medium text-warning">
+                            {d.label}: {formatDate(d.date)}
+                          </p>
+                        ))}
 
-                    {/* Saved as soon as a field changes. Keyed by the saved values: after saving, React resets the
-                        form to the values it was first drawn with, and a select keeps those (it ignores a changed
-                        defaultValue), so the card would show the old partner/employee. A new key redraws it. */}
-                    <AutoSaveForm
-                      key={[c.status, c.bettermentStage, c.partnerId, c.employeeId, c.dueDate, c.arbitratorRequestDate, c.counterAppraisalDate].join("|")}
-                      action={updateCaseProgress.bind(null, c.id)}
-                      className="mt-3 space-y-1.5"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <select
-                          name="status"
-                          defaultValue={c.status}
-                          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
-                        >
-                          {caseStatuses.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                        {c.type === BETTERMENT_LEVY && (
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                        {isPartner ? (
+                          c.oneDriveFolderUrl ? (
+                            <a
+                              href={c.oneDriveFolderUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-brand-blue hover:underline"
+                            >
+                              📁 תיקיית התיק ב-OneDrive
+                            </a>
+                          ) : (
+                            <CaseFolderRetry caseId={c.id} retry={retryCaseOneDriveFolder} />
+                          )
+                        ) : null}
+                        {c.oneDriveFolderName && <OpenFolderLink folderName={c.oneDriveFolderName} />}
+                        {isPartner && (
+                          <Link href={`/dashboard/fees/${c.id}`} className="font-medium text-brand-blue hover:underline">
+                            💰 שכר טרחה
+                          </Link>
+                        )}
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="mb-1 flex justify-between text-[11px] text-muted">
+                          <span>
+                            {c.type === BETTERMENT_LEVY
+                              ? `שלב: ${c.bettermentStage ?? bettermentStageNames[0]}`
+                              : "התקדמות"}
+                          </span>
+                          <span>{c.progress}%</span>
+                        </div>
+                        <ProgressBar value={c.progress} />
+                      </div>
+
+                      {/* Saved as soon as a field changes. Keyed by the saved values: after saving, React resets the
+                          form to the values it was first drawn with, and a select keeps those (it ignores a changed
+                          defaultValue), so the card would show the old partner/employee. A new key redraws it. */}
+                      <AutoSaveForm
+                        key={[c.status, c.bettermentStage, c.partnerId, c.employeeId, c.dueDate, c.arbitratorRequestDate, c.counterAppraisalDate].join("|")}
+                        action={updateCaseProgress.bind(null, c.id)}
+                        className="mt-3 space-y-1.5"
+                      >
+                        <div className="flex items-center gap-1.5">
                           <select
-                            name="bettermentStage"
-                            defaultValue={c.bettermentStage ?? bettermentStageNames[0]}
-                            aria-label="שלב"
+                            name="status"
+                            defaultValue={c.status}
                             className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
                           >
-                            {bettermentStageNames.map((s) => (
+                            {caseStatuses.map((s) => (
                               <option key={s} value={s}>
                                 {s}
                               </option>
                             ))}
                           </select>
-                        )}
-                      </div>
-                      <MemberSelect
-                        label="שותף מטפל"
-                        name="partnerId"
-                        role="partner"
-                        members={members}
-                        value={c.partnerId}
-                        compact
-                      />
-                      <MemberSelect
-                        label="עובד מטפל"
-                        name="employeeId"
-                        role="employee"
-                        members={members}
-                        value={c.employeeId}
-                        compact
-                      />
-                      <DateInput label="תאריך יעד" name="dueDate" value={c.dueDate} />
-                      {c.type === BETTERMENT_LEVY && (
-                        <>
-                          <DateInput
-                            label="מועד א׳ - בקשת מינוי שמאי מכריע"
-                            name="arbitratorRequestDate"
-                            value={c.arbitratorRequestDate}
-                          />
-                          <DateInput
-                            label="מועד ב׳ - הגשת שומה נגדית"
-                            name="counterAppraisalDate"
-                            value={c.counterAppraisalDate}
-                          />
-                        </>
-                      )}
-                    </AutoSaveForm>
-
-                    {isPartner && (
-                      <div className="mt-2 flex justify-end">
-                        <DeleteButton
-                          action={deleteCase.bind(null, c.id)}
-                          confirmText={`למחוק את תיק ${c.caseNumber}?`}
+                          {c.type === BETTERMENT_LEVY && (
+                            <select
+                              name="bettermentStage"
+                              defaultValue={c.bettermentStage ?? bettermentStageNames[0]}
+                              aria-label="שלב"
+                              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-brand-cyan"
+                            >
+                              {bettermentStageNames.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                        <MemberSelect
+                          label="שותף מטפל"
+                          name="partnerId"
+                          role="partner"
+                          members={members}
+                          value={c.partnerId}
+                          compact
                         />
-                      </div>
-                    )}
+                        <MemberSelect
+                          label="עובד מטפל"
+                          name="employeeId"
+                          role="employee"
+                          members={members}
+                          value={c.employeeId}
+                          compact
+                        />
+                        <DateInput label="תאריך יעד" name="dueDate" value={c.dueDate} />
+                        {c.type === BETTERMENT_LEVY && (
+                          <>
+                            <DateInput
+                              label="מועד א׳ - בקשת מינוי שמאי מכריע"
+                              name="arbitratorRequestDate"
+                              value={c.arbitratorRequestDate}
+                            />
+                            <DateInput
+                              label="מועד ב׳ - הגשת שומה נגדית"
+                              name="counterAppraisalDate"
+                              value={c.counterAppraisalDate}
+                            />
+                          </>
+                        )}
+                      </AutoSaveForm>
+
+                      {isPartner && (
+                        <div className="mt-2 flex justify-end">
+                          <DeleteButton
+                            action={deleteCase.bind(null, c.id)}
+                            confirmText={`למחוק את תיק ${c.caseNumber}?`}
+                          />
+                        </div>
+                      )}
+                    </details>
                   </Card>
                 ))}
 
