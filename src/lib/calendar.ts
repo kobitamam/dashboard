@@ -43,7 +43,7 @@ export function buildCalendarItems(
         id: `event-${e.id}`,
         day: e.start.slice(0, 10),
         time: e.allDay ? null : e.start.slice(11, 16),
-        endTime: e.allDay ? null : addMinutes(e.start, 60).slice(11, 16),
+        endTime: e.allDay ? null : (e.end ?? addMinutes(e.start, 60)).slice(11, 16),
         title: e.title,
         kind: e.type,
         detail: [e.type, linked ? `תיק ${linked.caseNumber} · ${linked.clientName}` : "", e.location]

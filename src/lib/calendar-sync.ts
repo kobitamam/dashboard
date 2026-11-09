@@ -135,7 +135,7 @@ async function runSync(ownerId: string, token: string, knownCalendarId?: string)
       location: doc.location ?? "",
       body: [doc.type, detail].filter(Boolean).join(" · "),
       start: localString(doc.start),
-      end: plusHour(doc.start),
+      end: doc.end ? localString(doc.end) : plusHour(doc.start),
     };
 
     if (!doc.outlookId) {

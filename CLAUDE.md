@@ -114,6 +114,13 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 - Events record `createdBy` and `visibility` (`all` | `partners` | `private`). A partner must choose it when adding an event
   ("עם מי לשתף את האירוע?"); an employee's events are always `all`. `canSeeEvent` (`src/lib/calendar.ts`) filters them in
   `loadDashboardData`, the .ics feed and `deleteEvent`. Older events (no creator) are `all`.
+- Adding and editing events share one dialog (`src/components/EventDialog.tsx`: title, date, from/to times or all-day, location, type,
+  case, and the sharing question for partners). It opens from "+ פגישה חדשה", from a slot marked on the week grid (`WeekCalendar` is a
+  client component: mouse press-drag-release over a day's hours, snapped to 15 minutes; a click or a touch tap gives an hour; a click
+  on an empty all-day cell gives a whole-day event), and from a click on a saved event (edit + delete; `updateEvent`, same rights as
+  delete, only a partner changes the sharing). Events now have an optional `end` (same day; older ones last an hour), used by the
+  grid, the .ics feed and the hidden Outlook sync. `createEvent`/`updateEvent` take `date`/`startTime`/`endTime`/`allDay` and return
+  `{ ok, error }`. Verified with Playwright on a test page (drag 13:00-14:30, edit prefill, all-day, click); saving is untested live.
 - A partner's event is coloured by its creator: the founder (יעקב) yellow, any other partner (רז) pink (`colorOf` in the calendar
   page, `partnerStyles` in `WeekCalendar`); others keep their type colour. 🔒 marks a private event, 👥 a partners-only one.
 

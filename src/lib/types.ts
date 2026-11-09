@@ -241,6 +241,7 @@ export type CalendarEvent = {
   visibility: EventVisibility;
   title: string;
   start: string;
+  end: string | null; // when it ends (same day); null = an hour after the start
   location: string;
   type: EventType;
   caseId: string | null; // the case a hearing/meeting belongs to, if any

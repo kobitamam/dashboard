@@ -438,28 +438,52 @@ export async function deleteCase(id: string) {
   refresh();
 }
 
-export async function createEvent(form: FormData) {
+type EventResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * The event form's day and times, as the office's wall clock in UTC fields (see the calendar notes):
+ * date (YYYY-MM-DD), startTime/endTime (HH:MM) or allDay. The end is optional and must follow the start.
+ */
+function eventTimes(form: FormData): { start: Date; end: Date | null; allDay: boolean } | { error: string } {
+  const day = text(form, "date");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return { error: "חסר תאריך" };
+  const allDay = form.get("allDay") === "on";
+  if (allDay) return { start: new Date(`${day}T00:00:00Z`), end: null, allDay };
+  const clock = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const from = text(form, "startTime");
+  const to = text(form, "endTime");
+  if (!clock.test(from)) return { error: "חסרה שעת התחלה" };
+  if (to && !clock.test(to)) return { error: "שעת הסיום לא תקינה" };
+  if (to && to <= from) return { error: "שעת הסיום צריכה להיות אחרי שעת ההתחלה" };
+  const start = new Date(`${day}T${from}:00Z`);
+  return Number.isNaN(start.getTime())
+    ? { error: "התאריך לא תקין" }
+    : { start, end: to ? new Date(`${day}T${to}:00Z`) : null, allDay };
+}
+
+export async function createEvent(form: FormData): Promise<EventResult> {
   const ownerId = await requireOwnerId();
   const [userId, role] = await Promise.all([currentUserId(), currentRole()]);
   const title = text(form, "title");
-  const start = date(form, "start");
-  if (!title || !start) return;
+  if (!title) return { ok: false, error: "חסר נושא" };
+  const times = eventTimes(form);
+  if ("error" in times) return { ok: false, error: times.error };
 
   // Link to a case only if it really belongs to this organization.
   const linkedCaseId = text(form, "caseId");
   const linkedCase = linkedCaseId ? await casesRepo.get(ownerId, linkedCaseId) : null;
 
-  const allDay = form.get("allDay") === "on";
   // A partner chooses who sees the event; an employee's events are shared with everyone.
   const visibility: EventVisibility =
     role === "partner" ? oneOf<EventVisibility>(form, "visibility", ["all", "partners", "private"], "all") : "all";
 
   await eventsRepo.insert(ownerId, {
     title,
-    start,
+    start: times.start,
+    ...(times.end ? { end: times.end } : {}),
     createdBy: userId,
     visibility,
-    ...(allDay ? { allDay: true } : {}),
+    ...(times.allDay ? { allDay: true } : {}),
     location: text(form, "location"),
     type: await resolveEventType(ownerId, form),
     ...(linkedCase ? { caseId: linkedCaseId } : {}),
@@ -467,6 +491,40 @@ export async function createEvent(form: FormData) {
   // Mirror it to the Outlook calendar right away (a failure is shown on the calendar page).
   await syncCalendar(ownerId, { force: true }).catch(() => undefined);
   refresh();
+  return { ok: true };
+}
+
+/** Changes any detail of an event one can see (as for deleting). Only a partner may change who sees it. */
+export async function updateEvent(id: string, form: FormData): Promise<EventResult> {
+  const ownerId = await requireOwnerId();
+  const [userId, role] = await Promise.all([currentUserId(), currentRole()]);
+  const event = await eventsRepo.get(ownerId, id);
+  if (!event || !canSeeEvent(toEvent(event), { id: userId, role })) {
+    return { ok: false, error: "האירוע לא נמצא (ייתכן שנמחק)" };
+  }
+  const title = text(form, "title");
+  if (!title) return { ok: false, error: "חסר נושא" };
+  const times = eventTimes(form);
+  if ("error" in times) return { ok: false, error: times.error };
+
+  const linkedCaseId = text(form, "caseId");
+  const linkedCase = linkedCaseId ? await casesRepo.get(ownerId, linkedCaseId) : null;
+
+  await eventsRepo.update(ownerId, id, {
+    title,
+    start: times.start,
+    end: times.end,
+    allDay: times.allDay,
+    location: text(form, "location"),
+    type: await resolveEventType(ownerId, form),
+    caseId: linkedCase ? linkedCaseId : null,
+    ...(role === "partner"
+      ? { visibility: oneOf<EventVisibility>(form, "visibility", ["all", "partners", "private"], event.visibility ?? "all") }
+      : {}),
+  });
+  await syncCalendar(ownerId, { force: true }).catch(() => undefined);
+  refresh();
+  return { ok: true };
 }
 
 export async function deleteEvent(id: string) {

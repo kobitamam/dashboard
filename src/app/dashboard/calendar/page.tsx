@@ -1,17 +1,7 @@
 import Link from "next/link";
-import {
-  createEvent,
-  deleteEventType,
-  renameEventType,
-  rotateCalendarFeed,
-} from "@/app/dashboard/actions";
-import {
-  AddRecord,
-  DataUnavailable,
-  Field,
-  SelectWithNewField,
-  WhenField,
-} from "@/components/form";
+import { deleteEventType, renameEventType, rotateCalendarFeed } from "@/app/dashboard/actions";
+import { NewEventButton, type EventFormOptions } from "@/components/EventDialog";
+import { DataUnavailable } from "@/components/form";
 import { Card, PageHeader } from "@/components/ui";
 import TypeManager from "@/components/TypeManager";
 import WeekCalendar from "@/components/WeekCalendar";
@@ -87,57 +77,12 @@ export default async function CalendarPage({
   const customEventTypes = eventTypes.filter((t) => !builtInEventTypes.includes(t));
   const feedPath = feedToken ? `/api/calendar/${feedToken}.ics` : null;
 
-  const form = (
-    <AddRecord label="+ פגישה חדשה" action={createEvent}>
-      <Field label="נושא" name="title" required placeholder="ביקור בנכס - רחוב, עיר" />
-      <WhenField label="מועד" name="start" />
-      <Field label="מיקום" name="location" placeholder="עיר / מקוון / טלפוני" />
-      <SelectWithNewField
-        label="סוג"
-        name="type"
-        newName="newType"
-        options={eventTypes}
-        defaultValue="פגישת לקוח"
-        newOptionLabel="➕ סוג חדש..."
-        newPlaceholder="שם סוג האירוע החדש"
-      />
-      <label className="block">
-        <span className="mb-1.5 block text-xs font-medium text-muted">תיק קשור (אופציונלי)</span>
-        <select
-          name="caseId"
-          defaultValue=""
-          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-brand-cyan"
-        >
-          <option value="">ללא תיק</option>
-          {cases.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.caseNumber} · {c.clientName}
-            </option>
-          ))}
-        </select>
-      </label>
-      {isPartner && (
-        // Asked every time, with no answer chosen in advance.
-        <fieldset className="sm:col-span-2 lg:col-span-3">
-          <legend className="mb-1.5 text-xs font-medium text-muted">עם מי לשתף את האירוע?</legend>
-          <div className="flex flex-wrap gap-4 text-sm">
-            {(
-              [
-                ["private", "רק אני"],
-                ["partners", "השותפים בלבד"],
-                ["all", "כולם"],
-              ] as const
-            ).map(([value, label]) => (
-              <label key={value} className="flex items-center gap-1.5">
-                <input type="radio" name="visibility" value={value} required className="accent-[var(--brand-blue)]" />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
-    </AddRecord>
-  );
+  // The event form's choices, shared by "+ פגישה חדשה", a slot marked on the calendar and editing.
+  const eventOptions: EventFormOptions = {
+    eventTypes,
+    cases: cases.map((c) => ({ id: c.id, label: `${c.caseNumber} · ${c.clientName}` })),
+    isPartner,
+  };
 
   const navButton =
     "rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-semibold hover:bg-background";
@@ -147,7 +92,7 @@ export default async function CalendarPage({
       <PageHeader
         title="יומן ופגישות"
         subtitle="הפגישות, הדיונים, הביקורים בנכסים ודדליינים של התיקים"
-        action={form}
+        action={<NewEventButton today={today} options={eventOptions} />}
       />
 
       <Card className="overflow-hidden">
@@ -178,7 +123,17 @@ export default async function CalendarPage({
           </p>
         )}
 
-        <WeekCalendar days={days} today={today} nowMinutes={nowMinutes} items={items} />
+        <WeekCalendar
+          days={days}
+          today={today}
+          nowMinutes={nowMinutes}
+          items={items}
+          events={events}
+          options={eventOptions}
+        />
+        <p className="border-t border-border px-4 py-2 text-[11px] text-muted">
+          לפגישה חדשה: גרור על השעות ביומן (או לחץ על שעה). לעריכת פגישה: לחץ עליה.
+        </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-[11px] text-muted">
           {members
             .filter((m) => partners.has(m.id))

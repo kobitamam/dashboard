@@ -110,9 +110,10 @@ export type EventDoc = Owned & {
   _id?: ObjectId;
   title: string;
   start: Date;
+  end?: Date | null; // older events have none: they last an hour
   location: string;
   type: EventType;
-  caseId?: string;
+  caseId?: string | null;
   allDay?: boolean;
   createdBy?: string; // user id
   visibility?: EventVisibility;
@@ -275,6 +276,7 @@ export function toEvent(doc: WithId<EventDoc>): CalendarEvent {
     visibility: doc.visibility ?? "all",
     title: doc.title,
     start: doc.start.toISOString(),
+    end: doc.end ? doc.end.toISOString() : null,
     location: doc.location,
     type: doc.type,
     caseId: doc.caseId ?? null,
