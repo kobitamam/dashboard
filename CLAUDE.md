@@ -133,6 +133,9 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   Pages run their remaining reads with `Promise.all`. `getDb()` creates the `ownerId`/`email`/`organizationId` indexes once per instance.
 - `getSessionUser()` re-reads the account from `users` (memoized 60s per instance): a removed member is signed out and a role change
   applies within a minute, although the JWT itself lives for weeks. If the DB is unreachable it falls back to the token.
+- The dashboard (שולחן עבודה) is clickable (user's request): each `StatCard` with `href` is a link to its tab (clients, cases,
+  billing x2), the section titles link to cases/alerts/calendar, a deadline row opens its case (`/dashboard/cases?search=<number>`,
+  which unfolds that one card), and alert/today's-event rows open alerts/calendar.
 - `src/app/dashboard/loading.tsx` gives instant feedback on navigation. The Rubik font is self-hosted via `next/font`.
 
 ## Phone app (home-screen web app)

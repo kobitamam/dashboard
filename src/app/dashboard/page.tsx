@@ -82,6 +82,7 @@ export default async function Dashboard() {
           hint={`מתוך ${clients.length} לקוחות במערכת`}
           tone="blue"
           icon={<UsersMini />}
+          href="/dashboard/clients"
         />
         <StatCard
           label="תיקים פתוחים"
@@ -89,6 +90,7 @@ export default async function Dashboard() {
           hint={`${inCollection.length} בגבייה`}
           tone="cyan"
           icon={<FolderMini />}
+          href="/dashboard/cases"
         />
         {isPartner && (
           <>
@@ -98,6 +100,7 @@ export default async function Dashboard() {
               hint="שכר טרחה שהגיע מועד גבייתו"
               tone="danger"
               icon={<AlertMini />}
+              href="/dashboard/billing"
             />
             <StatCard
               label="תיקים לגבייה"
@@ -105,6 +108,7 @@ export default async function Dashboard() {
               hint="עם יתרה שממתינה לתשלום"
               tone="warning"
               icon={<WalletMini />}
+              href="/dashboard/billing"
             />
           </>
         )}
@@ -113,7 +117,11 @@ export default async function Dashboard() {
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">התיקים הקרובים לדדליין</h2>
+            <h2 className="text-lg font-bold">
+              <Link href="/dashboard/cases" className="hover:text-brand-blue hover:underline">
+                התיקים הקרובים לדדליין
+              </Link>
+            </h2>
             <Link
               href="/dashboard/cases"
               className="text-sm font-medium text-brand-blue hover:underline"
@@ -128,9 +136,11 @@ export default async function Dashboard() {
               {nextDeadlines.map(({ case: c, deadline }) => {
                 const days = daysUntil(deadline.date);
                 return (
-                  <div
+                  <Link
                     key={c.id}
-                    className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    // Searching by the case number opens that case's card on the cases tab.
+                    href={`/dashboard/cases?search=${encodeURIComponent(c.caseNumber)}`}
+                    className="flex flex-col gap-2 rounded-xl border border-border p-3 transition hover:border-brand-cyan hover:bg-background sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -152,7 +162,7 @@ export default async function Dashboard() {
                       </div>
                       <ProgressBar value={c.progress} />
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -161,7 +171,11 @@ export default async function Dashboard() {
 
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">התראות חכמות</h2>
+            <h2 className="text-lg font-bold">
+              <Link href="/dashboard/alerts" className="hover:text-brand-blue hover:underline">
+                התראות חכמות
+              </Link>
+            </h2>
             <Link
               href="/dashboard/alerts"
               className="text-sm font-medium text-brand-blue hover:underline"
@@ -174,7 +188,11 @@ export default async function Dashboard() {
           ) : (
             <div className="space-y-3">
               {alerts.slice(0, 4).map((a) => (
-                <div key={a.id} className="flex gap-3 rounded-xl border border-border p-3">
+                <Link
+                  key={a.id}
+                  href="/dashboard/alerts"
+                  className="flex gap-3 rounded-xl border border-border p-3 transition hover:border-brand-cyan hover:bg-background"
+                >
                   <div className="mt-0.5">
                     <StatusBadge status={a.severity} />
                   </div>
@@ -182,7 +200,7 @@ export default async function Dashboard() {
                     <p className="text-sm font-semibold text-foreground">{a.title}</p>
                     <p className="mt-0.5 line-clamp-2 text-xs text-muted">{a.description}</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -192,7 +210,11 @@ export default async function Dashboard() {
       <div className="mt-6">
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold">היומן שלך היום</h2>
+            <h2 className="text-lg font-bold">
+              <Link href="/dashboard/calendar" className="hover:text-brand-blue hover:underline">
+                היומן שלך היום
+              </Link>
+            </h2>
             <Link
               href="/dashboard/calendar"
               className="text-sm font-medium text-brand-blue hover:underline"
@@ -205,9 +227,10 @@ export default async function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {todayEvents.map((e) => (
-                <div
+                <Link
                   key={e.id}
-                  className="flex items-center gap-3 rounded-xl border border-border p-3"
+                  href="/dashboard/calendar"
+                  className="flex items-center gap-3 rounded-xl border border-border p-3 transition hover:border-brand-cyan hover:bg-background"
                 >
                   <div className="flex h-11 w-14 shrink-0 items-center justify-center rounded-lg bg-brand-cyan-light text-brand-blue">
                     <span className="text-sm font-bold">{e.allDay ? "כל היום" : formatTime(e.start)}</span>
@@ -219,7 +242,7 @@ export default async function Dashboard() {
                       {e.location ? ` · ${e.location}` : ""}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

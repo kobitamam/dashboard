@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 export function Card({
   children,
@@ -42,12 +43,14 @@ export function StatCard({
   hint,
   tone = "blue",
   icon,
+  href,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "blue" | "cyan" | "success" | "warning" | "danger";
   icon?: ReactNode;
+  href?: string; // the whole card opens this tab
 }) {
   const toneMap: Record<string, string> = {
     blue: "bg-brand-blue text-white",
@@ -57,11 +60,14 @@ export function StatCard({
     danger: "bg-danger/10 text-danger",
   };
 
-  return (
-    <Card className="p-5">
+  const card = (
+    <Card className={`p-5 ${href ? "h-full transition group-hover:border-brand-cyan group-hover:shadow-md" : ""}`}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-muted">{label}</p>
+          <p className="text-sm font-medium text-muted">
+            {label}
+            {href && <span className="mr-1 text-brand-blue opacity-0 transition group-hover:opacity-100">←</span>}
+          </p>
           <p className="mt-2 text-2xl font-bold text-foreground">{value}</p>
           {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
         </div>
@@ -74,6 +80,13 @@ export function StatCard({
         )}
       </div>
     </Card>
+  );
+  return href ? (
+    <Link href={href} className="group block">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 
