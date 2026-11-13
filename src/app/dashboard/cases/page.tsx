@@ -185,10 +185,13 @@ export default async function CasesPage({
 
                 {items.map((c) => (
                   <Card key={c.id} className="p-3">
-                    {/* Folded by default so the board is quick to scan: client, address and type only.
+                    {/* Folded by default so the board is quick to scan: number, client, address and type only.
                         The rest opens with "הרחב מידע" (a plain <details>, no script); a search that found
                         one case opens it. */}
-                    <p className="text-sm font-semibold text-foreground">{c.clientName}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground">{c.clientName}</p>
+                      <span className="shrink-0 font-mono text-[11px] text-muted">{c.caseNumber}</span>
+                    </div>
                     {(c.address || c.city || formatParcel(c.block, c.parcel, c.subParcel)) && (
                       <p className="mt-0.5 text-xs text-muted">
                         {[c.address, c.city].filter(Boolean).join(", ") || formatParcel(c.block, c.parcel, c.subParcel)}
@@ -202,8 +205,7 @@ export default async function CasesPage({
                         <span className="hidden group-open:inline">▴ צמצם</span>
                       </summary>
                       <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
-                        <span className="font-mono text-xs text-muted">{c.caseNumber}</span>
-                        <span className="text-xs text-muted">{c.dueDate ? `יעד: ${formatDate(c.dueDate)}` : ""}</span>
+                        <span className="text-xs text-muted">{c.dueDate ? `יעד: ${formatDate(c.dueDate)}` : "ללא תאריך יעד"}</span>
                       </div>
                       {c.openedAt && (
                         <p className="mt-0.5 text-xs text-muted">נפתח ב-{formatIsraelFullDate(c.openedAt)}</p>

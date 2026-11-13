@@ -225,8 +225,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   (`src/lib/attendance-report.ts`: right-to-left sheets, a summary sheet + one per person, real dates/times, durations as `[h]:mm` and
   decimal hours, manual-edit reasons in the notes); an entry with no exit is listed but not counted. Times are whole-minute day fractions
   (a fraction rounded to 8 digits showed 08:00 as 07:59 in LibreOffice). Checked by rendering with LibreOffice; not yet opened in Excel.
-- Case cards on the board are FOLDED (user's request, to scan quickly): client name, address (or גוש/חלקה) and type only; everything
-  else (number, due date, contacts, assignees, links, progress, the autosave form, delete) is inside a native `<details>` opened by
+- Case cards on the board are FOLDED (user's request, to scan quickly): client name, case number, address (or גוש/חלקה) and type only;
+  everything else (due date, contacts, assignees, links, progress, the autosave form, delete) is inside a native `<details>` opened by
   "▾ הרחב מידע". A search that leaves one case opens it.
   The expanded card shows "נפתח ב-DD/MM/YYYY": `Case.openedAt` = the record's `createdAt` (the moment the quote was approved or the
   case opened by hand), in Israel's day (`formatIsraelFullDate`), so older cases have it too.
