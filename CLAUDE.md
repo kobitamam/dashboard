@@ -165,6 +165,9 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
 - Preview deployments have NO env vars (they are scoped to Production), so login/DB do not work there; test on `main`.
 - Vercel runtime logs are not readable from here (403), so build diagnosability into error messages instead.
 - Before committing: `npm run lint` and `npm run build` must pass.
+  A fresh container has no `node_modules` (run `npm ci`). If the build fails in next/font ("next/font/google queries have exactly
+  one entry" / can't resolve `@vercel/turbopack-next/internal/font/google/font`), it is local, not the code: `rm -r .next` and build
+  with `NODE_USE_ENV_PROXY=1 npm run build` (Node's fetch otherwise ignores the sandbox proxy). Vercel builds are unaffected.
 - No live access to the user's Mongo/OneDrive: anything touching them is untested until the user tries it.
 
 ## Data model and permissions
