@@ -1,7 +1,7 @@
 import { caseDeadlines } from "@/lib/deadlines";
-import { daysUntil } from "@/lib/format";
+import { daysUntil, formatIsraelFullDate } from "@/lib/format";
 import { feeTotals } from "@/lib/fees";
-import { isWorkDone, type Alert, type CalendarEvent, type Case } from "@/lib/types";
+import { isWorkDone, POST_DATED_CHEQUE, type Alert, type CalendarEvent, type Case } from "@/lib/types";
 
 const DEADLINE_WARNING_DAYS = 3;
 
@@ -31,6 +31,25 @@ export function deriveAlerts(
       severity: "בינונית",
       category: "תשלום",
     });
+  }
+
+  // A post-dated cheque is about to fall due, or just did: time to deposit it (from 3 days before to a week after;
+  // partners only, as above).
+  for (const item of cases) {
+    for (const p of item.fee?.payments ?? []) {
+      if (p.method !== POST_DATED_CHEQUE || !p.chequeDate) continue;
+      const days = daysUntil(p.chequeDate, today);
+      if (days === null || days > DEADLINE_WARNING_DAYS || days < -7) continue;
+      alerts.push({
+        id: `cheque-${item.id}-${p.chequeDate}-${p.amount}-${p.chequeNumber}`,
+        title: days > 0 ? "צ׳ק דחוי מגיע לפירעון" : "צ׳ק דחוי להפקדה",
+        description: `תיק ${item.caseNumber} (${item.clientName}) - ${Math.round(p.amount).toLocaleString("he-IL")} ₪${
+          p.chequeNumber ? `, צ׳ק מס׳ ${p.chequeNumber}` : ""
+        }, לפירעון ${formatIsraelFullDate(p.chequeDate)}${days > 0 ? ` (בעוד ${days} ימים)` : days === 0 ? " (היום)" : ""}`,
+        severity: days <= 0 ? "גבוהה" : "בינונית",
+        category: "תשלום",
+      });
+    }
   }
 
   for (const item of cases) {

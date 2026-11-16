@@ -13,6 +13,7 @@ import type {
   EventVisibility,
   Fee,
   FeePayment,
+  PaymentMethod,
   PropertyDetails,
   Quote,
   QuoteStatus,
@@ -33,6 +34,9 @@ export type FeePaymentDoc = {
   amount: number;
   date: Date;
   note: string;
+  method?: PaymentMethod;
+  chequeDate?: Date | null;
+  chequeNumber?: string;
 };
 
 export type FeeDoc = {
@@ -183,7 +187,14 @@ function toAttachment(doc: AttachmentDoc): Attachment {
 }
 
 function toFeePayment(doc: FeePaymentDoc): FeePayment {
-  return { amount: doc.amount, date: doc.date.toISOString(), note: doc.note };
+  return {
+    amount: doc.amount,
+    date: doc.date.toISOString(),
+    note: doc.note,
+    method: doc.method ?? null,
+    chequeDate: doc.chequeDate ? doc.chequeDate.toISOString() : null,
+    chequeNumber: doc.chequeNumber ?? "",
+  };
 }
 
 function toFee(doc: FeeDoc | null | undefined): Fee | null {

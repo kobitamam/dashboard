@@ -5,10 +5,11 @@ import { Card, PageHeader } from "@/components/ui";
 import { casesRepo, toCase } from "@/lib/db/entities";
 import { currentRole, requireOwnerId } from "@/lib/db/queries";
 import FeeStructureFields from "@/components/FeeStructureFields";
-import { feeStageOf, feeTotals } from "@/lib/fees";
+import PaymentMethodFields from "@/components/PaymentMethodFields";
+import { feeStageOf, feeTotals, pendingCheques } from "@/lib/fees";
 import { removeVat } from "@/lib/vat";
-import { formatDate, formatMoney } from "@/lib/format";
-import { BETTERMENT_LEVY } from "@/lib/types";
+import { formatDate, formatIsraelFullDate, formatMoney } from "@/lib/format";
+import { BETTERMENT_LEVY, POST_DATED_CHEQUE } from "@/lib/types";
 
 export default async function CaseFeePage({
   params,
@@ -38,6 +39,9 @@ export default async function CaseFeePage({
   const c = toCase(doc);
   const fee = c.fee;
   const isBettermentLevy = c.type === BETTERMENT_LEVY;
+  // Post-dated cheques not yet due: counted as received, shown apart.
+  const pending = pendingCheques(fee);
+  const pendingTotal = pending.reduce((sum, p) => sum + p.amount, 0);
   const { rows, total: totalFee, paid: totalPaid, balance } = feeTotals(fee, feeStageOf(c));
 
   // The form shows the fixed fee as it was saved (or, for a fee saved the old way, from its two stages).
@@ -116,6 +120,12 @@ export default async function CaseFeePage({
                 <span className="text-muted">התקבל עד כה</span>
                 <span className="font-semibold text-success">{formatMoney(totalPaid)}</span>
               </div>
+              {pendingTotal > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted">מתוכם בצ׳קים דחויים שטרם נפרעו</span>
+                  <span className="font-semibold text-warning">{formatMoney(pendingTotal)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted">יתרה לתשלום</span>
                 <span className={`font-semibold ${balance > 0 ? "text-danger" : "text-success"}`}>
@@ -138,7 +148,8 @@ export default async function CaseFeePage({
                 className="grid grid-cols-1 gap-3 border-b border-border pb-4 sm:grid-cols-3"
               >
                 <Field label="סכום שהתקבל (₪)" name="amount" type="number" min={0} required />
-                <Field label="תאריך" name="date" type="date" />
+                <Field label="תאריך קבלה" name="date" type="date" />
+                <PaymentMethodFields />
                 <Field label="הערה" name="note" placeholder="לדוגמה: מקדמה ראשונה" />
                 <div className="sm:col-span-3">
                   <SubmitButton>הוספת תקבול</SubmitButton>
@@ -155,9 +166,24 @@ export default async function CaseFeePage({
                       className="flex items-center justify-between rounded-xl border border-border p-3"
                     >
                       <div>
-                        <p className="text-sm font-semibold">{formatMoney(p.amount)}</p>
+                        <p className="text-sm font-semibold">
+                          {formatMoney(p.amount)}
+                          {p.method && <span className="mr-2 text-xs font-normal text-muted">{p.method}</span>}
+                          {p.method === POST_DATED_CHEQUE &&
+                            (pending.includes(p) ? (
+                              <span className="mr-2 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                                ממתין לפירעון
+                              </span>
+                            ) : (
+                              <span className="mr-2 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                                הגיע מועד הפירעון
+                              </span>
+                            ))}
+                        </p>
                         <p className="text-xs text-muted">
-                          {formatDate(p.date)}
+                          התקבל {formatDate(p.date)}
+                          {p.chequeDate ? ` · לפירעון ${formatIsraelFullDate(p.chequeDate)}` : ""}
+                          {p.chequeNumber ? ` · צ׳ק מס׳ ${p.chequeNumber}` : ""}
                           {p.note ? ` · ${p.note}` : ""}
                         </p>
                       </div>

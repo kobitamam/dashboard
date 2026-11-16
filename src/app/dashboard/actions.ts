@@ -70,6 +70,9 @@ import {
   type ClientStatus,
   type EventVisibility,
   type UploadTarget,
+  paymentMethods,
+  POST_DATED_CHEQUE,
+  type PaymentMethod,
 } from "@/lib/types";
 
 function text(form: FormData, key: string) {
@@ -1047,9 +1050,22 @@ export async function addFeePayment(caseId: string, form: FormData) {
   const caseDoc = await casesRepo.get(ownerId, caseId);
   if (!caseDoc?.fee) return;
 
+  // A post-dated cheque must say when it can be cashed; a cheque may carry its number.
+  const method = oneOf<PaymentMethod>(form, "method", [...paymentMethods], "העברה בנקאית");
+  const isCheque = method === "צ׳ק" || method === POST_DATED_CHEQUE;
+  const chequeDate = method === POST_DATED_CHEQUE ? date(form, "chequeDate") : null;
+  if (method === POST_DATED_CHEQUE && !chequeDate) return;
+
   const payments = [
     ...caseDoc.fee.payments,
-    { amount, date: date(form, "date") ?? new Date(), note: text(form, "note") },
+    {
+      amount,
+      date: date(form, "date") ?? new Date(),
+      note: text(form, "note"),
+      method,
+      ...(chequeDate ? { chequeDate } : {}),
+      ...(isCheque && text(form, "chequeNumber") ? { chequeNumber: text(form, "chequeNumber").slice(0, 30) } : {}),
+    },
   ];
   await casesRepo.update(ownerId, caseId, { fee: { ...caseDoc.fee, payments } });
   refresh();

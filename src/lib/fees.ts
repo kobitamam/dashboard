@@ -1,5 +1,15 @@
+import { toIsraelParts } from "@/lib/format";
 import { addVat } from "@/lib/vat";
-import { BETTERMENT_LEVY, COLLECTION_STAGE, isWorkDone, type Case, type Fee, type Installment } from "@/lib/types";
+import {
+  BETTERMENT_LEVY,
+  COLLECTION_STAGE,
+  isWorkDone,
+  POST_DATED_CHEQUE,
+  type Case,
+  type Fee,
+  type FeePayment,
+  type Installment,
+} from "@/lib/types";
 
 /**
  * How far a case has got, for billing: a payment becomes collectable at a stage.
@@ -86,6 +96,16 @@ export function feeTotals(fee: Fee | null, stage: CaseStage | boolean = "open") 
     balanceDue,
     rows,
   };
+}
+
+/**
+ * The post-dated cheques of a fee that are not yet due (their date is after today, Israel's day). They count
+ * as received - the installments they pay are not billed again - but are shown apart until they can be cashed.
+ */
+export function pendingCheques(fee: Fee | null, today = toIsraelParts(new Date()).date): FeePayment[] {
+  return (fee?.payments ?? []).filter(
+    (p) => p.method === POST_DATED_CHEQUE && p.chequeDate && p.chequeDate.slice(0, 10) > today,
+  );
 }
 
 /** Splits an amount (VAT included) into installments by percent; the last absorbs rounding. */

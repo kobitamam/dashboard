@@ -11,7 +11,7 @@ import { Card, PageHeader, StatCard, StatusBadge } from "@/components/ui";
 import { isConnected } from "@/lib/db/onedrive-connection";
 import { currentRole, loadDashboardData, requireOwnerId } from "@/lib/db/queries";
 import { isOneDriveConfigured } from "@/lib/onedrive";
-import { feeStageOf, feeTotals } from "@/lib/fees";
+import { feeStageOf, feeTotals, pendingCheques } from "@/lib/fees";
 import { emptyUnit } from "@/lib/betterment-statement";
 import { formatMoney } from "@/lib/format";
 import { BETTERMENT_LEVY, COLLECTION_STATUS, type Case } from "@/lib/types";
@@ -56,6 +56,8 @@ export default async function BillingPage() {
     case: c,
     completed: c.status === "הושלם",
     inCollection: c.status === COLLECTION_STATUS,
+    // Post-dated cheques received but not yet due (already counted in "paid").
+    pendingCheques: pendingCheques(c.fee).reduce((sum, p) => sum + p.amount, 0),
     ...feeTotals(c.fee, feeStageOf(c)),
   }));
   const billing = rows
@@ -73,6 +75,7 @@ export default async function BillingPage() {
   const inCollection = rows.filter((r) => r.inCollection).length;
   const awaitingCollection = rows.reduce((sum, r) => sum + r.balanceDue, 0);
   const received = rows.reduce((sum, r) => sum + r.paid, 0);
+  const inCheques = rows.reduce((sum, r) => sum + r.pendingCheques, 0);
   const upcoming = rows.reduce((sum, r) => sum + Math.max(0, r.total - Math.max(r.dueNow, r.paid)), 0);
 
   return (
@@ -84,7 +87,12 @@ export default async function BillingPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="לגבייה כעת" value={formatMoney(awaitingCollection)} tone="danger" />
-        <StatCard label="התקבל" value={formatMoney(received)} tone="success" />
+        <StatCard
+          label="התקבל"
+          value={formatMoney(received)}
+          hint={inCheques > 0 ? `מתוכם ${formatMoney(inCheques)} בצ׳קים דחויים שטרם נפרעו` : undefined}
+          tone="success"
+        />
         <StatCard label="צפוי בהמשך" value={formatMoney(upcoming)} tone="warning" />
       </div>
 
@@ -163,7 +171,14 @@ export default async function BillingPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted">{formatMoney(r.paid)}</td>
+                    <td className="px-4 py-3 text-muted">
+                      {formatMoney(r.paid)}
+                      {r.pendingCheques > 0 && (
+                        <span className="block text-[11px] text-warning">
+                          מתוכם {formatMoney(r.pendingCheques)} בצ׳ק דחוי
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       {!r.case.fee ? (
                         <span className="text-muted">—</span>

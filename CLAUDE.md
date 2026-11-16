@@ -192,6 +192,12 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   before installments existed use `baseAmount`/`finalAmount`. The billing tab lists each case's installments and what is due now.
   There are NO invoices any more (removed at the user's request): the billing tab, dashboard cards, alerts and the clients tab's
   "סה"כ חויב" all derive from the cases' fees. Employees' cases are loaded with `fee: null` / `feeNote: ""` (`loadDashboardData`).
+- A receipt (`fee.payments`, fee page "תקבולים") records its method (`paymentMethods`: העברה בנקאית, צ׳ק, צ׳ק דחוי, מזומן, כרטיס אשראי;
+  older receipts have none) and, for a cheque, its number. A post-dated cheque (צ׳ק דחוי, user's request) must have its due date
+  (`chequeDate`). It counts as received (the installment it pays is not billed again), but until its date it is shown apart:
+  "ממתין לפירעון" on the receipt, "מתוכם ... בצ׳קים דחויים" on the fee page, the billing tab's paid column and its "התקבל" card
+  (`pendingCheques`). Alerts remind to deposit it from 3 days before its date to a week after (`deriveAlerts`). A bounced cheque is
+  handled by deleting the receipt.
 - Case/quote numbers: `TA-100/26` and `Q-100/26`, atomic per-year counter starting at 100 (`src/lib/case-number.ts`); when the
   organization has no cases (or no quotes) left, that counter starts over at 100, so test data can be deleted and numbering begins clean.
 - Public registration is CLOSED (the `/register` page and `/api/register` were removed at the user's request): accounts are

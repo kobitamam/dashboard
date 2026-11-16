@@ -118,10 +118,18 @@ export type Attachment = {
 // Where an in-app upload lands: the signed quote, kept in the partners-only quotes folder.
 export type UploadTarget = { kind: "quote"; quoteId: string };
 
+// How a receipt was paid. A post-dated cheque (צ׳ק דחוי) also carries the day it can be cashed.
+export const paymentMethods = ["העברה בנקאית", "צ׳ק", "צ׳ק דחוי", "מזומן", "כרטיס אשראי"] as const;
+export type PaymentMethod = (typeof paymentMethods)[number];
+export const POST_DATED_CHEQUE: PaymentMethod = "צ׳ק דחוי";
+
 export type FeePayment = {
   amount: number;
-  date: string;
+  date: string; // when it was received
   note: string;
+  method: PaymentMethod | null; // null for receipts recorded before the method was asked
+  chequeDate: string | null; // a post-dated cheque's due date (פירעון)
+  chequeNumber: string;
 };
 
 // The fee is collected in two stages: stage 1 (baseAmount) when the case is
