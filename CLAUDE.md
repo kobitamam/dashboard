@@ -53,6 +53,12 @@ create. All Graph code lives in `src/lib/onedrive.ts`; tokens (encrypted at rest
    table (`bettermentTable`), and the typed figures are kept on the case (`bettermentStatementInput`) to prefill the next time.
    The example's table was an EMF picture of an Excel range; its numbers matched our formula (fee = round(saving*%) - offset, *1.18).
 
+Azure: the app registration "TA-Estate Dashboard" (Default Directory, all Microsoft account users) is all the app uses from Azure;
+the Azure subscription itself holds NO resources (the user checked "All resources": 0 of 0), so the free-credit expiry email
+("data will be deleted on December 19, 2026") does not affect the app and no upgrade is needed. Its one client secret, "TA-Estate prod"
+(the Vercel env var `MICROSOFT_CLIENT_SECRET`), EXPIRES ON 14 OCTOBER 2028: before then create a new secret (Certificates & secrets ->
+New client secret), put its Value in Vercel's `MICROSOFT_CLIENT_SECRET` (Production), redeploy, then delete the old secret.
+
 The OneDrive connection lives in its own tab, `/dashboard/onedrive`. It is ONE connection per organization (the office's own OneDrive),
 so only a partner can connect/disconnect it (page, `disconnectOneDrive`, and the callback all check the role): an employee connecting
 would silently replace the office's account with their own. Everyone sees its status and the open-folder setup. The authorize URL
