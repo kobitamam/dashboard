@@ -26,6 +26,7 @@ export function deriveAlerts(
     if (balanceDue <= 0) continue;
     alerts.push({
       id: `case-collect-${item.id}`,
+      caseId: item.id,
       title: "תיק שהושלם ממתין לגבייה",
       description: `תיק ${item.caseNumber} (${item.clientName}) - יתרה לגבייה ${Math.round(balanceDue).toLocaleString("he-IL")} ₪`,
       severity: "בינונית",
@@ -42,6 +43,7 @@ export function deriveAlerts(
       if (days === null || days > DEADLINE_WARNING_DAYS || days < -7) continue;
       alerts.push({
         id: `cheque-${item.id}-${p.chequeDate}-${p.amount}-${p.chequeNumber}`,
+        caseId: item.id,
         title: days > 0 ? "צ׳ק דחוי מגיע לפירעון" : "צ׳ק דחוי להפקדה",
         description: `תיק ${item.caseNumber} (${item.clientName}) - ${Math.round(p.amount).toLocaleString("he-IL")} ₪${
           p.chequeNumber ? `, צ׳ק מס׳ ${p.chequeNumber}` : ""
@@ -60,6 +62,7 @@ export function deriveAlerts(
     if (days !== null && days < 0) {
       alerts.push({
         id: `case-late-${item.id}`,
+        caseId: item.id,
         title: "תיק עבר את מועד ההגשה",
         description: `תיק ${item.caseNumber} (${item.clientName}) היה אמור להיות מוגש לפני ${Math.abs(days)} ימים - נותרו ${100 - item.progress}% להשלמה`,
         severity: "גבוהה",
@@ -68,6 +71,7 @@ export function deriveAlerts(
     } else if (days !== null && days <= DEADLINE_WARNING_DAYS) {
       alerts.push({
         id: `case-due-${item.id}`,
+        caseId: item.id,
         title: "תיק מתקרב לדדליין",
         description: `תיק ${item.caseNumber} (${item.clientName}) להגשה ${days === 0 ? "היום" : `בעוד ${days} ימים`} - נותרו ${100 - item.progress}% להשלמה`,
         severity: days === 0 ? "גבוהה" : "בינונית",
@@ -81,6 +85,7 @@ export function deriveAlerts(
       if (left === null || left > DEADLINE_WARNING_DAYS) continue;
       alerts.push({
         id: `case-${deadline.key}-${item.id}`,
+        caseId: item.id,
         title: left < 0 ? "מועד חוקי בתיק עבר" : "מועד חוקי מתקרב",
         description: `תיק ${item.caseNumber} (${item.clientName}) - ${deadline.label}: ${
           left < 0 ? `עבר לפני ${Math.abs(left)} ימים` : left === 0 ? "היום" : `בעוד ${left} ימים`
@@ -93,6 +98,7 @@ export function deriveAlerts(
     if (item.status === "ממתין למידע") {
       alerts.push({
         id: `case-waiting-${item.id}`,
+        caseId: item.id,
         title: "תיק ממתין למידע",
         description: `תיק ${item.caseNumber} (${item.clientName}) ממתין למסמכים או מידע מהלקוח`,
         severity: "נמוכה",
@@ -106,6 +112,7 @@ export function deriveAlerts(
     if (days === 0) {
       alerts.push({
         id: `event-today-${event.id}`,
+        ...(event.caseId ? { caseId: event.caseId } : {}),
         title: "פגישה היום",
         description: `${event.title}${event.location ? ` · ${event.location}` : ""}`,
         severity: "בינונית",

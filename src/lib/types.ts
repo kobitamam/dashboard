@@ -272,4 +272,5 @@ export type Alert = {
   description: string;
   severity: AlertSeverity;
   category: "תשלום" | "תיק" | "פגישה";
+  caseId?: string; // the case it is about, shown with the case's summary on the alerts page
 };

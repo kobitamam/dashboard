@@ -1,3 +1,4 @@
+import CaseSummary from "@/components/CaseSummary";
 import { DataUnavailable, EmptyState } from "@/components/form";
 import { Card, PageHeader, StatusBadge } from "@/components/ui";
 import { deriveAlerts } from "@/lib/alerts";
@@ -14,6 +15,7 @@ export default async function AlertsPage() {
   if (!result.ok) return <DataUnavailable reason={result.reason} />;
   const { cases, events } = result.data;
   const alerts = deriveAlerts({ cases, events });
+  const caseById = new Map(cases.map((c) => [c.id, c]));
 
   return (
     <div>
@@ -34,12 +36,18 @@ export default async function AlertsPage() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-cyan-light text-lg">
                 {categoryIcon[a.category]}
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-foreground">{a.title}</p>
                   <StatusBadge status={a.severity} />
                 </div>
                 <p className="mt-1 max-w-2xl text-sm text-muted">{a.description}</p>
+                {/* The case it is about, as on its folded card in the cases tab (a click opens the case). */}
+                {a.caseId && caseById.get(a.caseId) && (
+                  <div className="mt-2 max-w-md">
+                    <CaseSummary c={caseById.get(a.caseId)!} />
+                  </div>
+                )}
               </div>
             </Card>
           ))}

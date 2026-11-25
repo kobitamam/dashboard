@@ -252,6 +252,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   "▾ הרחב מידע". A search that leaves one case opens it.
   The expanded card shows "נפתח ב-DD/MM/YYYY": `Case.openedAt` = the record's `createdAt` (the moment the quote was approved or the
   case opened by hand), in Israel's day (`formatIsraelFullDate`), so older cases have it too.
+- Alerts about a case carry its `caseId` (`deriveAlerts`); the alerts page shows under each one the case's summary as on its folded
+  card (`CaseSummary`: client, number, address or גוש/חלקה, type), linking to the case (user's request).
 - The case card has no "עדכון" button: its status/stage/partner/employee/date fields save on change (`AutoSaveForm`, native
   "change" event -> `requestSubmit`). The form is keyed by the saved values, because React resets a form after its action and a
   `<select>` ignores a changed `defaultValue` (verified in react-dom), which made a new assignee look unsaved.
