@@ -174,6 +174,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   A fresh container has no `node_modules` (run `npm ci`). If the build fails in next/font ("next/font/google queries have exactly
   one entry" / can't resolve `@vercel/turbopack-next/internal/font/google/font`), it is local, not the code: `rm -r .next` and build
   with `NODE_USE_ENV_PROXY=1 npm run build` (Node's fetch otherwise ignores the sandbox proxy). Vercel builds are unaffected.
+- Next.js was upgraded 16.4.1 -> 16.4.6 (with eslint-config-next) at the user's request: 16.0.0-16.4.4 had moderate advisories
+  (`npm audit --omit=dev`); after the upgrade it reports 0. Upgrade with plain `npm install next@<v> eslint-config-next@<v>`.
 - No live access to the user's Mongo/OneDrive: anything touching them is untested until the user tries it.
 
 ## Data model and permissions
@@ -226,6 +228,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   the case): no deadline (dashboard "התיקים הקרובים לדדליין", late/due alerts, calendar, Outlook), the last installment falls due
   (`feeStageOf` -> "done"), it is listed first on the billing tab with "✓ הגבייה הושלמה". Not for a betterment levy, whose own stages
   ("נשלח חתום, ממתין לדיון"...) go on to a hearing and keep their statutory deadlines; there "נשלח חתום" stays "draft".
+  "In collection" is NOT "collection done" (the user stressed it): collection is done when all receipts are in (the billing row shows
+  "שולם") or a partner clicks "✓ הגבייה הושלמה" (-> "הושלם"); the case is never moved to "הושלם" by itself.
 - **"בגבייה" (in collection)** sits between "נשלחה טיוטה" and "הושלם" (progress 95; a betterment-levy stage of the same name, 90,
   kept in step with the status both ways in `updateCaseProgress`). It means the work was delivered: the LAST installment (and a
   betterment share of the reduction) falls due (`feeStageOf` -> "done", so transaction statements bill it too), the case is listed
