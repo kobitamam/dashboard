@@ -55,7 +55,7 @@ export function buildCalendarItems(
       };
     }),
     ...cases
-      .filter((c) => !isWorkDone(c.status))
+      .filter((c) => !isWorkDone(c))
       .flatMap((c) =>
         caseDeadlines(c).map((d) => ({
           id: `deadline-${c.id}-${d.key}`,

@@ -59,6 +59,7 @@ import {
   caseProgress,
   COLLECTION_STAGE,
   COLLECTION_STATUS,
+  isInCollection,
   COMPLETED_STAGE,
   caseStatuses,
   caseTypes,
@@ -424,7 +425,7 @@ export async function updateCaseProgress(id: string, form: FormData) {
 export async function completeCollection(id: string) {
   const ownerId = await requirePartnerId();
   const caseDoc = await casesRepo.get(ownerId, id);
-  if (!caseDoc || caseDoc.status !== COLLECTION_STATUS) return;
+  if (!caseDoc || !isInCollection(caseDoc)) return;
   const isBettermentLevy = caseDoc.type === BETTERMENT_LEVY;
   const stage = isBettermentLevy ? COMPLETED_STAGE : caseDoc.bettermentStage;
   await casesRepo.update(ownerId, id, {

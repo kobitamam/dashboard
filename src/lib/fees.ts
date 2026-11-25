@@ -14,14 +14,15 @@ import {
 /**
  * How far a case has got, for billing: a payment becomes collectable at a stage.
  *  - "open": the case was opened (first installment)
- *  - "draft": the draft (or the signed appraisal) was sent (installments between the first and the last)
- *  - "done": the case went to collection (בגבייה) or was completed (the last installment and the share of the reduction)
+ *  - "draft": the draft was sent (installments between the first and the last)
+ *  - "done": the signed appraisal was sent, or the case went to collection (בגבייה) or was completed (the last
+ *    installment and the share of the reduction) - see isWorkDone
  */
 export type CaseStage = "open" | "draft" | "done";
 
 export function feeStageOf(c: Pick<Case, "status" | "type" | "bettermentStage">): CaseStage {
-  if (isWorkDone(c.status)) return "done";
-  if (c.status === "נשלחה טיוטה" || c.status === "נשלח חתום") return "draft";
+  if (isWorkDone(c)) return "done";
+  if (c.status === "נשלחה טיוטה" || c.status === "נשלח חתום") return "draft"; // a betterment levy's "signed" status
   if (c.type === BETTERMENT_LEVY) {
     const stage = c.bettermentStage ?? "";
     if (stage === "הושלם" || stage === COLLECTION_STAGE) return "done";

@@ -221,12 +221,15 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   follows its status (ממתין למידע 10, בתהליך 40, נשלחה טיוטה 70, נשלח חתום 85, בגבייה 95, הושלם 100). It is derived again in `toCase`, so older
   stored values don't matter. A new non-betterment case starts as "ממתין למידע" (`NEW_CASE_STATUS`; the new-case form has no
   status or progress field). The status "דחוף" (urgent, with its red card) was REMOVED at the user's request; a case still stored
-  with it reads as "בתהליך" (`normalizeCaseStatus` in `toCase`). "נשלח חתום" (signed appraisal sent) follows "נשלחה טיוטה" and, like
-  it, makes the middle installments due (`feeStageOf` -> "draft").
+  with it reads as "בתהליך" (`normalizeCaseStatus` in `toCase`). "נשלח חתום" (signed appraisal sent) follows "נשלחה טיוטה".
+  **User's rule: a case whose signed appraisal was sent is FINISHED and in collection** (`isWorkDone(c)` / `isInCollection(c)` take
+  the case): no deadline (dashboard "התיקים הקרובים לדדליין", late/due alerts, calendar, Outlook), the last installment falls due
+  (`feeStageOf` -> "done"), it is listed first on the billing tab with "✓ הגבייה הושלמה". Not for a betterment levy, whose own stages
+  ("נשלח חתום, ממתין לדיון"...) go on to a hearing and keep their statutory deadlines; there "נשלח חתום" stays "draft".
 - **"בגבייה" (in collection)** sits between "נשלחה טיוטה" and "הושלם" (progress 95; a betterment-levy stage of the same name, 90,
   kept in step with the status both ways in `updateCaseProgress`). It means the work was delivered: the LAST installment (and a
   betterment share of the reduction) falls due (`feeStageOf` -> "done", so transaction statements bill it too), the case is listed
-  first on the billing tab with its badge, and deadlines/late alerts stop (`isWorkDone`). The billing tab's "✓ הגבייה הושלמה"
+  first on the billing tab with its badge, and deadlines/late alerts stop (`isWorkDone`; "נשלח חתום" too, see above). The billing tab's "✓ הגבייה הושלמה"
   (`completeCollection`, partners only, confirms and warns about an open balance) moves it to "הושלם". Cases are not moved by payments.
 - Attendance (שעון נוכחות) records real moments, shown in Israel's time (`formatIsraelTime`/`formatIsraelDate`, `toIsraelParts`,
   `fromIsraelParts` in `src/lib/format.ts`); it used the plain formatters, which run in UTC on Vercel, so times showed 2-3 hours early

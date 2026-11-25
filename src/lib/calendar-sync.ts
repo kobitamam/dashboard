@@ -191,7 +191,7 @@ async function runSync(ownerId: string, token: string, knownCalendarId?: string)
   // ---- case deadlines (system -> Outlook only) ----
   const wanted = new Map<string, { event: OutgoingEvent; hash: string }>();
   for (const c of cases) {
-    if (isWorkDone(c.status)) continue;
+    if (isWorkDone(c)) continue;
     for (const d of caseDeadlines(c)) {
       const event: OutgoingEvent = {
         subject: `דדליין: ${d.label}`,

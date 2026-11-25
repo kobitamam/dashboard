@@ -74,7 +74,7 @@ export default async function CaseFeePage({
         <Card className="p-5 lg:col-span-1">
           <h2 className="mb-4 text-lg font-bold">מבנה שכר הטרחה</h2>
           <p className="mb-4 text-xs text-muted">
-            התשלום הראשון נגבה כשנפתח התיק, האחרון כשהתיק עובר לגבייה, ומה שבאמצע כשנשלחה טיוטה.
+            התשלום הראשון נגבה כשנפתח התיק, האחרון כשהתיק נשלח חתום (או עובר לגבייה), ומה שבאמצע כשנשלחה טיוטה.
             {isBettermentLevy && " בהיטל השבחה נוסף גם אחוז מההפחתה, שנגבה כשהתיק עובר לגבייה."}
           </p>
           <form action={setCaseFee.bind(null, c.id)} className="grid grid-cols-1 gap-4">

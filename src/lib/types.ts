@@ -30,8 +30,18 @@ export function normalizeCaseStatus(value: string): CaseStatus {
 // shows on the billing tab (see feeStageOf), until it is marked completed.
 export const COLLECTION_STATUS: CaseStatus = "בגבייה";
 
-/** The appraisal itself is finished (in collection or completed): no more deadlines for it. */
-export const isWorkDone = (status: CaseStatus) => status === "הושלם" || status === COLLECTION_STATUS;
+// The signed appraisal was sent: for the office the work is finished and the case is in collection (user's rule),
+// except in a betterment levy, whose own stages ("נשלח חתום, ממתין לדיון"...) go on to a hearing and keep their deadlines.
+export const SIGNED_STATUS: CaseStatus = "נשלח חתום";
+
+/** The appraisal itself is finished (signed and sent, in collection or completed): no more deadlines for it. */
+export function isWorkDone(c: { status: CaseStatus; type?: string }) {
+  if (c.status === "הושלם" || c.status === COLLECTION_STATUS) return true;
+  return c.status === SIGNED_STATUS && c.type !== BETTERMENT_LEVY;
+}
+
+/** Finished but not yet marked completed: its fee is being collected (listed first on the billing tab). */
+export const isInCollection = (c: { status: CaseStatus; type?: string }) => isWorkDone(c) && c.status !== "הושלם";
 
 // Every case but a betterment levy: the status sets the progress, and a new case starts
 // waiting for information (a betterment-levy case's progress follows its stage instead).

@@ -7,6 +7,7 @@ import { feeStageOf, feeTotals } from "@/lib/fees";
 import { caseDeadlines } from "@/lib/deadlines";
 import { getSessionUser, loadDashboardData } from "@/lib/db/queries";
 import { daysUntil, formatDate, formatMoney, formatTime, isSameDay } from "@/lib/format";
+import { isInCollection, isWorkDone } from "@/lib/types";
 
 export default async function Dashboard() {
   const [user, result] = await Promise.all([getSessionUser(), loadDashboardData()]);
@@ -26,12 +27,14 @@ export default async function Dashboard() {
   const casesToCollect = billing.filter((b) => b.balanceDue > 0).length;
   const activeClients = clients.filter((c) => c.status === "פעיל").length;
   const openCases = cases.filter((c) => c.status !== "הושלם");
-  const inCollection = openCases.filter((c) => c.status === "בגבייה");
+  const inCollection = openCases.filter(isInCollection);
 
   const today = new Date();
   const todayEvents = events.filter((e) => isSameDay(e.start, today));
   // Each open case with its nearest deadline (a betterment-levy case may have three).
+  // A case whose signed appraisal was sent is finished: it has no deadline left.
   const nextDeadlines = openCases
+    .filter((c) => !isWorkDone(c))
     .flatMap((c) => {
       const [nearest] = caseDeadlines(c);
       return nearest ? [{ case: c, deadline: nearest }] : [];

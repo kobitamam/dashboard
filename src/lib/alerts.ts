@@ -54,7 +54,7 @@ export function deriveAlerts(
 
   for (const item of cases) {
     // A case in collection was delivered, so its deadlines no longer apply.
-    if (isWorkDone(item.status)) continue;
+    if (isWorkDone(item)) continue;
     const days = daysUntil(item.dueDate, today);
 
     if (days !== null && days < 0) {

@@ -14,7 +14,7 @@ import { isOneDriveConfigured } from "@/lib/onedrive";
 import { feeStageOf, feeTotals, pendingCheques } from "@/lib/fees";
 import { emptyUnit } from "@/lib/betterment-statement";
 import { formatMoney } from "@/lib/format";
-import { BETTERMENT_LEVY, COLLECTION_STATUS, type Case } from "@/lib/types";
+import { BETTERMENT_LEVY, isInCollection, type Case } from "@/lib/types";
 import { removeVat } from "@/lib/vat";
 
 // The closing statement's form starts from the last one typed for the case, or else from the case
@@ -55,7 +55,7 @@ export default async function BillingPage() {
   const rows = cases.map((c) => ({
     case: c,
     completed: c.status === "הושלם",
-    inCollection: c.status === COLLECTION_STATUS,
+    inCollection: isInCollection(c), // signed and sent, or בגבייה
     // Post-dated cheques received but not yet due (already counted in "paid").
     pendingCheques: pendingCheques(c.fee).reduce((sum, p) => sum + p.amount, 0),
     ...feeTotals(c.fee, feeStageOf(c)),
@@ -109,7 +109,7 @@ export default async function BillingPage() {
               )}
             </h2>
             <p className="text-xs text-muted">
-              תשלום ראשון - כשנפתח תיק · באמצע - כשנשלחה טיוטה · אחרון - כשהתיק עובר ל״בגבייה״ במעקב התיקים
+              תשלום ראשון - כשנפתח תיק · באמצע - כשנשלחה טיוטה · אחרון - כשהתיק נשלח חתום (או עובר ל״בגבייה״)
             </p>
           </div>
           {billing.length > 0 && (
