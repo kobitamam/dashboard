@@ -254,6 +254,8 @@ for the signed quote. (Older layout `<case>/מסמכים` is gone; the only case
   case opened by hand), in Israel's day (`formatIsraelFullDate`), so older cases have it too.
 - Alerts about a case carry its `caseId` (`deriveAlerts`); the alerts page shows under each one the case's summary as on its folded
   card (`CaseSummary`: client, number, address or גוש/חלקה, type), linking to the case (user's request).
+  Beside that box the alert's line drops its "תיק <number> (<client>)" opening (`caseNote`, user's request: no details twice);
+  the dashboard's alerts widget, which has no box, keeps the full `description`.
 - The case card has no "עדכון" button: its status/stage/partner/employee/date fields save on change (`AutoSaveForm`, native
   "change" event -> `requestSubmit`). The form is keyed by the saved values, because React resets a form after its action and a
   `<select>` ignores a changed `defaultValue` (verified in react-dom), which made a new assignee look unsaved.

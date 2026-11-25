@@ -121,6 +121,16 @@ export function deriveAlerts(
     }
   }
 
+  // Next to the case's own summary (the alerts page), the description need not name the case again.
+  const caseById = new Map(cases.map((c) => [c.id, c]));
+  for (const alert of alerts) {
+    const c = alert.caseId ? caseById.get(alert.caseId) : undefined;
+    const opening = c ? `תיק ${c.caseNumber} (${c.clientName})` : "";
+    if (opening && alert.description.startsWith(opening)) {
+      alert.caseNote = alert.description.slice(opening.length).replace(/^\s*-\s*/, "").trim();
+    }
+  }
+
   const order = { גבוהה: 0, בינונית: 1, נמוכה: 2 } as const;
   return alerts.sort((a, b) => order[a.severity] - order[b.severity]);
 }

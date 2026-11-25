@@ -273,4 +273,5 @@ export type Alert = {
   severity: AlertSeverity;
   category: "תשלום" | "תיק" | "פגישה";
   caseId?: string; // the case it is about, shown with the case's summary on the alerts page
+  caseNote?: string; // the description without its "תיק <number> (<client>)" opening, for beside that summary
 };

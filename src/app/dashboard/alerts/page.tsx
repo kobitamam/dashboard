@@ -41,7 +41,10 @@ export default async function AlertsPage() {
                   <p className="text-sm font-semibold text-foreground">{a.title}</p>
                   <StatusBadge status={a.severity} />
                 </div>
-                <p className="mt-1 max-w-2xl text-sm text-muted">{a.description}</p>
+                {/* With the case's box below, the line says only what the alert is about. */}
+                <p className="mt-1 max-w-2xl text-sm text-muted">
+                  {a.caseId && caseById.get(a.caseId) ? (a.caseNote ?? a.description) : a.description}
+                </p>
                 {/* The case it is about, as on its folded card in the cases tab (a click opens the case). */}
                 {a.caseId && caseById.get(a.caseId) && (
                   <div className="mt-2 max-w-md">
